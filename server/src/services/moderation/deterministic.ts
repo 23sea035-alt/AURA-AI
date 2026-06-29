@@ -31,6 +31,15 @@ export interface L0Result {
   matchedPattern?: string;
 }
 
+// Shared crisis detector (single source of truth for "is this crisis content?"). Used by L0 and by
+// the memory-consolidation safety-skip so the two never diverge — consolidation must never be
+// NARROWER than L0. Intentionally broad (includes low-precision patterns) since the only effect
+// for the consolidation caller is skipping a memory write, which is the safe direction.
+export function isCrisisContent(text: string): boolean {
+  const normalized = normalizeEncoding(text);
+  return CRISIS_PATTERNS.some((cp) => cp.pattern.test(text) || cp.pattern.test(normalized));
+}
+
 export function runL0(text: string): L0Result {
   const normalized = normalizeEncoding(text);
 

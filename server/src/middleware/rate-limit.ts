@@ -1,6 +1,8 @@
 import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import type { Request } from "express";
 import type { AuthRequest } from "../services/auth/clerk.middleware.js";
+import { PgRateLimitStore } from "./pg-rate-limit-store.js";
+import { incrementMetric } from "../lib/metrics.js";
 
 const PER_MINUTE_WINDOW_MS = 60 * 1000;
 const PER_MINUTE_MAX = 30;
@@ -19,13 +21,18 @@ function keyGenerator(req: Request): string {
   return (req as AuthRequest).userId ?? ipKey(req);
 }
 
+const API_WINDOW_MS = 15 * 60 * 1000;
+const API_MAX = 300;
+
 export const chatPerMinuteLimiter = rateLimit({
   windowMs: PER_MINUTE_WINDOW_MS,
   max: PER_MINUTE_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator,
+  store: new PgRateLimitStore("chat-min"),
   handler: (_req, res) => {
+    incrementMetric("rate_limit.429.chat_per_minute");
     res.status(429).json({ error: "Too many requests — please slow down.", code: "RATE_LIMITED" });
   },
 });
@@ -36,7 +43,9 @@ export const chatDailyHardCap = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator,
+  store: new PgRateLimitStore("chat-day"),
   handler: (_req, res) => {
+    incrementMetric("rate_limit.429.chat_daily_cap");
     res.status(429).json({ error: "Daily message cap reached. Please try again tomorrow.", code: "DAILY_CAP" });
   },
 });
@@ -48,7 +57,9 @@ export const authBruteForceLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: new PgRateLimitStore("auth-bf"),
   handler: (_req, res) => {
+    incrementMetric("rate_limit.429.auth_brute_force");
     res.status(429).json({ error: "Too many attempts — please try again later.", code: "RATE_LIMITED" });
   },
 });
@@ -60,6 +71,7 @@ export const webhookLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: new PgRateLimitStore("webhook"),
   handler: (_req, res) => {
     res.status(429).json({ error: "Too many requests.", code: "RATE_LIMITED" });
   },
@@ -68,15 +80,17 @@ export const webhookLimiter = rateLimit({
 // Baseline per-IP limiter for all /api traffic — restores the global limiter that was
 // dropped during the refactor.
 export const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 300,
+  windowMs: API_WINDOW_MS,
+  max: API_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: ipKey,
+  store: new PgRateLimitStore("api"),
   // Webhooks (from provider IPs, with their own limiter + signature checks) are exempt so a
   // provider's bursts can't collectively throttle real users through the per-IP limiter.
   skip: (req: Request) => req.path.startsWith("/webhooks") || req.path.startsWith("/payments/webhook"),
   handler: (_req, res) => {
+    incrementMetric("rate_limit.429.api");
     res.status(429).json({ error: "Too many requests — please slow down.", code: "RATE_LIMITED" });
   },
 });

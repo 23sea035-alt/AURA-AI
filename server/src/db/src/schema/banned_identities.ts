@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./users.js";
 
 export const bannedIdentitiesTable = pgTable("banned_identities", {
@@ -10,7 +10,9 @@ export const bannedIdentitiesTable = pgTable("banned_identities", {
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
-  identifierTypeHashUnique: { name: "uq_identifier_type_hash", columns: [table.identifierType, table.identifierHash] },
+  // Proper Drizzle builder (was a plain object literal → no constraint was ever generated, so
+  // ban-evasion rows could duplicate). The DB constraint is created by migration 0012.
+  identifierTypeHashUnique: unique("uq_identifier_type_hash").on(table.identifierType, table.identifierHash),
 }));
 
 export type BannedIdentity = typeof bannedIdentitiesTable.$inferSelect;

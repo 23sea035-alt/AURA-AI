@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { sendError } from "../lib/response.js";
 import { logger } from "../lib/logger.js";
+import { captureException } from "../lib/observability.js";
 
 export class AppError extends Error {
   constructor(
@@ -20,5 +21,6 @@ export function errorHandler(err: Error, _req: Request, res: Response, _next: Ne
   }
 
   logger.error({ err }, "Unhandled error");
+  captureException(err);
   sendError(res, "Internal server error", 500);
 }

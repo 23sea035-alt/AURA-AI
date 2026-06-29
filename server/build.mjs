@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, cp, readdir } from "node:fs/promises";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -123,6 +123,19 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  // Drizzle migrations are plain .sql files esbuild does not bundle. The runtime resolves
+  // the migrations folder relative to the entry file (./db/migrations), so copy them next to
+  // dist/index.mjs. Without this, migrate-on-boot points at a non-existent folder.
+  const migrationsSrc = path.resolve(artifactDir, "src/db/migrations");
+  const migrationsDest = path.resolve(distDir, "db/migrations");
+  await cp(migrationsSrc, migrationsDest, { recursive: true });
+  const copied = await readdir(migrationsDest);
+  const sqlCount = copied.filter((f) => f.endsWith(".sql")).length;
+  if (sqlCount === 0) {
+    throw new Error(`build: copied 0 .sql migrations into ${migrationsDest} — refusing to ship a bundle that cannot migrate`);
+  }
+  console.log(`build: copied ${sqlCount} migration(s) into dist/db/migrations`);
 }
 
 buildAll().catch((err) => {

@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { eq, and, desc } from "drizzle-orm";
-import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable } from "../db/src/index.js";
+import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable, subscriptionsTable } from "../db/src/index.js";
 import { requireAuth, requireAdmin, AuthRequest } from "../middleware/auth.js";
 import { authBruteForceLimiter } from "../middleware/rate-limit.js";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
 import { hashIdentifier } from "../lib/crypto.js";
+import { getMetrics } from "../lib/metrics.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 import { ReportMessageSchema, BanUserSchema, UnbanUserSchema } from "@aura/shared";
 
@@ -74,8 +75,21 @@ router.get("/account/export", requireAuth, async (req: AuthRequest, res) => {
     const allCompanions = await db.select().from(companionsTable).where(eq(companionsTable.userId, userId));
     const allMessages = await db.select().from(messagesTable).where(eq(messagesTable.userId, userId));
     const allMemories = await db.select().from(memoriesTable).where(eq(memoriesTable.userId, userId));
+    // GDPR/CCPA right-to-know covers ALL personal data: include subscriptions, device tokens, and
+    // the user-associated safety/moderation signals (de-identified content is the user's data too).
+    const allSubscriptions = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+    const allDeviceTokens = await db.select().from(deviceTokensTable).where(eq(deviceTokensTable.userId, userId));
+    const allSafetyEvents = await db.select().from(safetyEventsTable).where(eq(safetyEventsTable.userId, userId));
 
-    sendSuccess(res, { user, companions: allCompanions, messages: allMessages, memories: allMemories });
+    sendSuccess(res, {
+      user,
+      companions: allCompanions,
+      messages: allMessages,
+      memories: allMemories,
+      subscriptions: allSubscriptions,
+      deviceTokens: allDeviceTokens,
+      safetyEvents: allSafetyEvents,
+    });
   } catch (err) {
     logger.error({ err }, "Data export failed");
     sendError(res, "Data export failed", 500);
@@ -102,8 +116,10 @@ router.post("/messages/:id/report", requireAuth, validate(ReportMessageSchema), 
       messageId,
       eventType: "user_reported",
       source: "user_report",
+      // Non-info so user reports surface in the review queue rather than sitting invisible (Apple 1.2).
+      severity: "warning",
       detail: reason,
-      flaggedContent: detail ?? null,
+      flaggedContent: (detail ?? "").slice(0, 500) || null,
     });
 
     logger.info({ userId, messageId }, "Message reported");
@@ -124,6 +140,12 @@ router.get("/admin/safety-events", requireAuth, requireAdmin, async (req: AuthRe
     logger.error({ err }, "Failed to fetch safety events");
     sendError(res, "Failed to fetch safety events", 500);
   }
+});
+
+// GET /api/admin/metrics — Operational counters (safety events, rate-limit rejections) — admin only.
+// Per-instance, in-memory; intended for a quick health read or to be scraped/aggregated.
+router.get("/admin/metrics", requireAuth, requireAdmin, async (_req: AuthRequest, res) => {
+  sendSuccess(res, getMetrics());
 });
 
 // POST /api/admin/ban — Ban a user by email (admin only)

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { GENERATION_TEMPERATURE, GENERATION_MAX_TOKENS } from "@aura/shared";
 import type { LLMProvider } from "./index.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -15,8 +16,8 @@ export function createGroqProvider(apiKey: string, model = DEFAULT_MODEL): LLMPr
           { role: "system", content: systemPrompt },
           ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
         ],
-        temperature: 0.8,
-        max_tokens: 512,
+        temperature: GENERATION_TEMPERATURE,
+        max_tokens: GENERATION_MAX_TOKENS,
       });
 
       const content = completion.choices[0]?.message?.content?.trim() ?? "";

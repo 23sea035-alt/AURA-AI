@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { getLLMProvider } from "../llm/index.js";
 import { logger } from "../../lib/logger.js";
 import { extractKeywords } from "./keywords.js";
+import { isCrisisContent } from "../moderation/deterministic.js";
 import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
 
 interface ConsolidationDecision {
@@ -14,7 +15,9 @@ interface ConsolidationDecision {
   rationale: string;
 }
 
-const CRISIS_PATTERNS = /\b(kill myself|want to die|end my life|suicide|self-harm|self harm|can'?t keep going|don'?t think I can|ending it all)\b/i;
+// Extra crisis phrases beyond the shared L0 detector. The skip fires on isCrisisContent() (the
+// single L0 source of truth — so consolidation is never narrower than L0) OR these broader phrases.
+const EXTRA_CRISIS_PATTERNS = /\b(can'?t keep going|don'?t think I can|ending it all)\b/i;
 const MAX_CONSOLIDATION_ATTEMPTS = 3;
 
 export async function consolidateMemory(jobId: string): Promise<void> {
@@ -27,8 +30,8 @@ export async function consolidateMemory(jobId: string): Promise<void> {
   // Accept jobs claimed by the worker (status 'processing') as well as raw 'pending'.
   if (!job || (job.status !== "pending" && job.status !== "processing")) return;
 
-  // Safety pre-check: skip crisis/self-harm content
-  if (CRISIS_PATTERNS.test(job.rawContent)) {
+  // Safety pre-check: skip crisis/self-harm content (shared L0 detector + broader extras).
+  if (isCrisisContent(job.rawContent) || EXTRA_CRISIS_PATTERNS.test(job.rawContent)) {
     await db.update(memoryJobsTable)
       .set({ status: "processed", safetySkipped: true, result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
       .where(eq(memoryJobsTable.id, jobId));
@@ -48,9 +51,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
       ? `\nExisting memories:\n${existingMemories.map(m => `- [${m.id}] (${m.category}, ${m.importance}) ${m.content}`).join("\n")}`
       : "\nNo existing memories.";
 
+    // Datamark the raw user message: it is untrusted data to extract facts from, never instructions
+    // to follow (it flows into a future system prompt via stored memories — an injection surface).
     const response = await llm.generateReply({
       systemPrompt: CONSOLIDATION_PROMPT,
-      messages: [{ role: "user", content: `Raw message: "${job.rawContent}"${existingContext}` }],
+      messages: [{ role: "user", content: `<<RAW_MESSAGE data-only>>\n${job.rawContent}\n<</RAW_MESSAGE>>${existingContext}` }],
     });
 
     let decisions: ConsolidationDecision[];
@@ -76,6 +81,8 @@ export async function consolidateMemory(jobId: string): Promise<void> {
           keywords: extractKeywords(decision.content),
         });
       } else if (decision.action === "UPDATE" && decision.memoryId) {
+        // Scope the write by the job's owner as well as the id: never trust an LLM-returned id
+        // alone (defense-in-depth against a hallucinated/injected foreign memory id).
         await db.update(memoriesTable)
           .set({
             content: decision.content.slice(0, 200),
@@ -84,7 +91,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
             keywords: extractKeywords(decision.content),
             updatedAt: new Date(),
           })
-          .where(eq(memoriesTable.id, decision.memoryId));
+          .where(and(
+            eq(memoriesTable.id, decision.memoryId),
+            eq(memoriesTable.userId, job.userId),
+            eq(memoriesTable.companionId, job.companionId),
+          ));
       }
     }
 

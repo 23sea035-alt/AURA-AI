@@ -9,19 +9,12 @@ import { logger } from "./lib/logger.js";
 import { getEnv } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { apiLimiter } from "./middleware/rate-limit.js";
+import { initObservability } from "./lib/observability.js";
 
 const env = getEnv();
 
-// ── Sentry ──────────────────────────────────────────────────────────────
-if (env.SENTRY_DSN) {
-  const Sentry = await import("@sentry/node");
-  Sentry.init({
-    dsn: env.SENTRY_DSN,
-    environment: env.NODE_ENV,
-    tracesSampleRate: env.NODE_ENV === "production" ? 0.1 : 0,
-  });
-  logger.info("Sentry initialized");
-}
+// ── Error tracking (Sentry, optional) ───────────────────────────────────
+await initObservability(env.SENTRY_DSN, env.NODE_ENV);
 
 const app: Express = express();
 

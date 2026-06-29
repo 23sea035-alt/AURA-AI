@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, unique } from "drizzle-orm/pg-core";
 import { usersTable } from "./users.js";
 import { companionsTable } from "./companions.js";
 
@@ -13,7 +13,9 @@ export const messagesTable = pgTable("messages", {
   flagged: boolean("flagged").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
-  turnIdRoleUnique: { name: "uq_turn_id_role", columns: [table.turnId, table.role] },
+  // Proper Drizzle builder (was a plain object literal that drizzle-kit ignored). The DB
+  // constraint is created by migration 0002; this keeps schema generation in sync.
+  turnIdRoleUnique: unique("uq_turn_id_role").on(table.turnId, table.role),
 }));
 
 export type Message = typeof messagesTable.$inferSelect;

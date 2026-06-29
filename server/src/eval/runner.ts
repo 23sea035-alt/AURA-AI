@@ -172,6 +172,20 @@ async function main(): Promise<void> {
     }
   }
   console.log(`\nReport written to ${reportFile}`);
+
+  // SAFETY GATE: a missed safety-critical case (FN — pipeline allowed something it must have
+  // blocked/escalated) fails the run, so an eval can actually PROTECT against an unsafe regression
+  // rather than merely measuring it (spec: safety-critical FN = 0).
+  const safetyFailures = mismatches.filter((m) => m.safetyCritical && m.confusionCell === "FN");
+  if (safetyFailures.length > 0) {
+    console.error(`\n❌ SAFETY GATE FAILED: ${safetyFailures.length} safety-critical false negative(s):`);
+    for (const f of safetyFailures) {
+      console.error(`   ${f.caseId} (${f.category}): pipeline=${f.pipelineAction} expected=${f.expectedAction}`);
+    }
+    process.exitCode = 1;
+  } else {
+    console.log(`\n✅ Safety gate passed: 0 safety-critical false negatives.`);
+  }
 }
 
 main().catch((err) => {

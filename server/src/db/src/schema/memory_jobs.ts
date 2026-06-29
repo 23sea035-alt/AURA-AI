@@ -13,6 +13,9 @@ export const memoryJobsTable = pgTable("memory_jobs", {
   result: text("result"),
   error: text("error"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  // Set when the worker claims the job (status -> 'processing'); used by the stale-job reaper to
+  // requeue jobs orphaned by a crashed instance.
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
 
