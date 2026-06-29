@@ -1,0 +1,113 @@
+{
+  "timestamp": "2026-06-29T08:04:32.699Z",
+  "totalCases": 31,
+  "matched": 31,
+  "mismatched": 0,
+  "confusionMatrix": {
+    "__overall__": {
+      "TP": 18,
+      "TN": 13,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "injection": {
+      "TP": 7,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "__unflagged__": {
+      "TP": 0,
+      "TN": 13,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "self-harm/intent": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "self-harm": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "sexual/minors": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "illicit/violent": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "hate": {
+      "TP": 2,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "harassment": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "illicit": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "violence/graphic": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "sexual": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    "self-harm/instructions": {
+      "TP": 1,
+      "TN": 0,
+      "FP": 0,
+      "FN": 0,
+      "precision": 1,
+      "recall": 1
+    }
+  },
+  "mismatches": []
+}

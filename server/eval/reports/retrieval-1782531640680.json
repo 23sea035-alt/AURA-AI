@@ -1,0 +1,118 @@
+{
+  "timestamp": "2026-06-27T03:40:40.678Z",
+  "totalCases": 9,
+  "matched": 9,
+  "mismatched": 0,
+  "results": [
+    {
+      "caseId": "ret-001",
+      "description": "lexical-overlap beats importance-only — a relevant low-importance fact outranks an irrelevant high-importance one (floor is on the Jaccard component, not the blended score)",
+      "returnedIds": [
+        "m-hiking"
+      ],
+      "expectedIds": [
+        "m-hiking"
+      ],
+      "match": true,
+      "note": "queryTokens ~ [good, hiking, trails]. m-hiking Jaccard = 2/4 = 0.5 (∩{hiking,trails}, ∪{good,hiking,trails,mountains}) → eligible. m-work Jaccard = 0 and importance 0.7 < 0.85 → NOT eligible. The higher-importance fact is excluded; relevance wins."
+    },
+    {
+      "caseId": "ret-002",
+      "description": "recency boosts an equally-relevant fresher memory — usage-recency (lastRecalledAt) breaks the tie between two identically-relevant, identically-important facts",
+      "returnedIds": [
+        "m-paris-fresh",
+        "m-paris-stale"
+      ],
+      "expectedIds": [
+        "m-paris-fresh",
+        "m-paris-stale"
+      ],
+      "match": true,
+      "note": "queryTokens ~ [paris, trip] → both Jaccard = 1.0 and importance 0.6; only recency differs (~2d vs ~92d), so the fresher ranks first regardless of tokenizer. Asserts the recency term is applied at all (net-new vs the prototype)."
+    },
+    {
+      "caseId": "ret-003",
+      "description": "identity surfaces on weak overlap (bypass) — importance >= 0.85 grants ELIGIBILITY (not a reserved slot); ranking still decides the order",
+      "returnedIds": [
+        "m-cooking",
+        "m-name"
+      ],
+      "expectedIds": [
+        "m-cooking",
+        "m-name"
+      ],
+      "match": true,
+      "note": "queryTokens ~ [cook, dinner, tonight]. m-cooking Jaccard > 0.08 → eligible by relevance. m-name Jaccard = 0 but importance 0.9 >= 0.85 → eligible by BYPASS. m-cooking outranks m-name on score, so identity rides along but does NOT crowd out the relevant fact (§3.3 identity-crowding note)."
+    },
+    {
+      "caseId": "ret-004",
+      "description": "cold start → empty (no stored memories, no crash)",
+      "returnedIds": [],
+      "expectedIds": [],
+      "match": true,
+      "note": "Empty store returns empty, gracefully."
+    },
+    {
+      "caseId": "ret-005",
+      "description": "all-irrelevant → empty (floor) — a high-importance-but-irrelevant fact cannot sneak in on importance alone because the floor is on Jaccard",
+      "returnedIds": [],
+      "expectedIds": [],
+      "match": true,
+      "note": "queryTokens ~ [fix, leaky, kitchen, faucet]. Zero overlap with either; both importance < 0.85 → neither eligible. Floor holds; nothing irrelevant surfaces."
+    },
+    {
+      "caseId": "ret-006",
+      "description": ">N relevant → exactly N — 7 eligible memories, retrieval returns exactly the top-5 (MEMORY_RETRIEVAL_TOP_N)",
+      "returnedIds": [
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5"
+      ],
+      "expectedIds": [
+        "m1",
+        "m2",
+        "m3",
+        "m4",
+        "m5"
+      ],
+      "match": true,
+      "note": "queryTokens ~ [recommend, books, read]. All 7 share Jaccard and importance; only recency differs, so score strictly decreases m1→m7. Top-5 = the 5 most-recently-recalled. Asserts the cap and the recency ordering together."
+    },
+    {
+      "caseId": "ret-007",
+      "description": "ties broken deterministically — equal score and equal importance fall back to id ascending (required for testability)",
+      "returnedIds": [
+        "m-0005",
+        "m-0012"
+      ],
+      "expectedIds": [
+        "m-0005",
+        "m-0012"
+      ],
+      "match": true,
+      "note": "Identical keywords, importance, and recency → identical score. Tie-break (score → importance → id) resolves to id ascending: m-0005 before m-0012. Stable/deterministic ordering."
+    },
+    {
+      "caseId": "ret-008",
+      "description": "malformed legacy keywords → score 0, no throw — a memory with a null/empty keyword set scores 0 and is simply excluded, while a valid sibling still surfaces",
+      "returnedIds": [
+        "m-valid"
+      ],
+      "expectedIds": [
+        "m-valid"
+      ],
+      "match": true,
+      "note": "m-broken keywords = null → Jaccard treated as 0, importance 0.4 < 0.85 → excluded, NO throw. m-valid Jaccard > 0.08 → eligible. Asserts graceful handling of malformed legacy data."
+    },
+    {
+      "caseId": "ret-009",
+      "description": "semantic-only miss → empty gracefully (the accepted v1.0 keyword-Jaccard limitation, §3.5) — asserts it MISSES cleanly, not that it returns something wrong",
+      "returnedIds": [],
+      "expectedIds": [],
+      "match": true,
+      "note": "queryTokens ~ [puppy]. No lexical overlap with [dog, rex] (Jaccard 0), importance 0.6 < 0.85 → not eligible → empty. The known semantic gap (embeddings deferred); the eval asserts it returns nothing, never a crash or a wrong hit."
+    }
+  ]
+}
