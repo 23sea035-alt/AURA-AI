@@ -34,8 +34,8 @@ async function deleteWhere(
     throw new Error(`Retention [${context}]: WHERE clause is empty — refusing (would delete all rows)`);
   }
   if (dryRun) {
-    const rows = await db.select({ id: (table as any).id }).from(table).where(where).limit(100);
-    logger.warn({ context, count: rows.length, sample: rows.map((r: any) => r.id) }, "DRY RUN — would delete rows");
+    const rows = await db.select({ id: table.id }).from(table).where(where).limit(100);
+    logger.warn({ context, count: rows.length, sample: rows.map((r: { id: string }) => r.id) }, "DRY RUN — would delete rows");
     return rows.length;
   }
   const result = await db.delete(table).where(where);
