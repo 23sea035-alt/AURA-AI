@@ -8,6 +8,7 @@ import router from "./routes";
 import { logger } from "./lib/logger.js";
 import { getEnv } from "./config/env.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { globalPerMinuteLimiter } from "./middleware/rate-limit.js";
 
 const env = getEnv();
 
@@ -57,6 +58,9 @@ app.use(
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 
+// Global anti-abuse limiter (60 req/min by IP, excludes webhooks)
+app.use("/api", globalPerMinuteLimiter);
+
 app.use("/api", router);
 
 // Create HTTP server for WebSocket support
@@ -66,10 +70,28 @@ const server = http.createServer(app);
 try {
   const { getEnv } = await import("./config/env.js");
   const { setLLMProvider } = await import("./services/llm/index.js");
-  const { createGroqProvider } = await import("./services/llm/groq.js");
-  const groqProvider = createGroqProvider(getEnv().GROQ_API_KEY);
-  setLLMProvider(groqProvider);
-  logger.info("Groq LLM provider initialized");
+  const env = getEnv();
+  if (env.GROQ_API_KEY) {
+    const { createGroqProvider } = await import("./services/llm/groq.js");
+    const provider = createGroqProvider(env.GROQ_API_KEY);
+    setLLMProvider(provider);
+    logger.info("Groq LLM provider initialized");
+  } else if (env.OPENROUTER_API_KEY) {
+    const { createOpenRouterProvider } = await import("./services/llm/openrouter.js");
+    const provider = createOpenRouterProvider(env.OPENROUTER_API_KEY);
+    setLLMProvider(provider);
+    logger.info("OpenRouter LLM provider initialized");
+  } else if (env.ANTHROPIC_API_KEY) {
+    const { createAnthropicProvider } = await import("./services/llm/anthropic.js");
+    const provider = createAnthropicProvider(env.ANTHROPIC_API_KEY);
+    setLLMProvider(provider);
+    logger.info("Anthropic LLM provider initialized");
+  } else {
+    const { createNvidiaProvider } = await import("./services/llm/nvidia.js");
+    const nvidiaProvider = createNvidiaProvider(env.NVIDIA_API_KEY);
+    setLLMProvider(nvidiaProvider);
+    logger.info("NVIDIA LLM provider initialized");
+  }
 } catch (err) {
   logger.warn({ err }, "LLM provider failed to initialize — chat will use fallback responses");
 }
