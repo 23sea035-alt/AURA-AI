@@ -86,8 +86,8 @@ pnpm --filter @aura/server run dev
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/api/auth/seed-companions` | Create default companions post-registration |
-| PATCH | `/api/auth/profile` | Update profile (DOB, name, etc.) |
 | GET | `/api/auth/me` | Get current user profile |
+| PUT | `/api/auth/me` | Update profile (DOB, name, AI disclosure, TOS) |
 
 ### Chat
 | Method | Path | Description |
@@ -123,6 +123,7 @@ pnpm --filter @aura/server run dev
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/admin/safety-events` | Review safety queue |
+| GET | `/api/admin/metrics` | Safety/abuse counters (per-instance, in-memory) |
 | POST | `/api/admin/ban` | Ban user by email |
 | POST | `/api/admin/unban` | Unban user by email |
 
@@ -130,7 +131,7 @@ pnpm --filter @aura/server run dev
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/healthz` | Health check (with DB probe) |
-| POST | `/webhooks/clerk` | Clerk user lifecycle events (svix-signed) |
+| POST | `/api/webhooks/clerk` | Clerk user lifecycle events (svix-signed) |
 
 ## Safety Pipeline
 

@@ -1,8 +1,8 @@
 # Aura AI — Backend Brief & Doc Index (Start Here)
 
-Status (2026-06-27): the v1.0 backend's blocking fixes (Phases A–D) have **landed** — the full suite is green and gated by CI. **The remaining work is the prompt-iteration loop** (run the evals, tune the prompts), **plus enforcing 80% coverage and recording eval verdicts** — see "What's left" below. The per-item history of what landed lives in `planning/backend-fixlist-v1.md`.
+Status (2026-06-29): an independent **production-readiness audit + remediation** has landed and is locked on `main` (commit `25d96c6`): 3 CRITICAL + ~13 HIGH (plus selected MEDIUM/LOW) fixed and verified — **312 tests green**, typecheck clean. The authoritative current behavior of every backend subsystem is **[specs/v1-architecture.md §0a "As-built"](specs/v1-architecture.md)** (note the **Groq-only LLM-provider lock**). The full findings + remediation log + remaining backlog: **[audit/backend-audit-2026-06.md](audit/backend-audit-2026-06.md)**.
 
-**Authoritative backend status** = `planning/backend-fixlist-v1.md` — reconciled against the code 2026-06-27, with Phases A–D checked off and each item's **Status** line pointing to the resolving file. The old phase tracker (`planning/v1-tasklist.md`) over-claims "done" — trust the fixlist. The pre-audit version of this README is archived at `archive/README.pre-audit-2026-06.md`.
+**Authoritative backend status** = the **audit report** ([audit/backend-audit-2026-06.md](audit/backend-audit-2026-06.md)) for current state, and `planning/backend-fixlist-v1.md` for the Phase A–F history. The old phase tracker (`planning/v1-tasklist.md`) over-claims "done" — trust the audit report. The pre-audit version of this README is archived at `archive/README.pre-audit-2026-06.md`.
 
 ## What Aura AI is
 
@@ -17,6 +17,13 @@ The name stays **Aura** (per coworker decision 2026-06-24). Five candidates were
 ---
 
 ## What's left — in order
+
+> **2026-06-29 update.** The audit remediation superseded most of the list below. The two items that
+> remain real: **(1) run the live evals against `main`** — they need real `GROQ_API_KEY` +
+> `OPENAI_API_KEY` and **must run on Groq, not NVIDIA** (the coworker's earlier eval reports ran
+> partly on NVIDIA + a placeholder OpenAI key, which taints generation/consolidation results); the
+> `pnpm eval` safety gate now enforces FN=0. **(2) the deferred MEDIUM/LOW items** in the audit
+> report's §8 backlog. The original Phase E/F text below is kept for context.
 
 The blocking fixes (Phases A–D) have landed; their full per-item history with resolving files is in `planning/backend-fixlist-v1.md`. Below is everything that still needs doing — work it top to bottom. IDs reference the fixlist (Pn-n) and testing plan (Tn-n).
 

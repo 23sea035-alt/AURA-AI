@@ -3,7 +3,16 @@
 **Status:** Reconciled against the code 2026-06-27 — **Phases A–D have LANDED** across two fix rounds (coworker's round + a cleanup/hardening round). **Remaining = Phase E (prompt iteration) + the tail of Phase F (coverage → 80%, eval verdicts).**
 **Supersedes:** `planning/v1-tasklist.md` (deprecated, kept for history)
 **Read before building:** `docs/README.md` (the "Running tests & evals" section is the entry point for what's left), then the referenced spec docs.
-**Last updated:** 2026-06-27 (was 2026-06-24; re-encoded UTF-8 + status reconciled)
+**Last updated:** 2026-06-29 (was 2026-06-27)
+
+> **2026-06-29 — audit remediation landed (locked on `main`, commit `25d96c6`).** An independent
+> production-readiness audit ([../audit/backend-audit-2026-06.md](../audit/backend-audit-2026-06.md))
+> found **3 CRITICAL + ~13 HIGH**; all CRITICAL/HIGH plus selected MEDIUM/LOW are now **fixed and
+> verified** (312 tests green, typecheck clean). The authoritative as-built behavior is in
+> [specs/v1-architecture.md §0a](../specs/v1-architecture.md) (note the **Groq-only LLM-provider
+> lock**). Remaining work — the **live eval run against `main` with real `GROQ_API_KEY` +
+> `OPENAI_API_KEY`** (Groq, not NVIDIA) and a few MEDIUM/LOW items — is tracked in the audit report's
+> §8 backlog. Phase E/F below is partially superseded by that report.
 
 > **How to read this now.** The blocking fix work is done — do **not** re-do Phases A–C. Each subsection below carries a **Status** line: ✅ landed (with the file that proves it), or ⬜ remaining. Your job is the ⬜ items: run the eval loop and finish coverage/verdicts. Some planned filenames differ from what shipped (noted inline) — the work is what matters, not the name.
 

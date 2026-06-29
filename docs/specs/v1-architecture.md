@@ -1,12 +1,60 @@
 # Aura AI — v1.0 Architecture & Decisions
 
 **Status:** Approved for build · **Scope:** iOS-first, adults-only (18+) AI companion app
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-29 (as-built reconcile)
 
 > This document is the single source of truth for v1.0 architecture decisions. It supersedes
 > the as-generated state of the repo (a Replit-Agent prototype: broad UI, a thin working
 > backend spine, prototype-grade engineering hygiene). Each decision below records **what**,
 > **why**, and **consequences**. See [§8 Deferred](#8-deferred--post-v10) for explicitly out-of-scope work.
+
+---
+
+## 0a. As-built backend status (2026-06-29) — how each part actually works NOW
+
+> This section reflects the **locked `main`** after the 2026-06-29 production-readiness audit +
+> remediation ([docs/audit/backend-audit-2026-06.md](../audit/backend-audit-2026-06.md)). It is the
+> authoritative "current behavior" reference — **do not regress these without an explicit decision.**
+> Suite: 312 tests green, typecheck clean.
+
+- **LLM provider — Groq ONLY (hard lock).** Generation = Groq `llama-3.1-8b-instant`; guards = Groq
+  `prompt-guard-2-86m` (L1) / `gpt-oss-safeguard-20b` (L3 escalation); content moderation = OpenAI
+  `omni-moderation-latest` (L2/L3, free). **NVIDIA (or any other generation host) must NOT be used** —
+  it taints prompt iteration (different serving/sampling, and the guard models are Groq-specific) and
+  is not the production target. `app.ts` initializes `createGroqProvider` only.
+- **Chat turn (D1/§3) — connection-bounded.** Moderation + generation run **outside** the DB
+  transaction; only the user-msg + assistant-msg + companion-counter writes are in a short
+  transaction (avoids holding a pooled connection across an LLM round-trip). `turnId` is **truly
+  idempotent** — a replay returns the existing turn (no duplicate, no second generation). Safety-event
+  logging is best-effort on a **separate connection** (loud: error log + Sentry + metric) so it can
+  never roll back or suppress the user's reply — including the 988 crisis response.
+- **Moderation — fail-closed** at every layer (verified). Crisis path fires + logs a `critical`
+  `safety_events` row and returns 988/741741. The AI-disclosure preamble says *"you are an AI, and
+  say so plainly if asked"* (SB 243) — never the inverse.
+- **Rate limiting — durable + shared.** All limiters use a **Postgres-backed store** (`rate_limits`
+  table), so the per-minute / daily-cap / brute-force / global limits hold across restarts AND
+  multiple instances. (The in-memory default store was the prior CRITICAL.)
+- **Boot — safe.** `migrate()` runs on boot from `./db/migrations` (copied into `dist/` by
+  `build.mjs`), under a `pg_advisory_lock` so concurrent instances serialize; fails fast if the
+  folder is missing/empty. Crash handlers (`unhandledRejection`/`uncaughtException`) + graceful
+  SIGTERM drain (incl. the job worker's in-flight cycle) are wired.
+- **Jobs — multi-instance safe.** The consolidation worker claims with `FOR UPDATE SKIP LOCKED` +
+  `claimed_at`; a boot/interval reaper requeues jobs orphaned by a crashed instance.
+- **Compliance — erasure complete.** Account deletion propagates to **Clerk** (best-effort), writes a
+  content-free `deletion_audit` row, purges per-user in isolated transactions; GDPR export includes
+  subscriptions + device tokens + safety events (all `userId`-scoped).
+- **Schema integrity.** Enum CHECK constraints + composite UNIQUEs are enforced in the DB (see
+  `v1-schema.md` as-built note). Ban identifiers are hashed with **HMAC-SHA256** (keyed), not
+  `sha256(id+pepper)`.
+- **Observability.** Sentry `captureException` on unhandled errors (DSN-gated); safety/abuse metrics
+  counters exposed at `GET /api/admin/metrics`.
+- **Eval gate.** `pnpm eval` exits non-zero on any safety-critical false negative (FN=0 enforced);
+  generation judge derives pass from dimension grades. Live evals require real `GROQ_API_KEY` +
+  `OPENAI_API_KEY` and are run against **Groq** (not NVIDIA).
+
+**Known deferred (not yet done):** the live eval run against current `main` (needs both keys); a few
+MEDIUM/LOW items tracked in the audit report (e.g., free-tier count race, RevenueCat atomic CAS,
+auth response-envelope consistency). See the audit's §8 backlog.
 
 ---
 

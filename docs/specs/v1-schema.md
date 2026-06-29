@@ -1,11 +1,21 @@
 # Aura AI — v1.0 Database Schema
 
-**Status:** Locked · **Target:** the first Drizzle migration in `server/src/db/`
-**Last updated:** 2026-06-22 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../planning/v1-tasklist.md) (build order)
+**Status:** Locked (design) · **As-built reconciled:** 2026-06-29 · **Target:** Drizzle migrations in `server/src/db/migrations/`
+**Last updated:** 2026-06-29 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../planning/v1-tasklist.md) (build order)
 
-> Single source of truth for the v1.0 schema. 8 tables (auth is Clerk-managed — D8). Build this as a **versioned Drizzle
-> migration** — not `drizzle-kit push`. Enums and shared types live in `@aura/shared`; the Drizzle
-> tables live in `server/src/db/` and import the enum constants from `shared`.
+> Single source of truth for the v1.0 schema. Build this as **versioned Drizzle migrations** — not
+> `drizzle-kit push`. Enums and shared types live in `@aura/shared`; the Drizzle tables live in
+> `server/src/db/` and import the enum constants from `shared`.
+
+> **As-built (2026-06-29) — reconcile note.** The shipped schema is **11 tables**, not the 8 in the
+> original design: the 8 core tables **+ `memory_jobs`** (durable async-consolidation queue; has
+> `attempts`, `safety_skipped`, and `claimed_at` for the worker reaper) **+ `rate_limits`** (durable
+> rate-limit store, migration 0011) **+ `deletion_audit`** (content-free proof-of-erasure, migration
+> 0014). The `text + CHECK` enum convention below is now **actually enforced** in the DB for the
+> safety-critical columns (migration 0013): `users.status`, `messages.role/status`,
+> `companions.persona_key`, `safety_events.event_type/source/severity`. Composite UNIQUEs use proper
+> Drizzle `unique()` builders, and `banned_identities (identifier_type, identifier_hash)` has its
+> UNIQUE (migration 0012). The enum catalog below reflects the shipped `@aura/shared` values.
 
 ---
 
@@ -43,8 +53,8 @@ SUBSCRIPTION_STORE     = ['app_store', 'play_store', 'stripe']
 SUBSCRIPTION_PERIOD    = ['normal', 'trial', 'intro']
 DEVICE_PLATFORM        = ['ios']                                        // 'android' post-v1.0
 DEVICE_ENVIRONMENT     = ['production', 'sandbox']
-SAFETY_EVENT_TYPE      = ['input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected']
-SAFETY_SOURCE          = ['input', 'output', 'injection']
+SAFETY_EVENT_TYPE      = ['input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected', 'user_reported']  // user_reported = UGC report (Apple 1.2)
+SAFETY_SOURCE          = ['input', 'output', 'injection', 'user_report']
 SAFETY_SEVERITY        = ['info', 'warning', 'critical']
 SAFETY_STATUS          = ['open', 'reviewed', 'actioned', 'dismissed']
 SAFETY_ACTION          = ['none', 'warned', 'suspended', 'banned']
