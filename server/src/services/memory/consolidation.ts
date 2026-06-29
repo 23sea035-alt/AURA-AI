@@ -54,7 +54,7 @@ export async function consolidateMemory(jobId: string): Promise<void> {
   // Safety pre-check: skip crisis/self-harm content
   if (CRISIS_PATTERNS.test(job.rawContent)) {
     await db.update(memoryJobsTable)
-      .set({ status: "processed", result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
+      .set({ status: "processed", safetySkipped: true, result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
       .where(eq(memoryJobsTable.id, jobId));
     logger.info({ jobId }, "Memory consolidation skipped — crisis content");
     return;

@@ -43,6 +43,20 @@
       "when": 1784500000000,
       "tag": "0005_add_missing_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1782532806357,
+      "tag": "0006_peaceful_tattoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783000000001,
+      "tag": "0007_add_safety_skipped_to_memory_jobs",
+      "breakpoints": true
     }
   ]
 }
