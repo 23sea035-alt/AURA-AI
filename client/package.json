@@ -10,7 +10,10 @@
     "serve": "node server/serve.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "android": "expo run:android",
-    "ios": "expo run:ios"
+    "ios": "expo run:ios",
+    "ios:e": "expo run:ios --device $(xcrun simctl list devices available | grep -F 'iPhone 16e (' | grep -oE '[0-9A-Fa-f-]{36}' | head -1)",
+    "ios:sim": "bash scripts/run-sim.sh",
+    "ios:rebuild": "expo prebuild --clean -p ios && bash scripts/run-sim.sh"
   },
   "dependencies": {
     "@aura/shared": "workspace:*",
