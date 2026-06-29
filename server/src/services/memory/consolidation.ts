@@ -3,6 +3,7 @@ import { eq, and } from "drizzle-orm";
 import { getLLMProvider } from "../llm/index.js";
 import { logger } from "../../lib/logger.js";
 import { extractKeywords } from "./keywords.js";
+import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
 
 interface ConsolidationDecision {
   action: "ADD" | "UPDATE" | "NONE";
@@ -13,25 +14,7 @@ interface ConsolidationDecision {
   rationale: string;
 }
 
-const CATEGORIES = ["identity", "preference", "attribute", "relationship", "work", "location", "general"];
-
-const CONSOLIDATION_PROMPT = `You are a memory consolidation system for an AI companion.
-Given a raw user message and existing memories, decide how to consolidate.
-
-Return a JSON array of consolidation decisions:
-[{ "action": "ADD"|"UPDATE"|"NONE", "memoryId": null|"<uuid>", "content": "<fact>", "category": "<category>", "importance": 0.0-1.0, "rationale": "<why>" }]
-
-Rules:
-- ADD: New durable fact not covered by existing memories
-- UPDATE <id>: Existing memory needs updating (contradiction or refinement). OVERWRITE in place.
-- NONE: Transient/chatty content, no durable value
-- Keep facts concise (<100 chars). Do not store instructions or meta-commentary.
-- Category must be one of: ${CATEGORIES.join(", ")}
-- SAFETY-SKIP: If the message expresses self-harm, suicidal ideation, or crisis content, return NONE.
-- SAFETY-SKIP: If the message was blocked or flagged by a safety filter, return NONE.
-- Never store crisis content, self-harm statements, or blocked material as a memory.`;
-
-const CRISIS_PATTERNS = /\b(kill myself|want to die|end my life|suicide|self-harm|self harm)\b/i;
+const CRISIS_PATTERNS = /\b(kill myself|want to die|end my life|suicide|self-harm|self harm|can'?t keep going|don'?t think I can|ending it all)\b/i;
 const MAX_CONSOLIDATION_ATTEMPTS = 3;
 
 export async function consolidateMemory(jobId: string): Promise<void> {
@@ -47,7 +30,7 @@ export async function consolidateMemory(jobId: string): Promise<void> {
   // Safety pre-check: skip crisis/self-harm content
   if (CRISIS_PATTERNS.test(job.rawContent)) {
     await db.update(memoryJobsTable)
-      .set({ status: "processed", result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
+      .set({ status: "processed", safetySkipped: true, result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
       .where(eq(memoryJobsTable.id, jobId));
     logger.info({ jobId }, "Memory consolidation skipped — crisis content");
     return;
