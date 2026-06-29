@@ -35,6 +35,10 @@ from the Tier-1 push-to-talk work; user input STT ships in v1.0, AI talk-back do
 A live, turn-taking voice "call" with a companion — distinct from push-to-talk voice messages (this is
 Tier 2/3 from the voice-feasibility research).
 
+> **Research + spike plan:** [realtime-voice-call-research.md](realtime-voice-call-research.md) — framework
+> decided (**LiveKit Agents, Node SDK**), streaming-moderation design, Render + LiveKit-Cloud hosting,
+> cost runway, and TTS vendor options. Scoped as a 2-week flag-gated spike; TTS vendor still open.
+
 - **What it is:** continuous mic + voice-activity-detection + streaming STT → LLM → streaming TTS, with
   barge-in (interrupt). Optionally via a managed realtime stack (Vapi / Retell / LiveKit / Pipecat /
   ElevenLabs Conversational AI) pointed at our own Claude/Groq brain.

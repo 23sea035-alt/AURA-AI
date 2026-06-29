@@ -98,6 +98,7 @@ These call the **Groq** LLM provider for real (the model-selection seam, T0-1), 
 | Original phase plan (history) | `planning/v1-tasklist.md` |
 | Client/Expo build (frontend owner only) | `planning/frontend-todo.md` |
 | Post-v1.0 deferred features (roadmap) | `planning/post-v1.0-roadmap.md` |
+| Real-time voice call — research + spike plan | `planning/realtime-voice-call-research.md` |
 
 ### Compliance — legal drafts (do NOT publish without sign-off)
 
