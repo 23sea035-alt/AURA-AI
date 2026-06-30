@@ -24,7 +24,7 @@ description: How the Expo app connects to the Express API server with PostgreSQL
 
 **Why:** Free tier — no OpenAI integration available. Smart fallback ensures app always works even if API is down.
 
-## Routes
+## Routes (PROTOTYPE-ONLY — superseded by the v1.0 surface below)
 - `POST /api/auth/register` — creates user + seeds 3 default companions, returns JWT
 - `POST /api/auth/login` — returns JWT
 - `GET /api/auth/me` — returns profile from token
@@ -34,3 +34,40 @@ description: How the Expo app connects to the Express API server with PostgreSQL
 - `PUT /api/companions/:id` — updates companion
 - `GET /api/companions/:id/messages` — message history
 - `POST /api/companions/:id/chat` — saves user msg + generates + saves AI reply
+
+---
+
+## As-built v1.0 (authoritative — this is what ships)
+
+The sections above map the *prototype*. The current backend (Clerk auth, real Groq generation,
+voice, memory management) supersedes them. Use this block for the v1.0 schema, routes, and workflow.
+
+### Tables (12)
+`users`, `companions`, `messages`, `memories`, `safety_events`, `subscriptions`, `device_tokens`,
+`banned_identities`, `memory_jobs`, `voice_usage`, `rate_limits`, `deletion_audit`.
+
+New fields beyond the prototype:
+- `users.avatar_color` — curated profile-avatar color (null = client default).
+- `users.primary_companion_id` — companion pinned to Home; FK `set null` if that companion is deleted.
+- `companions.remember_memory_id` / `remember_question` / `remember_generated_at` — the resurfaced-memory
+  ("remembers") cache populated by the Groq consolidation service. `remember_memory_id` is FK `set null`
+  to `memories`.
+
+### Routes (current)
+- **Voice** (`/api/voice/*`): `GET /api/voice/limits`, `POST /api/voice/token`, `POST /api/voice/start`,
+  `POST /api/voice/stop`, `POST /api/voice/tts`.
+- **Memory management**: `GET /api/companions/:companionId/memories`, `PATCH /api/memories/:id`,
+  `DELETE /api/memories/:id`.
+- **Message report**: `POST /messages/:id/report` → writes a `safety_events` row.
+
+### Voice subsystem
+Real-time voice via **LiveKit** (transport) + **Cartesia** TTS + **Deepgram** STT. Usage is metered into
+`voice_usage` (user/companion FKs cascade-delete; `direction` enum `stt|tts`, `duration_seconds`,
+`model_id`). Env keys: `CARTESIA*`, `DEEPGRAM*`, `LIVEKIT*`.
+
+### Migration workflow
+Single squashed **`0000_init`** baseline. Workflow: edit the Drizzle TS schema → `drizzle-kit generate`
+(drafts SQL; config `server/drizzle.config.ts`, generate-only) → review/commit → runtime `migrate()` on
+boot applies it (advisory-locked). **`drizzle-kit push` is FORBIDDEN** (no history; drops SQL-only
+objects). The Drizzle schema is the complete source of truth (all CHECKs/indexes/UNIQUEs modeled,
+incl. `rate_limits` + `deletion_audit` as pgTables). Guarded dev re-baseline tool: `server/scripts/db-reset.mjs`.

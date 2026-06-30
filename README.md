@@ -27,6 +27,7 @@ aura/
 │   │   │   ├── chat/      # Turn pipeline, prompt assembler
 │   │   │   ├── moderation/ # L0-L3 safety pipeline
 │   │   │   ├── memory/    # Retrieval, consolidation
+│   │   │   ├── voice/     # LiveKit + Cartesia TTS + Deepgram STT
 │   │   │   ├── payments/  # RevenueCat webhook
 │   │   │   ├── notifications/ # APNs push
 │   │   │   └── jobs/      # Async workers
@@ -63,9 +64,12 @@ aura/
 ```bash
 pnpm install
 cp .env.example .env   # fill in your keys
-pnpm --filter @aura/server run migrate
+pnpm --filter @aura/server run migrate   # applies the single 0000_init baseline
 pnpm --filter @aura/server run dev
 ```
+
+> Migrations are squashed to a single `0000_init` baseline. New migrations are added via
+> `drizzle-kit generate` (config: `server/drizzle.config.ts`) → review → runtime `migrate()`; `push` is forbidden.
 
 ### Required Environment Variables
 
@@ -79,6 +83,12 @@ pnpm --filter @aura/server run dev
 | `OPENAI_API_KEY` | OpenAI moderation API key |
 | `REVENUECAT_WEBHOOK_SECRET` | RevenueCat webhook signing secret |
 | `BANNED_IDENTITY_PEPPER` | Pepper for banned-identity hashing |
+| `CARTESIA_API_KEY` | Cartesia TTS API key — voice (optional) |
+| `CARTESIA_VOICE_ID` | Cartesia voice ID — voice (optional) |
+| `DEEPGRAM_API_KEY` | Deepgram streaming STT API key — voice (optional) |
+| `LIVEKIT_API_KEY` | LiveKit API key — voice (optional) |
+| `LIVEKIT_API_SECRET` | LiveKit API secret — voice (optional) |
+| `LIVEKIT_URL` | LiveKit server URL — voice (optional) |
 
 ## API Endpoints
 
@@ -87,7 +97,7 @@ pnpm --filter @aura/server run dev
 |--------|------|-------------|
 | POST | `/api/auth/seed-companions` | Create default companions post-registration |
 | GET | `/api/auth/me` | Get current user profile |
-| PUT | `/api/auth/me` | Update profile (DOB, name, AI disclosure, TOS) |
+| PUT | `/api/auth/me` | Update profile (DOB, name, AI disclosure, TOS, avatarColor, primaryCompanionId — Home pin) |
 
 ### Chat
 | Method | Path | Description |
@@ -98,6 +108,22 @@ pnpm --filter @aura/server run dev
 | PATCH | `/api/companions/:id` | Update companion |
 | GET | `/api/companions/:id/messages` | Get chat history |
 | POST | `/api/companions/:id/chat` | Send message (moderated + persisted) |
+
+### Memory
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/companions/:companionId/memories` | List a companion's memories |
+| PATCH | `/api/memories/:id` | Edit a memory |
+| DELETE | `/api/memories/:id` | Delete a memory |
+
+### Voice
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/voice/limits` | Get voice usage limits |
+| POST | `/api/voice/token` | Mint a LiveKit access token |
+| POST | `/api/voice/start` | Start a voice session |
+| POST | `/api/voice/stop` | Stop a voice session |
+| POST | `/api/voice/tts` | Synthesize speech (Cartesia TTS) |
 
 ### Payments
 | Method | Path | Description |

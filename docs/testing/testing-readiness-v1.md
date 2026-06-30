@@ -1,8 +1,8 @@
 # Aura AI — Testing Readiness (v1.0)
 
-**Status:** Unit + contract harness **green and gating in CI** (now **30 test files / 312 tests**, incl. a supertest HTTP integration test). The `pnpm eval` runner now **enforces a safety-critical FN=0 gate** (exits non-zero). What's left: a **live eval run against `main`** (needs real `GROQ_API_KEY` + `OPENAI_API_KEY` — on **Groq**, not NVIDIA), coverage-to-target, and signing off the safety corpus.
+**Status:** Unit + contract harness **green and gating in CI** (now **35 test files / 364 tests**, incl. a supertest HTTP integration test and the voice + remember suites). The `pnpm eval` runner now **enforces a safety-critical FN=0 gate** (exits non-zero). What's left: a **live eval run against `main`** (needs real `GROQ_API_KEY` + `OPENAI_API_KEY` — on **Groq**, not NVIDIA), coverage-to-target, and signing off the safety corpus.
 **Launch gate:** `pnpm build && pnpm typecheck && pnpm lint && pnpm test` — all green; enforced by [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) on push/PR to `main`.
-**Last updated:** 2026-06-29 (post-audit; was 2026-06-27)
+**Last updated:** 2026-06-30 (voice + memory-API tests; was 2026-06-29)
 
 > Supersedes the pre-fix snapshot (that version was UTF-16-encoded and described an uninstalled framework). The unit/contract harness now exists; this doc tracks what remains.
 > **Note:** the coworker's earlier eval reports (on the divergent `test-results` branch) ran partly on **NVIDIA** + a placeholder OpenAI key, so their generation/consolidation numbers do **not** reflect the Groq production pipeline — re-run on Groq.
@@ -15,15 +15,15 @@
 |------|--------|-------|
 | Test framework installed | ✅ | Vitest ^3 at the repo root (`pnpm test` → `vitest run`) |
 | Test configuration | ✅ | Root [`../../vitest.config.ts`](../../vitest.config.ts) — globals, node env, v8 coverage (text + lcov) |
-| PGlite setup | ✅ | [`../../server/src/__tests__/setup.ts`](../../server/src/__tests__/setup.ts) — in-memory Postgres, applies the Drizzle migrations, seed constants |
-| Tier 1 — unit tests | ✅ | keywords, deterministic, prompt-assembler, free-tier, break-reminder, response, errors, safety-errors, moderation, consolidation |
-| Tier 2 — contract tests | ✅ | auth, admin, ban, idor, rate-limit, **pg-rate-limit-store**, require-admin, moderation(-engine), turn-pipeline, turn-retry, retention, **routes.integration (supertest HTTP)** |
+| PGlite setup | ✅ | [`../../server/src/__tests__/setup.ts`](../../server/src/__tests__/setup.ts) — in-memory Postgres, applies the Drizzle migrations (single `0000_init` baseline folder), seed constants |
+| Tier 1 — unit tests | ✅ | keywords, deterministic, prompt-assembler, free-tier, break-reminder, response, errors, safety-errors, moderation, consolidation, **remember**, **voice (livekit, tts, metering, agent)** |
+| Tier 2 — contract tests | ✅ | auth, admin, ban, idor, rate-limit, **pg-rate-limit-store**, require-admin, moderation(-engine), turn-pipeline, turn-retry, retention, **routes.integration (supertest HTTP — incl. voice + memory-API routes)** |
 | CI gating | ✅ | build + typecheck + lint + test on every push/PR to `main` |
 | Coverage threshold | ⚠️ | Coverage is **reported** (v8) but **not yet enforced** at ≥80% |
 | Tier 3 — eval harness | ◑ | Runners built **and the moderation runner now enforces FN=0 + the generation runner derives pass from dimension grades** (audit H13). Not yet run against `main` with live keys — see Status. |
 | Safety corpus sign-off | ❌ | `safetyCritical` labels await Jason's sign-off before promotion into a regression gate |
 
-The **30 test files** live in [`../../server/src/__tests__/`](../../server/src/__tests__/). LLM providers are mocked in Tiers 1–2; contract tests hit a real (in-memory) Postgres or a mocked `db`.
+The **35 test files** live in [`../../server/src/__tests__/`](../../server/src/__tests__/). LLM providers are mocked in Tiers 1–2; contract tests hit a real (in-memory) Postgres or a mocked `db`.
 
 ---
 

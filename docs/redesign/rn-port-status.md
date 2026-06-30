@@ -61,7 +61,9 @@ All 8 screens ported to the kit + `constants/content/*`:
 - Tab bar restructured: 5 cosmic tabs -> a 3-tab Warm Sanctuary navpill (Home / Companions / You).
   `chat`/`memory`/`premium`/`profile` kept routable but off the bar (`href:null`) until ported/removed.
 - Home (`(tabs)/index.tsx`) — the companion's room (greeting + large avatar + AI marker + one CTA);
-  resurfaced-memory chip + free 18/30 usage deferred (need the "remembers" / usage wiring).
+  resurfaced-memory chip + free 18/30 usage deferred. The "remembers" cache is now available
+  server-side (companions.remember_* + Groq remember service) — needs client wiring; the 18/30 usage
+  indicator still needs the chat-API count wiring.
 - Companions (`(tabs)/companions.tsx`) — roster / chat-list cards -> push Chat; premium-gated create.
 - You (`(tabs)/you.tsx`) — header card + tier pill + grouped rows + confirm-first Sign out.
 - New kit primitives: `Avatar` (curated portrait + initials fallback), `ListGroup` / `ListRow`.

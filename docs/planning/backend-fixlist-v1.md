@@ -3,18 +3,20 @@
 **Status:** Reconciled against the code 2026-06-27 — **Phases A–D have LANDED** across two fix rounds (coworker's round + a cleanup/hardening round). **Remaining = Phase E (prompt iteration) + the tail of Phase F (coverage → 80%, eval verdicts).**
 **Supersedes:** `planning/v1-tasklist.md` (deprecated, kept for history)
 **Read before building:** `docs/README.md` (the "Running tests & evals" section is the entry point for what's left), then the referenced spec docs.
-**Last updated:** 2026-06-29 (was 2026-06-27)
+**Last updated:** 2026-06-30 (was 2026-06-29)
 
 > **2026-06-29 — audit remediation landed (locked on `main`, commit `25d96c6`).** An independent
 > production-readiness audit ([../audit/backend-audit-2026-06.md](../audit/backend-audit-2026-06.md))
 > found **3 CRITICAL + ~13 HIGH**; all CRITICAL/HIGH plus selected MEDIUM/LOW are now **fixed and
-> verified** (312 tests green, typecheck clean). The authoritative as-built behavior is in
+> verified** (364 tests green, typecheck clean). The authoritative as-built behavior is in
 > [specs/v1-architecture.md §0a](../specs/v1-architecture.md) (note the **Groq-only LLM-provider
 > lock**). Remaining work — the **live eval run against `main` with real `GROQ_API_KEY` +
 > `OPENAI_API_KEY`** (Groq, not NVIDIA) and a few MEDIUM/LOW items — is tracked in the audit report's
 > §8 backlog. Phase E/F below is partially superseded by that report.
 
 > **How to read this now.** The blocking fix work is done — do **not** re-do Phases A–C. Each subsection below carries a **Status** line: ✅ landed (with the file that proves it), or ⬜ remaining. Your job is the ⬜ items: run the eval loop and finish coverage/verdicts. Some planned filenames differ from what shipped (noted inline) — the work is what matters, not the name.
+
+> **2026-06-30 — migrations squashed.** The 16 incremental migrations (`0000`–`0015`) were squashed into a single `0000_init` baseline. The numbered-migration filenames cited below (`0002`, `0003`, `0004`, …) are **historical** — they no longer exist as separate files; their columns/indexes live in `0000_init`. New migrations are generated via `drizzle-kit generate` (config: `server/drizzle.config.ts`).
 
 ---
 
@@ -284,4 +286,6 @@ If either is missing or deprecated, the selector already falls back to a safe de
 
 ## Post-v1.0 (deferred — do NOT build)
 
-Voice calls (speech → turn pipeline → TTS; metered) · True SSE streaming · Next.js web · Real embeddings (vector search) · Under-18 support · Re-engagement notifications · Android · i18n/region crisis resources · Freeform companion authoring · US web payment link-out.
+True SSE streaming · Next.js web · Real embeddings (vector search) · Under-18 support · Re-engagement notifications · Android · i18n/region crisis resources · Freeform companion authoring · US web payment link-out.
+
+> **Voice calls — LANDED (no longer deferred).** The voice backend has shipped — see `server/src/services/voice/` (LiveKit + Cartesia TTS + Deepgram STT) and the `/api/voice/*` endpoints + `voice_usage` metering table. No longer on the "do NOT build" list.

@@ -2,7 +2,7 @@
 
 **Status:** Build spec · **Scope:** the per-companion memory subsystem — how facts are written (async
 LLM consolidation) and read (keyword retrieval). Implements [v1-architecture.md](v1-architecture.md) **D12**.
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-30
 
 > Per-companion long-term memory makes a stateless Groq model feel continuous. **Reads** score stored
 > memories against the user message and inject the top-5 into the **system prompt**. **Writes** run as an
@@ -26,7 +26,8 @@ POST-TURN (async, off critical path)
 
 Storage: the `memories` table (`v1-schema.md` §5), one set per `(user_id, companion_id)`. Relevant
 columns: `keywords text[]`, `category`, `importance real`, `last_recalled_at`, `created_at`, `updated_at`.
-**No new columns** are required by this design.
+The **`memories` table needs no new columns** for this design; the "remembers" cache (§2.8) does add
+three `companions.remember_*` columns.
 
 ---
 
@@ -56,6 +57,12 @@ consolidate_memory({
 })
 // empty ops array = NONE (nothing durable). No DELETE op in v1.0.
 ```
+
+> **"No DELETE" is a *consolidation-contract* rule** — the LLM pass may not delete. It does **not**
+> apply to the user-facing memory-management API (`GET /api/companions/:companionId/memories`,
+> `PATCH /api/memories/:id`, `DELETE /api/memories/:id`), where a user **may** edit or delete their own
+> memories explicitly. The two paths are distinct: model-driven writes are additive/overwrite-only;
+> user-driven deletes are honored.
 
 > **`UPDATE id` is a short integer handle, not the DB UUID.** `memories.id` is a `uuid` (v1-schema §5),
 > but the consolidation pass is shown the dedup set with each memory under a small integer handle (the
@@ -99,6 +106,12 @@ Every op is validated before write: `category ∈ enum`; `UPDATE id` must refere
 ### 2.7 DI seam (item F)
 Behind a `MemoryConsolidator` interface (mirrors the existing `LLMProvider` seam) so contract tests inject
 a deterministic fake: `consolidate(turn, existingMemories) → ops[]`.
+
+### 2.8 "Remembers" cache (Home card)
+After consolidation writes its ops, a follow-on **Groq pass surfaces one memory and generates a
+short follow-up question** about it, written to the `companions.remember_*` columns
+(`remember_memory_id`, `remember_question`, `remember_generated_at`). The Home "remembers" card reads
+this cache **read-only** — it never recomputes on render. Code: `server/src/services/memory/remember.ts`.
 
 ---
 

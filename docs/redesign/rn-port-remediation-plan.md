@@ -120,11 +120,12 @@ For each deviation decide **Restore / Keep / Discuss**:
 
 Some frontend changes need backend support; the MacBook can build the UI against mock/local state first
 and wire the real data when the backend lands (see [`redesign-backend-work`] notes / `rn-port-status.md`):
-- **Home pin** → `users.primaryCompanionId`.
-- **Home "remembers" card** → the consolidation "remembers" cache (Groq question-gen).
-- **Free usage indicator (18/30)** → message-count/limit from the chat API.
-- **Edit-profile color** → `users.avatarColor`.
-- **Sign-in & security SSO state** → Clerk method info (currently UI-shell; Clerk deferred).
+- **Home pin** → `users.primaryCompanionId`. — ✅ **satisfied (backend landed):** `users.primary_companion_id` exists (FK `set null`).
+- **Home "remembers" card** → the consolidation "remembers" cache (Groq question-gen). — ✅ **satisfied (backend landed):** `companions.remember_memory_id/remember_question/remember_generated_at` + the Groq remember service.
+- **Memory edit/delete** → memory-management API. — ✅ **satisfied (backend landed):** `GET /api/companions/:companionId/memories`, `PATCH /api/memories/:id`, `DELETE /api/memories/:id`.
+- **Free usage indicator (18/30)** → message-count/limit from the chat API. — still pending (wire to the chat API).
+- **Edit-profile color** → `users.avatarColor`. — ✅ **satisfied (backend landed):** `users.avatar_color` exists.
+- **Sign-in & security SSO state** → Clerk method info (currently UI-shell; Clerk deferred). — still pending.
 - **Chat report** → already supported server-side (`POST /messages/:id/report` → `safety_events`).
 - **Help FAQ answers** → content-only (no backend).
 

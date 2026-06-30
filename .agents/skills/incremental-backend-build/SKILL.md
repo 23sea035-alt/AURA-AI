@@ -5,9 +5,9 @@ description: Build the Aura AI backend incrementally — one task/phase at a tim
 
 # Incremental Backend Build (Aura AI)
 
-The plan of record is `docs/` (start at `docs/README.md`). The backend is built but audited **NO-GO** —
-current work is `docs/planning/backend-fixlist-v1.md` (fix per the audit); the original build order is
-`docs/planning/v1-tasklist.md`. Work the way a careful engineer would — **depth per item, not one sweeping pass.**
+The plan of record is `docs/` (start at `docs/README.md`). The backend is built and **remediated
+post-audit** — see `docs/planning/backend-fixlist-v1.md` for any deferred items; the original build order
+is `docs/planning/v1-tasklist.md`. Work the way a careful engineer would — **depth per item, not one sweeping pass.**
 
 ## The rule: one thing at a time, verified
 
@@ -31,7 +31,9 @@ A task isn't done until ALL of:
   before starting the next phase.
 - Respect dependencies: build the **`Moderator` interface (Phase 2) before the chat turn pipeline
   (Phase 3)**; land the **secret-fallback removal with Phase 1 auth**; author the **initial Drizzle
-  migration in Phase 0** before anything depends on the schema.
+  migration in Phase 0** before anything depends on the schema. (As built, migrations are squashed to a
+  single `0000_init` baseline — extend the schema then `drizzle-kit generate` → review → `migrate()`;
+  never `drizzle-kit push`.)
 
 ## Scope guardrails
 

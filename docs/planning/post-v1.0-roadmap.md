@@ -28,16 +28,22 @@ from the Tier-1 push-to-talk work; user input STT ships in v1.0, AI talk-back do
   push-to-talk); `voice-preferences.tsx` is the home for the toggle; one `MessageBubble` already
   renders text and can carry an audio affordance.
 - **Vendors:** ElevenLabs / Cartesia (expressive, per-companion voices mapped to the warmth/energy/
-  verbosity traits); Groq also offers TTS.
+  verbosity traits); Groq also offers TTS. **2026-06-30 — DECIDED: Cartesia** is the chosen TTS provider
+  (shipped via `POST /api/voice/tts`; `CARTESIA_API_KEY` / `CARTESIA_VOICE_ID` in `env.ts`).
 
-### Companion voice call (real-time conversation) — 🧊 🔗
+### Companion voice call (real-time conversation) — 🔜 🔗
 
 A live, turn-taking voice "call" with a companion — distinct from push-to-talk voice messages (this is
 Tier 2/3 from the voice-feasibility research).
 
+> **2026-06-30 — backend has LANDED.** The voice backend shipped: LiveKit token/session endpoints
+> (`/api/voice/token`, `/voice/start`, `/voice/stop`, `/voice/limits`), Cartesia TTS (`/voice/tts`),
+> Deepgram streaming STT, and a `voice_usage` metering table (`server/src/services/voice/`).
+> **TTS = Cartesia, STT = Deepgram** are the chosen providers (per `env.ts`).
+
 > **Research + spike plan:** [realtime-voice-call-research.md](realtime-voice-call-research.md) — framework
 > decided (**LiveKit Agents, Node SDK**), streaming-moderation design, Render + LiveKit-Cloud hosting,
-> cost runway, and TTS vendor options. Scoped as a 2-week flag-gated spike; TTS vendor still open.
+> cost runway, and TTS vendor options. TTS vendor now resolved (**Cartesia**); STT = **Deepgram**.
 
 - **What it is:** continuous mic + voice-activity-detection + streaming STT → LLM → streaming TTS, with
   barge-in (interrupt). Optionally via a managed realtime stack (Vapi / Retell / LiveKit / Pipecat /
@@ -60,6 +66,10 @@ rambling messages) or **Android parity** disappoints in testing, swap the single
 for a **server-side Groq `whisper-large-v3-turbo`** endpoint (~$0.0006/min ≈ $30 per 100k 30-second
 messages, ~220× real-time). Because text is canonical, nothing downstream (moderation, memory, the
 bubble UI) changes. **Never put the Groq key on the client** — it must be a backend endpoint.
+
+> **2026-06-30 note:** this Groq-Whisper batch upgrade is the **push-to-talk** path. The shipped
+> real-time **call** loop uses **Deepgram** streaming STT (Groq Whisper is batch-only) — see the
+> realtime-voice-call research's §5d.
 
 ---
 

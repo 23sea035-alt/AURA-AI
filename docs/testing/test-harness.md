@@ -3,7 +3,7 @@
 **Status:** Build spec · **Scope:** the testing infrastructure for the server — tiers, framework, the
 contract-test DB strategy, the DI fakes, the turn-orchestration test list, coverage, and CI. Companion
 to the eval docs ([eval-report-layout.md](eval-report-layout.md) et al.), which cover the *Tier-3* evals.
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-30
 
 > Three tiers. **Tier 1 (deterministic units)** and **Tier 2 (contract tests, mocked providers + real
 > PGlite DB)** are fast, deterministic, and **gate CI**. **Tier 3 (LLM-judged evals)** is the
@@ -24,10 +24,11 @@ surface (the assembled prompt, control flow, DB writes) and Tier 3 *scores* qual
 
 ## 2. Framework — Vitest
 
-Clean slate: **no framework is installed** today (the existing `safety.test.ts` is a standalone `tsx`
-script with its own private `detectCrisis` copy — replace it). **Vitest**: ESM-native (repo is
-`"type": "module"`), fast, Jest-compatible API, built-in **v8 coverage**. One config; Tier-1/2 tests in
-`server/src/__tests__/`.
+Clean slate at spec time: **no framework was installed** (the prototype's `safety.test.ts` was a
+standalone `tsx` script with its own private `detectCrisis` copy — since replaced). **Vitest**:
+ESM-native (repo is `"type": "module"`), fast, Jest-compatible API, built-in **v8 coverage**. One config;
+Tier-1/2 tests in `server/src/__tests__/`. (As built, the harness now also covers the voice subsystem
+and the memory-management API — added after this spec was written.)
 
 ## 3. Contract-test DB — PGlite
 

@@ -2,8 +2,8 @@
 
 > **Read [`docs/README.md`](docs/README.md) first.** Specs live in [`docs/specs/`](docs/specs/)
 > ([v1-architecture](docs/specs/v1-architecture.md), [v1-schema](docs/specs/v1-schema.md)).
-> **The backend is built but audited NO-GO — current work is [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
-> (fix per the audit; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
+> **The backend audit is remediated and locked on `main`; remaining = the eval run, and voice has landed — see [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
+> (follow it; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
 > Those docs are the **plan of record** — follow them; don't relitigate decisions without a real reason.
 
 ## What this is
@@ -34,8 +34,8 @@ existing code as a sketch, not a foundation.
 - `pnpm --filter @aura/shared run build` — build `shared` first (server depends on it)
 - `pnpm --filter @aura/server run dev` — run the API server
 - `pnpm --filter @aura/server run typecheck`
-- DB: `drizzle-kit generate` → commit the SQL → `migrate` (see `docs/specs/v1-schema.md`)
-- Required env: see the env-var list in `docs/planning/v1-tasklist.md` (validated at boot, fail-closed)
+- DB: `drizzle-kit generate` (config: `server/drizzle.config.ts`) → review → runtime `migrate()`; `push` is forbidden. Dev-only reset: `server/scripts/db-reset.mjs`. (See `docs/specs/v1-schema.md`.)
+- Required env: see the env-var list in `docs/planning/v1-tasklist.md` (validated at boot, fail-closed). **Note:** that list omits the voice vars — also set `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`, `DEEPGRAM_API_KEY`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL` (voice, optional).
 
 ## Critical rules
 
@@ -55,7 +55,7 @@ existing code as a sketch, not a foundation.
 
 Replit Agent defaults to building whole apps in one pass; for this backend, **don't.**
 
-- The backend is built but audited **NO-GO**: work `docs/planning/backend-fixlist-v1.md` **in order (P0→P4), one item at a time** (fix per the audit, don't rebuild), then the test/eval loop in `docs/testing/testing-readiness-v1.md`.
+- The backend audit is **remediated and locked on `main`** (remaining = the eval run; voice has landed): work `docs/planning/backend-fixlist-v1.md` **in order, one item at a time** (follow it, don't rebuild), then the test/eval loop in `docs/testing/testing-readiness-v1.md`.
 - Each subsystem (moderation, chat turn pipeline, payments/webhook, memory consolidation, auth) is
   substantial — give it **focused depth**, not a diluted all-at-once scaffold.
 - **One task ≈ one commit.** Definition of Done before the next: typecheck passes, tests for that unit

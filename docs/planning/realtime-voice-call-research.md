@@ -4,6 +4,15 @@
 Scoped as a **2-week, 2-engineer, flag-gated spike** — NOT a v1.0 GA commitment. Expands the deferred
 "Companion voice call (real-time conversation) 🧊" entry in [post-v1.0-roadmap.md](post-v1.0-roadmap.md).
 
+> **As-built (2026-06-30) — reconcile note.** The voice backend has shipped (`server/src/services/voice/`):
+> token/limits/start/stop/tts endpoints (`/api/voice/*`) + a **`voice_usage`** metering table.
+> **TTS = Cartesia, STT = Deepgram** are the chosen providers (per `env.ts`: `CARTESIA_API_KEY`,
+> `CARTESIA_VOICE_ID`, `DEEPGRAM_API_KEY`, `LIVEKIT_*`) — this **resolves the "TTS vendor open"** question
+> below. **Divergence from the plan:** the planned `voice_call_sessions` table and the
+> `safety_events.modality` column (§3) were **NOT** used — the as-built ships a **`voice_usage`** table
+> instead. The research body below is preserved as-written; treat these provider/schema decisions as the
+> authoritative as-built deltas.
+
 > **Why this is harder for us than for competitors:** Aura is mental-health-adjacent with a 988/crisis
 > obligation. The entire L0–L3 moderation pipeline ([specs/moderation-pipeline.md](../specs/moderation-pipeline.md))
 > is built for *turn-based text*. Real-time voice's difficulty is concentrated almost entirely on
@@ -159,6 +168,8 @@ or **HIPAA/SOC 2** → **Scale ($500/mo)** (pin for later — relevant to a ment
 > (latency + reliability all-rounder); coworker demoing both free tiers to compare audio output.
 > gpt-4o-mini-tts and ElevenLabs set aside (latency / price). Remember the tiebreakers a pure listen
 > won't surface — latency, reliability/SOC2 maturity, price — see §5c.
+>
+> **RESOLVED (2026-06-30): TTS = Cartesia** (shipped — `CARTESIA_API_KEY` / `CARTESIA_VOICE_ID` in `env.ts`).
 
 Real-time needs the **low-latency "agent" tier** (sub-150ms TTFB is the natural-turn ceiling), not the
 expressive-offline tier. **All four candidates have a confirmed LiveKit Agents plugin** (incl. Inworld).
@@ -398,6 +409,10 @@ different capability than batch transcription.
 
 All candidates have a LiveKit Agents plugin. Net: the STT choice falls out of the TTS tie-break — Cartesia
 TTS pulls Cartesia Ink (consolidate); Inworld TTS pulls Deepgram Nova-3 (best-of-breed).
+
+> **RESOLVED (2026-06-30): STT = Deepgram** (`DEEPGRAM_API_KEY` in `env.ts`). Note the as-built pairs
+> **Cartesia TTS + Deepgram STT** — i.e. the best-of-breed split, not the Cartesia-Ink consolidation this
+> section predicted for a Cartesia-TTS pick.
 
 ---
 

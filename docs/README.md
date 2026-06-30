@@ -1,6 +1,6 @@
 # Aura AI — Backend Brief & Doc Index (Start Here)
 
-Status (2026-06-29): an independent **production-readiness audit + remediation** has landed and is locked on `main` (commit `25d96c6`): 3 CRITICAL + ~13 HIGH (plus selected MEDIUM/LOW) fixed and verified — **312 tests green**, typecheck clean. The authoritative current behavior of every backend subsystem is **[specs/v1-architecture.md §0a "As-built"](specs/v1-architecture.md)** (note the **Groq-only LLM-provider lock**). The full findings + remediation log + remaining backlog: **[audit/backend-audit-2026-06.md](audit/backend-audit-2026-06.md)**.
+Status (2026-06-29): an independent **production-readiness audit + remediation** has landed and is locked on `main` (commit `25d96c6`): 3 CRITICAL + ~13 HIGH (plus selected MEDIUM/LOW) fixed and verified — **364 tests green**, typecheck clean. The authoritative current behavior of every backend subsystem is **[specs/v1-architecture.md §0a "As-built"](specs/v1-architecture.md)** (note the **Groq-only LLM-provider lock**). The full findings + remediation log + remaining backlog: **[audit/backend-audit-2026-06.md](audit/backend-audit-2026-06.md)**.
 
 **Authoritative backend status** = the **audit report** ([audit/backend-audit-2026-06.md](audit/backend-audit-2026-06.md)) for current state, and `planning/backend-fixlist-v1.md` for the Phase A–F history. The old phase tracker (`planning/v1-tasklist.md`) over-claims "done" — trust the audit report. The pre-audit version of this README is archived at `archive/README.pre-audit-2026-06.md`.
 
@@ -75,7 +75,7 @@ These call the **Groq** LLM provider for real (the model-selection seam, T0-1), 
 | Doc | Location |
 |-----|----------|
 | Architecture & decisions (D1–D12) | `specs/v1-architecture.md` |
-| DB schema & `@aura/shared` catalog | `specs/v1-schema.md` |
+| DB schema & `@aura/shared` catalog | `specs/v1-schema.md` (12 tables incl. `voice_usage`; `users.avatar_color`/`primary_companion_id` + `companions.remember_*`) |
 | Moderation pipeline (L0–L3) | `specs/moderation-pipeline.md` |
 | Memory pipeline (async LLM consolidation) | `specs/memory-pipeline.md` |
 | Generation pipeline (hardened prompt assembly) | `specs/generation-pipeline.md` |
@@ -99,6 +99,11 @@ These call the **Groq** LLM provider for real (the model-selection seam, T0-1), 
 | Client/Expo build (frontend owner only) | `planning/frontend-todo.md` |
 | Post-v1.0 deferred features (roadmap) | `planning/post-v1.0-roadmap.md` |
 | Real-time voice call — research + spike plan | `planning/realtime-voice-call-research.md` |
+
+> **Voice has partially landed (2026-06-30).** No longer purely deferred: the voice backend ships
+> endpoints (`/api/voice/limits`, `/voice/token`, `/voice/start`, `/voice/stop`, `/voice/tts`) + a
+> `voice_usage` metering table (LiveKit + Cartesia TTS + Deepgram STT). The two voice docs above now
+> describe an in-progress feature, not a parked one.
 
 ### Compliance — legal drafts (do NOT publish without sign-off)
 

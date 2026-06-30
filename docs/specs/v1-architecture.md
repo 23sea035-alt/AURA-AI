@@ -1,7 +1,7 @@
 # Aura AI — v1.0 Architecture & Decisions
 
 **Status:** Approved for build · **Scope:** iOS-first, adults-only (18+) AI companion app
-**Last updated:** 2026-06-29 (as-built reconcile)
+**Last updated:** 2026-06-30 (as-built reconcile)
 
 > This document is the single source of truth for v1.0 architecture decisions. It supersedes
 > the as-generated state of the repo (a Replit-Agent prototype: broad UI, a thin working
@@ -15,7 +15,7 @@
 > This section reflects the **locked `main`** after the 2026-06-29 production-readiness audit +
 > remediation ([docs/audit/backend-audit-2026-06.md](../audit/backend-audit-2026-06.md)). It is the
 > authoritative "current behavior" reference — **do not regress these without an explicit decision.**
-> Suite: 312 tests green, typecheck clean.
+> Suite: 364 tests green, typecheck clean.
 
 - **LLM provider — Groq ONLY (hard lock).** Generation = Groq `llama-3.1-8b-instant`; guards = Groq
   `prompt-guard-2-86m` (L1) / `gpt-oss-safeguard-20b` (L3 escalation); content moderation = OpenAI
@@ -36,7 +36,9 @@
   multiple instances. (The in-memory default store was the prior CRITICAL.)
 - **Boot — safe.** `migrate()` runs on boot from `./db/migrations` (copied into `dist/` by
   `build.mjs`), under a `pg_advisory_lock` so concurrent instances serialize; fails fast if the
-  folder is missing/empty. Crash handlers (`unhandledRejection`/`uncaughtException`) + graceful
+  folder is missing/empty. The migration set is now the **single squashed `0000_init` baseline**
+  (16 incremental migrations condensed; `server/drizzle.config.ts` drives `drizzle-kit generate`,
+  `push` forbidden). Crash handlers (`unhandledRejection`/`uncaughtException`) + graceful
   SIGTERM drain (incl. the job worker's in-flight cycle) are wired.
 - **Jobs — multi-instance safe.** The consolidation worker claims with `FOR UPDATE SKIP LOCKED` +
   `claimed_at`; a boot/interval reaper requeues jobs orphaned by a crashed instance.
@@ -51,6 +53,17 @@
 - **Eval gate.** `pnpm eval` exits non-zero on any safety-critical false negative (FN=0 enforced);
   generation judge derives pass from dimension grades. Live evals require real `GROQ_API_KEY` +
   `OPENAI_API_KEY` and are run against **Groq** (not NVIDIA).
+- **Voice — built (metered).** Realtime voice via **LiveKit** + **Cartesia `sonic-3.5`** TTS +
+  **Deepgram** STT (D13). Endpoints `GET /api/voice/limits`, `POST /api/voice/token`,
+  `POST /api/voice/start`, `POST /api/voice/stop`, `POST /api/voice/tts`; usage metered into the
+  `voice_usage` table against `VOICE_DAILY_LIMIT_SECONDS` / `VOICE_CALL_MAX_DURATION_SECONDS`;
+  guarded by `voiceTokenLimiter` / `voiceTtsLimiter`.
+- **Memory management — built.** User-facing memory CRUD: `GET /api/companions/:companionId/memories`,
+  `PATCH /api/memories/:id`, `DELETE /api/memories/:id`. Plus the **"remembers" cache**: after
+  consolidation, a Groq pass generates a follow-up question for a surfaced memory and writes
+  `companions.remember_*`, read read-only by the Home "remembers" card (D12).
+- **Profile write path.** `PUT /api/auth/me` now also accepts `avatarColor` + `primaryCompanionId`
+  (the user-switchable Home pin).
 
 **Known deferred (not yet done):** the live eval run against current `main` (needs both keys); a few
 MEDIUM/LOW items tracked in the audit report (e.g., free-tier count race, RevenueCat atomic CAS,
@@ -175,7 +188,8 @@ Monetized via subscription (free tier with daily message cap; premium unlimited)
   `svix-id`) mirrors users into the local `users` table on `user.created` / `user.updated` /
   `user.deleted`, keyed by `users.clerk_user_id`; the ban-evasion check runs on `user.created`.
 - **Consequences:** Replace the prototype's in-house auth — **no `auth_identities` table / `password_hash`**
-  (Clerk owns credentials + linking → `users` carries `clerk_user_id` only; the schema drops to **8 tables**).
+  (Clerk owns credentials + linking → `users` carries `clerk_user_id` only; this drops the design to
+  **8 core tables**, no `auth_identities` — the shipped total is **12** with infra + voice tables, see `v1-schema.md`).
   Delete the no-op forgot-password screen and the silent local-user fallback in
   [context/AppContext.tsx](../../client/context/AppContext.tsx). Add Clerk as a sub-processor in the
   privacy/retention docs; on account deletion, propagate by deleting the Clerk user. Client-affecting →
@@ -236,10 +250,32 @@ Monetized via subscription (free tier with daily message cap; premium unlimited)
   facts current (e.g. "works at Google" → "works at Apple").
 - **Consequences:** Memories live in the system-prompt context block (keeps the user message as pure
   data — aligns with the moderation prompt-injection separation). The consolidation prompt is
-  safety-adjacent (it can rewrite stored history), so it gets guardrails (no hard deletes in v1.0 —
-  `UPDATE` overwrites only) and its own eval set.
+  safety-adjacent (it can rewrite stored history), so it gets guardrails (no hard deletes in the
+  consolidation contract — `UPDATE` overwrites only) and its own eval set.
+- **"Remembers" cache (built):** after consolidation, a Groq pass surfaces one memory and generates a
+  follow-up question, written to `companions.remember_*`; the Home "remembers" card reads it read-only.
+- **Memory-management API (built):** users can list/edit/delete their own memories
+  (`GET /api/companions/:companionId/memories`, `PATCH` / `DELETE /api/memories/:id`). This
+  user-initiated `DELETE` is distinct from the consolidation contract's "no DELETE" rule.
 - **Deferred (post-v1.0):** real embeddings / semantic retrieval (§8); the full supersede engine
-  (soft-delete `status` + `superseded_by` + audit/rollback + `DELETE` ops).
+  (soft-delete `status` + `superseded_by` + audit/rollback + consolidation-side `DELETE` ops).
+
+### D13 — Voice calls: realtime LiveKit + Cartesia TTS + Deepgram STT (always metered)
+- **Decision:** Ship realtime voice. Transport via **LiveKit** (realtime media); **Cartesia `sonic-3.5`**
+  for TTS; **Deepgram** for STT. Endpoints: `GET /api/voice/limits`, `POST /api/voice/token`,
+  `POST /api/voice/start`, `POST /api/voice/stop`, `POST /api/voice/tts`. Usage is metered into the
+  `voice_usage` table and gated by `VOICE_DAILY_LIMIT_SECONDS` / `VOICE_CALL_MAX_DURATION_SECONDS`
+  (premium variants in `@aura/shared`); voice endpoints carry their own `voiceTokenLimiter` /
+  `voiceTtsLimiter`.
+- **Why:** Voice is the high-value companion modality, but STT/TTS cost is asymmetric — so per D4 it is
+  **always metered, never unlimited**. LiveKit handles realtime session/media; Cartesia + Deepgram are
+  the production STT/TTS providers behind the metering layer.
+- **Consequences:** Six new env secrets (§6): `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`,
+  `DEEPGRAM_API_KEY`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL`. `voice_usage` purges with
+  the user (cascade). Voice is a new cost line (§7).
+- **Safety:** a spoken turn runs through the same `processTurn` pipeline as text (the voice agent's
+  `llmNode` calls it), so the STT transcript (input) and the synthesized reply (output) get identical
+  L0–L3 moderation — voice is not a moderation bypass.
 
 ---
 
@@ -356,7 +392,9 @@ on-failure.
 - **`safety_events` review queue:** flagged content must actually be reviewed (SB 243 expectation),
   not just stored.
 - **Secrets via env only** — remove hardcoded fallbacks (`aura-ai-secret-2026`,
-  `change-me-in-production`); fail-closed at startup if a required secret is missing.
+  `change-me-in-production`); fail-closed at startup if a required secret is missing. Voice (D13)
+  adds six secrets: `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`, `DEEPGRAM_API_KEY`, `LIVEKIT_API_KEY`,
+  `LIVEKIT_API_SECRET`, `LIVEKIT_URL` (required only when voice is enabled).
 - **Memory:** keyword-based (Jaccard) for v1.0 — **rename the `embedding` column** (e.g. to
   `keywords`) to stop overclaiming. Real embeddings are deferred.
 - **Region:** US-only at launch; crisis resources (988) are US-centric — region-aware resources are
@@ -405,11 +443,13 @@ wording (4 sections: Retention, Deletion, Trust & Safety, AI).
 | **RevenueCat** | Free under $2,500/mo tracked revenue, then ~1% |
 | **Apple commission** | **15%** (Small Business Program) |
 | **APNs** | Free |
+| **Voice (LiveKit + Cartesia TTS + Deepgram STT)** | Usage-based and **always metered** (D4/D13); bounded per user by `VOICE_DAILY_LIMIT_SECONDS` — the cost asymmetry is why voice is never unlimited |
 | **Render (API)** | ~**$7–25/mo** at small scale |
 | **Apple Developer** | $99/yr |
 
-Generation dominates LLM cost; moderation is effectively free. Subscription revenue dwarfs
-inference cost at any real conversion rate.
+Generation dominates text LLM cost; moderation is effectively free. Voice is the one usage-metered
+cost line (hence its hard daily/per-call caps). Subscription revenue dwarfs inference cost at any real
+conversion rate.
 
 ---
 
@@ -422,7 +462,6 @@ inference cost at any real conversion rate.
   engine** (soft-delete `status`/`superseded_by` + `DELETE` ops + audit/rollback).
 - **Under-18 support** (COPPA + full SB 243 minor clauses + age assurance).
 - **Re-engagement / scheduled notifications.**
-- **Voice calls** (speech → STT → the existing turn pipeline → TTS; metered; needs an STT/TTS provider + a `voice_usage` table + transcript moderation through L0–L3).
 - **Android.**
 - **i18n / region-aware** crisis resources.
 - **Freeform companion authoring** (only after moderation is battle-tested).

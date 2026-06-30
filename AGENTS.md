@@ -2,8 +2,8 @@
 
 > **Plan of record:** read [`docs/README.md`](docs/README.md) first, then the specs in
 > [`docs/specs/`](docs/specs/) ([v1-architecture](docs/specs/v1-architecture.md), [v1-schema](docs/specs/v1-schema.md)).
-> **The backend is built but audited NO-GO — current work is [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
-> (fix per the audit; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
+> **The backend audit is remediated and locked on `main`; remaining = the eval run, and voice has landed — see [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
+> (follow it; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
 > For backend/server work also see [`replit.md`](replit.md).
 > Those docs are authoritative — follow them; don't relitigate decisions without a real reason.
 
@@ -22,7 +22,7 @@ Aura AI — an iOS AI-companion chat app (**18+, US-first**). The current code i
 
 ## Critical rules
 
-- Follow `docs/`. **No hardcoded secrets** (env-validated, fail-closed). **Versioned migrations**, not `push`.
+- Follow `docs/`. **No hardcoded secrets** (env-validated, fail-closed). **Versioned migrations**, not `push` — migrations are squashed to a single `0000_init` baseline; add new ones via `drizzle-kit generate` (config: `server/drizzle.config.ts`).
 - **Legal-review items** in the docs (retention numbers, `safety_events.flagged_content`,
   jurisdictions, policy wording) are **NOT to be guessed**.
 - Target structure is **`client` + `server` + `shared`** (replaces the prototype's `artifacts/*`).
@@ -31,8 +31,8 @@ Aura AI — an iOS AI-companion chat app (**18+, US-first**). The current code i
 
 ## Replit Custom Instructions (workspace settings, always-on)
 
-The backend is built but audited **NO-GO**. Work `docs/planning/backend-fixlist-v1.md` in order
-(P0 blockers → P4), ONE item at a time — do not rebuild from scratch and do not batch unrelated fixes.
+The backend audit is **remediated and locked on `main`** (remaining = the eval run; voice has landed). Work `docs/planning/backend-fixlist-v1.md` in order,
+ONE item at a time — do not rebuild from scratch and do not batch unrelated fixes.
 Then build the test/eval loop in `docs/testing/testing-readiness-v1.md` and iterate the prompts. After
 each item: `pnpm build && typecheck && lint && test` pass (add/keep tests), no `console.*` or hardcoded
 secrets, then commit. Backend/server only — do not build the frontend; append client-affecting changes
