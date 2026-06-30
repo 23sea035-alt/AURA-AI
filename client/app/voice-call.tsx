@@ -1,5 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Audio } from 'expo-av';
+import {
+  createAudioPlayer,
+  RecordingPresets,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  useAudioRecorder,
+  type AudioPlayer,
+} from 'expo-audio';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -142,10 +149,10 @@ export default function VoiceCallScreen() {
   const [transcript, setTranscript] = useState<string | null>(null);
   const [lastResponse, setLastResponse] = useState<string | null>(null);
 
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waveRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const playerRef = useRef<AudioPlayer | null>(null);
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(IS_WEB ? window.speechSynthesis : null);
   const loopActiveRef = useRef(false);
@@ -154,19 +161,20 @@ export default function VoiceCallScreen() {
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom + 24;
 
   useEffect(() => {
-    Audio.setAudioModeAsync({
-      allowsRecordingIOS: true,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      playThroughEarpieceAndroid: false,
-    });
+    setAudioModeAsync({
+      allowsRecording: true,
+      playsInSilentMode: true,
+      interruptionModeAndroid: 'duckOthers',
+      shouldRouteThroughEarpiece: false,
+    }).catch(() => {});
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (waveRef.current) clearInterval(waveRef.current);
-      recordingRef.current?.stopAndUnloadAsync();
-      soundRef.current?.unloadAsync();
+      if (recorder.isRecording) recorder.stop().catch(() => {});
+      playerRef.current?.remove();
       loopActiveRef.current = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const formatTime = (sec: number) => {
@@ -279,17 +287,14 @@ export default function VoiceCallScreen() {
         const b64 = btoa(binary);
         const dataUri = `data:audio/mp3;base64,${b64}`;
 
-        if (soundRef.current) await soundRef.current.unloadAsync();
-        const { sound } = await Audio.Sound.createAsync(
-          { uri: dataUri },
-          { shouldPlay: !muted },
-        );
-        soundRef.current = sound;
-        sound.setOnPlaybackStatusUpdate((status) => {
-          if (status.isLoaded && status.didJustFinish) {
-            startCallRecording();
-          }
+        playerRef.current?.remove();
+        const player = createAudioPlayer({ uri: dataUri });
+        playerRef.current = player;
+        player.volume = muted ? 0 : 1;
+        player.addListener('playbackStatusUpdate', (status) => {
+          if (status.didJustFinish) startCallRecording();
         });
+        if (!muted) player.play();
       } else {
         startCallRecording();
       }
@@ -301,14 +306,9 @@ export default function VoiceCallScreen() {
 
   const startCallRecording = async () => {
     try {
-      if (recordingRef.current) {
-        await recordingRef.current.stopAndUnloadAsync();
-        recordingRef.current = null;
-      }
-      const recording = new Audio.Recording();
-      await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
-      recordingRef.current = recording;
-      await recording.startAsync();
+      if (recorder.isRecording) await recorder.stop();
+      await recorder.prepareToRecordAsync();
+      recorder.record();
     } catch {
       Alert.alert('Recording Error', 'Could not start recording. Check microphone permissions.');
     }
@@ -316,10 +316,9 @@ export default function VoiceCallScreen() {
 
   const stopCallRecording = async () => {
     try {
-      if (!recordingRef.current) return;
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      if (!recorder.isRecording) return;
+      await recorder.stop();
+      const uri = recorder.uri;
       if (uri) await transcribeAndReply(uri);
     } catch {
       setIsProcessing(false);
@@ -357,6 +356,12 @@ export default function VoiceCallScreen() {
         endCall();
       }
     } else {
+      const perm = await requestRecordingPermissionsAsync();
+      if (!perm.granted) {
+        setMicError('Microphone permission denied. Please allow mic access and try again.');
+        endCall();
+        return;
+      }
       await startCallRecording();
     }
   };
@@ -369,8 +374,8 @@ export default function VoiceCallScreen() {
     stopWebSpeechLoop();
     if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
     await stopCallRecording();
-    await soundRef.current?.stopAsync();
-    soundRef.current = null;
+    playerRef.current?.remove();
+    playerRef.current = null;
     setSecondsElapsed(0);
     setTranscript(null);
     setLastResponse(null);
@@ -386,11 +391,11 @@ export default function VoiceCallScreen() {
       if (!prev) {
         setWaveHeights(Array(WAVE_BAR_COUNT).fill(8));
         if (waveRef.current) clearInterval(waveRef.current);
-        soundRef.current?.setVolumeAsync(0);
+        if (playerRef.current) playerRef.current.volume = 0;
         if (synthRef.current) synthRef.current.cancel();
       } else {
         startWaveAnimation();
-        soundRef.current?.setVolumeAsync(1);
+        if (playerRef.current) playerRef.current.volume = 1;
       }
       return !prev;
     });
