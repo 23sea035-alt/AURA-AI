@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { companionsTable } from "./companions.js";
 
 export const usersTable = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -19,6 +20,10 @@ export const usersTable = pgTable("users", {
   tosAcceptedVersion: text("tos_accepted_version"),
   tosAcceptedAt: timestamp("tos_accepted_at", { withTimezone: true }),
   stripeCustomerId: text("stripe_customer_id"),
+  // Profile-avatar color preference (curated set, chosen in edit-profile; null = client default).
+  avatarColor: text("avatar_color"),
+  // Companion pinned to Home — user-switchable. FK set null if that companion is deleted.
+  primaryCompanionId: uuid("primary_companion_id").references((): AnyPgColumn => companionsTable.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
