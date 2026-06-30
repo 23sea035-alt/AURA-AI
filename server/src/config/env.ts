@@ -20,6 +20,15 @@ const envSchema = z.object({
   APNS_KEY_FILE: z.string().optional(),
   APNS_ENVIRONMENT: z.enum(["production", "sandbox"]).default("sandbox"),
 
+  // ── Voice (LiveKit realtime + Cartesia TTS + Deepgram STT) ──────
+  // All optional: the voice feature degrades gracefully (routes 4xx/500) when unset.
+  CARTESIA_API_KEY: z.string().optional(),
+  CARTESIA_VOICE_ID: z.string().default("db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"),
+  DEEPGRAM_API_KEY: z.string().optional(),
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional(),
+  LIVEKIT_URL: z.string().optional(),
+
   BANNED_IDENTITY_PEPPER: z.string().min(1, "BANNED_IDENTITY_PEPPER is required"),
 
   SENTRY_DSN: z.string().optional(),

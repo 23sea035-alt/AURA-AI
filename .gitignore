@@ -54,3 +54,7 @@ Thumbs.db
 # Eval reports (regenerable)
 server/eval/reports/
 artifacts/
+
+# Voice TTS A/B sample audio — regenerable via server/test-tts-*.mjs, do not commit
+server/tts-output/*.wav
+server/tts-output/*.mp3

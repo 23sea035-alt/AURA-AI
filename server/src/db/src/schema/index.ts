@@ -7,3 +7,4 @@ export * from "./subscriptions";
 export * from "./device_tokens";
 export * from "./banned_identities";
 export * from "./memory_jobs";
+export * from "./voice_usage";

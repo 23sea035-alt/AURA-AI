@@ -175,3 +175,10 @@ export const HealthCheckResponse = z.object({
   checks: z.record(z.string(), z.string()).optional(),
 });
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponse>;
+
+// ── Voice limits (LiveKit realtime + Cartesia TTS) ──────────────────────
+export const VOICE_DAILY_LIMIT_SECONDS = 600;
+export const VOICE_DAILY_LIMIT_SECONDS_PREMIUM = 3600;
+export const VOICE_CALL_MAX_DURATION_SECONDS = 900;
+export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3600;
+export const DEFAULT_CARTESIA_VOICE_ID = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4";

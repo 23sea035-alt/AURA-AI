@@ -7,6 +7,7 @@ import paymentsRouter from "./payments.js";
 import webhooksRouter from "./webhooks.js";
 import notificationsRouter from "./notifications.js";
 import complianceRouter from "./compliance.js";
+import voiceRouter from "./voice.js";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(paymentsRouter);
 router.use(webhooksRouter);
 router.use(notificationsRouter);
 router.use(complianceRouter);
+router.use(voiceRouter);
 
 export default router;
