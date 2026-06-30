@@ -130,6 +130,33 @@ describe("HTTP integration (router + middleware + envelope)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("PUT /api/auth/me → 200 sets avatarColor", async () => {
+    mockUpdate.mockReturnValue(updateResolving([{ ...TEST_USER, avatarColor: "#8F4150" }]));
+    const res = await request(app).put("/api/auth/me").set("x-test-user-id", TEST_USER_ID).send({ avatarColor: "#8F4150" });
+    expect(res.status).toBe(200);
+    expect(res.body.avatarColor).toBe("#8F4150");
+  });
+
+  it("PUT /api/auth/me → 400 on a non-uuid primaryCompanionId (Zod validation)", async () => {
+    const res = await request(app).put("/api/auth/me").set("x-test-user-id", TEST_USER_ID).send({ primaryCompanionId: "not-a-uuid" });
+    expect(res.status).toBe(400);
+  });
+
+  it("PUT /api/auth/me → 404 pinning a companion the caller doesn't own", async () => {
+    mockSelect.mockReturnValueOnce(selectResolving([])); // ownership check finds nothing
+    const res = await request(app).put("/api/auth/me").set("x-test-user-id", TEST_USER_ID).send({ primaryCompanionId: "00000000-0000-0000-0000-0000000000aa" });
+    expect(res.status).toBe(404);
+  });
+
+  it("PUT /api/auth/me → 200 pinning an owned companion (switchable Home pin)", async () => {
+    const cid = "00000000-0000-0000-0000-0000000000bb";
+    mockSelect.mockReturnValueOnce(selectResolving([{ id: cid }])); // ownership ok
+    mockUpdate.mockReturnValue(updateResolving([{ ...TEST_USER, primaryCompanionId: cid }]));
+    const res = await request(app).put("/api/auth/me").set("x-test-user-id", TEST_USER_ID).send({ primaryCompanionId: cid });
+    expect(res.status).toBe(200);
+    expect(res.body.primaryCompanionId).toBe(cid);
+  });
+
   it("GET /api/companions → 401 without auth", async () => {
     const res = await request(app).get("/api/companions");
     expect(res.status).toBe(401);

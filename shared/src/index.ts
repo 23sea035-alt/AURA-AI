@@ -153,6 +153,10 @@ export const UpdateProfileSchema = z.object({
   onboardingDone: z.boolean().optional(),
   aiDisclosureAccepted: z.boolean().optional(),
   tosAcceptedVersion: z.string().min(1).optional(),
+  // Profile-avatar color (edit-profile). null clears it back to the client default.
+  avatarColor: z.string().max(32).nullable().optional(),
+  // Home-pinned companion. null unpins; a uuid is verified server-side to belong to the caller.
+  primaryCompanionId: z.string().uuid().nullable().optional(),
 });
 
 export const UpdateMemorySchema = z.object({
