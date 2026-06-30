@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, timestamp, uuid, integer, jsonb, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, integer, jsonb, index, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 import { memoriesTable } from "./memories.js";
 
@@ -19,7 +20,10 @@ export const companionsTable = pgTable("companions", {
   rememberGeneratedAt: timestamp("remember_generated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check("companions_persona_key_check", sql`${table.personaKey} in ('aurora', 'orion', 'lyra')`),
+  index("idx_companions_user").on(table.userId),
+]);
 
 export type Companion = typeof companionsTable.$inferSelect;
 export type NewCompanion = typeof companionsTable.$inferInsert;

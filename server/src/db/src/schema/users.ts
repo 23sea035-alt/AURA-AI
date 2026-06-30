@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, timestamp, uuid, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { companionsTable } from "./companions.js";
 
 export const usersTable = pgTable("users", {
@@ -27,7 +28,9 @@ export const usersTable = pgTable("users", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+}, (table) => [
+  check("users_status_check", sql`${table.status} in ('active', 'suspended', 'banned', 'deleted')`),
+]);
 
 export type User = typeof usersTable.$inferSelect;
 export type NewUser = typeof usersTable.$inferInsert;

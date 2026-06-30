@@ -1,8 +1,3 @@
--- Consolidated baseline (v1.0). Squashes the prior 0000–0015 incremental migrations into a
--- single final-state schema, plus the redesign deferred fields:
---   users.avatar_color, users.primary_companion_id, companions.remember_* (Home "remembers" cache).
--- Tables are created first, then FKs/uniques/checks/indexes, so circular FKs resolve.
-
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"clerk_user_id" text NOT NULL,
@@ -28,7 +23,8 @@ CREATE TABLE "users" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"deleted_at" timestamp with time zone,
 	CONSTRAINT "users_clerk_user_id_unique" UNIQUE("clerk_user_id"),
-	CONSTRAINT "users_email_unique" UNIQUE("email")
+	CONSTRAINT "users_email_unique" UNIQUE("email"),
+	CONSTRAINT "users_status_check" CHECK ("users"."status" in ('active', 'suspended', 'banned', 'deleted'))
 );
 --> statement-breakpoint
 CREATE TABLE "companions" (
@@ -45,7 +41,8 @@ CREATE TABLE "companions" (
 	"remember_question" text,
 	"remember_generated_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "companions_persona_key_check" CHECK ("companions"."persona_key" in ('aurora', 'orion', 'lyra'))
 );
 --> statement-breakpoint
 CREATE TABLE "messages" (
@@ -57,7 +54,10 @@ CREATE TABLE "messages" (
 	"status" text DEFAULT 'complete' NOT NULL,
 	"content" text NOT NULL,
 	"flagged" boolean DEFAULT false NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "uq_turn_id_role" UNIQUE("turn_id","role"),
+	CONSTRAINT "messages_role_check" CHECK ("messages"."role" in ('user', 'assistant')),
+	CONSTRAINT "messages_status_check" CHECK ("messages"."status" in ('pending', 'complete', 'failed', 'blocked'))
 );
 --> statement-breakpoint
 CREATE TABLE "memories" (
@@ -91,7 +91,10 @@ CREATE TABLE "safety_events" (
 	"reviewed_at" timestamp with time zone,
 	"reviewed_by" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "safety_events_event_type_check" CHECK ("safety_events"."event_type" in ('input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected', 'user_reported')),
+	CONSTRAINT "safety_events_source_check" CHECK ("safety_events"."source" in ('input', 'output', 'injection', 'user_report')),
+	CONSTRAINT "safety_events_severity_check" CHECK ("safety_events"."severity" in ('info', 'warning', 'critical'))
 );
 --> statement-breakpoint
 CREATE TABLE "subscriptions" (
@@ -107,9 +110,9 @@ CREATE TABLE "subscriptions" (
 	"period_type" text,
 	"will_renew" boolean DEFAULT true NOT NULL,
 	"expires_at" timestamp with time zone,
+	"last_event_timestamp_ms" bigint,
 	"stripe_subscription_id" text,
 	"stripe_customer_id" text,
-	"last_event_timestamp_ms" bigint,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "subscriptions_user_id_unique" UNIQUE("user_id")
@@ -152,6 +155,16 @@ CREATE TABLE "memory_jobs" (
 	"processed_at" timestamp with time zone
 );
 --> statement-breakpoint
+CREATE TABLE "voice_usage" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"user_id" uuid NOT NULL,
+	"companion_id" uuid NOT NULL,
+	"duration_seconds" integer NOT NULL,
+	"direction" text NOT NULL,
+	"model_id" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "rate_limits" (
 	"key" text PRIMARY KEY NOT NULL,
 	"count" integer DEFAULT 0 NOT NULL,
@@ -167,19 +180,9 @@ CREATE TABLE "deletion_audit" (
 	"purged_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "voice_usage" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"user_id" uuid NOT NULL,
-	"companion_id" uuid NOT NULL,
-	"duration_seconds" integer NOT NULL,
-	"direction" text NOT NULL,
-	"model_id" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
+ALTER TABLE "users" ADD CONSTRAINT "users_primary_companion_id_companions_id_fk" FOREIGN KEY ("primary_companion_id") REFERENCES "public"."companions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "companions" ADD CONSTRAINT "companions_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "companions" ADD CONSTRAINT "companions_remember_memory_id_memories_id_fk" FOREIGN KEY ("remember_memory_id") REFERENCES "public"."memories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "users" ADD CONSTRAINT "users_primary_companion_id_companions_id_fk" FOREIGN KEY ("primary_companion_id") REFERENCES "public"."companions"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_companion_id_companions_id_fk" FOREIGN KEY ("companion_id") REFERENCES "public"."companions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "messages" ADD CONSTRAINT "messages_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "memories" ADD CONSTRAINT "memories_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -195,21 +198,13 @@ ALTER TABLE "memory_jobs" ADD CONSTRAINT "memory_jobs_user_id_users_id_fk" FOREI
 ALTER TABLE "memory_jobs" ADD CONSTRAINT "memory_jobs_companion_id_companions_id_fk" FOREIGN KEY ("companion_id") REFERENCES "public"."companions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "voice_usage" ADD CONSTRAINT "voice_usage_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "voice_usage" ADD CONSTRAINT "voice_usage_companion_id_companions_id_fk" FOREIGN KEY ("companion_id") REFERENCES "public"."companions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "uq_turn_id_role" UNIQUE("turn_id","role");--> statement-breakpoint
-ALTER TABLE "users" ADD CONSTRAINT "users_status_check" CHECK ("status" IN ('active', 'suspended', 'banned', 'deleted'));--> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_role_check" CHECK ("role" IN ('user', 'assistant'));--> statement-breakpoint
-ALTER TABLE "messages" ADD CONSTRAINT "messages_status_check" CHECK ("status" IN ('pending', 'complete', 'failed', 'blocked'));--> statement-breakpoint
-ALTER TABLE "companions" ADD CONSTRAINT "companions_persona_key_check" CHECK ("persona_key" IN ('aurora', 'orion', 'lyra'));--> statement-breakpoint
-ALTER TABLE "safety_events" ADD CONSTRAINT "safety_events_event_type_check" CHECK ("event_type" IN ('input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected', 'user_reported'));--> statement-breakpoint
-ALTER TABLE "safety_events" ADD CONSTRAINT "safety_events_source_check" CHECK ("source" IN ('input', 'output', 'injection', 'user_report'));--> statement-breakpoint
-ALTER TABLE "safety_events" ADD CONSTRAINT "safety_events_severity_check" CHECK ("severity" IN ('info', 'warning', 'critical'));--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_messages_user_companion_created" ON "messages" ("user_id","companion_id","created_at");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_messages_user_created" ON "messages" ("user_id","created_at");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_safety_events_user" ON "safety_events" ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_companions_user" ON "companions" ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_subscriptions_user" ON "subscriptions" ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_memory_jobs_status" ON "memory_jobs" ("status");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_banned_identities_hash" ON "banned_identities" ("identifier_hash");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_device_tokens_user" ON "device_tokens" ("user_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_memories_user_companion" ON "memories" ("user_id","companion_id");--> statement-breakpoint
-CREATE INDEX IF NOT EXISTS "idx_rate_limits_expires_at" ON "rate_limits" ("expires_at");
+CREATE INDEX "idx_companions_user" ON "companions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_messages_user_companion_created" ON "messages" USING btree ("user_id","companion_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_messages_user_created" ON "messages" USING btree ("user_id","created_at");--> statement-breakpoint
+CREATE INDEX "idx_memories_user_companion" ON "memories" USING btree ("user_id","companion_id");--> statement-breakpoint
+CREATE INDEX "idx_safety_events_user" ON "safety_events" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_subscriptions_user" ON "subscriptions" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_device_tokens_user" ON "device_tokens" USING btree ("user_id");--> statement-breakpoint
+CREATE INDEX "idx_banned_identities_hash" ON "banned_identities" USING btree ("identifier_hash");--> statement-breakpoint
+CREATE INDEX "idx_memory_jobs_status" ON "memory_jobs" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "idx_rate_limits_expires_at" ON "rate_limits" USING btree ("expires_at");

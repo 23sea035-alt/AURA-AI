@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, uuid, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, bigint, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users.js";
 
 export const subscriptionsTable = pgTable("subscriptions", {
@@ -19,7 +19,9 @@ export const subscriptionsTable = pgTable("subscriptions", {
   stripeCustomerId: text("stripe_customer_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index("idx_subscriptions_user").on(table.userId),
+]);
 
 export type Subscription = typeof subscriptionsTable.$inferSelect;
 export type NewSubscription = typeof subscriptionsTable.$inferInsert;

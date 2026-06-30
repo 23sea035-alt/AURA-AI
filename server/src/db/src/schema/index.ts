@@ -8,3 +8,5 @@ export * from "./device_tokens";
 export * from "./banned_identities";
 export * from "./memory_jobs";
 export * from "./voice_usage";
+export * from "./rate_limits";
+export * from "./deletion_audit";
