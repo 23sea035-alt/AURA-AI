@@ -8,6 +8,8 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } fr
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { Avatar } from '@/components/Avatar';
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
@@ -94,12 +96,22 @@ export default function CreateCompanionScreen() {
                       onPress={() => selectBase(p)}
                       style={[
                         styles.baseCard,
-                        { backgroundColor: colors.raised },
+                        // Selected = neutral sheet fill + neutral border + check (one-accent rule: no accent here).
                         sel
-                          ? { ...shadows.e1, borderColor: colors.accent, borderWidth: 1.5 }
-                          : { borderColor: colors.border, borderWidth: 1 },
+                          ? { backgroundColor: colors.sheet, borderColor: colors.textSecondary, ...shadows.e2 }
+                          : { backgroundColor: colors.raised, borderColor: 'transparent', ...shadows.e1 },
                       ]}
                     >
+                      <View
+                        style={[
+                          styles.checkBadge,
+                          sel
+                            ? { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
+                            : { backgroundColor: 'transparent', borderColor: colors.border },
+                        ]}
+                      >
+                        {sel ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+                      </View>
                       <Avatar id={p.toLowerCase()} name={p} size={44} />
                       <Text style={[styles.baseName, { color: colors.textPrimary }]}>{p}</Text>
                     </PressableScale>
@@ -130,7 +142,11 @@ export default function CreateCompanionScreen() {
             <Text style={[styles.preview, { color: colors.textSecondary }]}>{voicePreview}</Text>
           </View>
 
+          {/* Footer dock — Save (the ONE accent fill) for premium; the Unlock door + explainer for free. */}
           <View style={styles.action}>
+            {locked ? (
+              <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
+            ) : null}
             <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
           </View>
         </ScrollView>
@@ -153,6 +169,18 @@ const styles = StyleSheet.create({
     gap: SPACE.sm,
     padding: SPACE.md,
     borderRadius: RADIUS.card,
+    borderWidth: 1.5,
+  },
+  checkBadge: {
+    position: 'absolute',
+    top: SPACE.sm,
+    right: SPACE.sm,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   editHeader: {
     flexDirection: 'row',
@@ -165,5 +193,6 @@ const styles = StyleSheet.create({
   axis: { gap: SPACE.sm },
   axisLabel: { fontFamily: FONTS.body.semibold, fontSize: 13 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 20 },
-  action: { marginTop: 'auto', paddingTop: SPACE.lg },
+  action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
+  unlockExplainer: { ...TYPE.caption, textAlign: 'center' },
 });

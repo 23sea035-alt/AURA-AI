@@ -11,6 +11,7 @@ export const COMPANIONS = {
 export const CREATE = {
   saveCta: 'Save companion',
   unlockCta: 'Unlock with Premium',
+  unlockExplainer: 'Tuning & looks are a Premium feature.', // explainer line above the free Unlock door
   changeLook: 'Change look',
   traitLabels: { warmth: 'Warmth', energy: 'Energy', verbosity: 'Verbosity' }, // segments from TRAITS
   autoNumberExample: 'Aurora 2', // a second Aurora auto-numbers

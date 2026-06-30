@@ -41,7 +41,7 @@ export default function AccountScreen() {
         showsVerticalScrollIndicator={false}
       >
         <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Account</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>Manage your data</Text>
 
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.export.line}</Text>
@@ -50,11 +50,14 @@ export default function AccountScreen() {
           </ListGroup>
         </View>
 
+        {/* Danger area — neutral at rest (line + chevron row + grace explainer); the loud
+            destructive red lives only inside the confirm dialog. */}
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.delete.line}</Text>
           <ListGroup>
-            <ListRow first destructive label={a.delete.cta} onPress={() => setConfirmDelete(true)} />
+            <ListRow first label={a.delete.cta} onPress={() => setConfirmDelete(true)} />
           </ListGroup>
+          <Text style={[styles.explainer, { color: colors.textTertiary }]}>{a.delete.explainer}</Text>
         </View>
       </ScrollView>
 
@@ -85,4 +88,5 @@ const styles = StyleSheet.create({
   title: { ...TYPE.headline, marginBottom: SPACE.sm },
   section: { gap: SPACE.sm },
   line: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
+  explainer: { ...TYPE.caption, lineHeight: 17 },
 });

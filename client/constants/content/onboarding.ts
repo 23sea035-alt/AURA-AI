@@ -53,8 +53,9 @@ export const ONBOARDING = {
     termsNudge: 'Please agree to the Terms & Privacy Policy to continue.',
     forgotPasswordLink: 'Forgot password?',
     footers: {
-      toSignin: 'Already have an account? Sign in.',
-      toSignup: 'New to {AppName}? Create an account.', // wrap with withAppName()
+      // prompt = neutral, action = wine accent (the tappable swap)
+      toSignin: { prompt: 'Already have an account?', action: 'Sign in.' },
+      toSignup: { prompt: 'New to {AppName}?', action: 'Create an account.' }, // wrap prompt with withAppName()
     },
     helpers: {
       forgot: "We'll email you a 6-digit code to reset your password.",

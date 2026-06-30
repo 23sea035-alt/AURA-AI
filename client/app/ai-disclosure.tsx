@@ -55,13 +55,15 @@ export default function AIDisclosureScreen() {
             <Animated.View key={card.head} entering={enterUp(i + 1)}>
               <Card variant="soft">
                 <View style={styles.cardRow}>
+                  {/* Doctrine: no accent-tinted icon tiles — non-crisis cards get a neutral bg chip +
+                      textSecondary glyph; only the crisis card keeps a (semantic) grounding-green tile. */}
                   <View
                     style={[
                       styles.glyph,
-                      { backgroundColor: isCrisis ? colors.crisisBg : colors.accentTint },
+                      { backgroundColor: isCrisis ? colors.crisisBg : colors.bg },
                     ]}
                   >
-                    <Ionicons name={CARD_ICONS[i]} size={20} color={isCrisis ? colors.crisis : colors.accent} />
+                    <Ionicons name={CARD_ICONS[i]} size={20} color={isCrisis ? colors.crisis : colors.textSecondary} />
                   </View>
                   <View style={styles.cardText}>
                     <Text style={[styles.cardHead, { color: colors.textPrimary }]}>{card.head}</Text>

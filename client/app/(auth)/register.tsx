@@ -1,5 +1,6 @@
-// Create account — email + password (reveal-eye) + SSO + an honest terms box that gates every
-// signup method. Back chevron returns to Welcome. Restyled UI shell over local-auth (Clerk deferred).
+// Create account — SSO-first (logo → title → SSO → "or" → email/password) + an honest terms box.
+// The terms soft-gate: the Create-account CTA and SSO stay enabled; an attempt without consent
+// nudges the checkbox (accent ring) + shows the line. Back chevron to Welcome. UI shell (Clerk later).
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -26,18 +27,31 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [agreed, setAgreed] = useState(false);
+  const [nudge, setNudge] = useState(false); // accent ring on the terms box when an attempt lacks consent
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  const toggleAgreed = () =>
+    setAgreed((v) => {
+      if (!v) setNudge(false); // checking it clears the nudge
+      return !v;
+    });
+
+  const gateTerms = (): boolean => {
+    if (!agreed) {
+      setError(a.termsNudge);
+      setNudge(true);
+      return false;
+    }
+    return true;
+  };
 
   const handleRegister = async () => {
     if (!email.trim() || password.length < 8) {
       setError('Enter an email and a password of at least 8 characters.');
       return;
     }
-    if (!agreed) {
-      setError(a.termsNudge);
-      return;
-    }
+    if (!gateTerms()) return;
     setError('');
     setSubmitting(true);
     try {
@@ -53,10 +67,7 @@ export default function RegisterScreen() {
 
   // The terms box gates SSO too (per the content note). Real OAuth is Clerk-wired later.
   const handleSso = () => {
-    if (!agreed) {
-      setError(a.termsNudge);
-      return;
-    }
+    if (!gateTerms()) return;
     router.replace('/onboarding');
   };
 
@@ -70,6 +81,7 @@ export default function RegisterScreen() {
           showsVerticalScrollIndicator={false}
         >
           <BackChevron />
+
           <Animated.Text entering={enterUp(0)} style={[styles.title, { color: colors.textPrimary }]}>
             {a.titles.signup}
           </Animated.Text>
@@ -77,7 +89,18 @@ export default function RegisterScreen() {
             {a.sublines.signup}
           </Animated.Text>
 
-          <Animated.View entering={enterUp(2)} style={styles.fields}>
+          {/* SSO first — lead with the easiest path. */}
+          <Animated.View entering={enterUp(2)}>
+            <SsoButtons onApple={handleSso} onGoogle={handleSso} />
+          </Animated.View>
+
+          <Animated.View entering={enterUp(3)} style={styles.orRow}>
+            <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+            <Text style={[styles.orText, { color: colors.textTertiary }]}>or</Text>
+            <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+          </Animated.View>
+
+          <Animated.View entering={enterUp(4)} style={styles.fields}>
             <Field
               label={a.fields.emailLabel}
               value={email}
@@ -99,23 +122,24 @@ export default function RegisterScreen() {
             />
           </Animated.View>
 
-          <Animated.View entering={enterUp(3)}>
-            <SsoButtons onApple={handleSso} onGoogle={handleSso} />
-          </Animated.View>
-
-          <Animated.View entering={enterUp(4)} style={styles.termsRow}>
-            <Checkbox checked={agreed} onToggle={() => setAgreed((v) => !v)} />
-            <Text style={[styles.terms, { color: colors.textSecondary }]} onPress={() => setAgreed((v) => !v)}>
+          <Animated.View entering={enterUp(5)} style={styles.termsRow}>
+            <View style={[styles.checkWrap, nudge && !agreed ? { borderColor: colors.accent } : null]}>
+              <Checkbox checked={agreed} onToggle={toggleAgreed} />
+            </View>
+            <Text style={[styles.terms, { color: colors.textSecondary }]} onPress={toggleAgreed}>
               {a.terms}
             </Text>
           </Animated.View>
 
           {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
-          <Animated.View entering={enterUp(5)} style={styles.action}>
-            <Button label={a.ctas.signup} onPress={handleRegister} loading={submitting} disabled={!agreed} />
+          <Animated.View entering={enterUp(6)} style={styles.action}>
+            <Button label={a.ctas.signup} onPress={handleRegister} loading={submitting} />
             <PressableScale onPress={() => router.replace('/(auth)/login')} haptic="light" style={styles.footerLink}>
-              <Text style={[styles.footerText, { color: colors.textSecondary }]}>{a.footers.toSignin}</Text>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                {a.footers.toSignin.prompt}{' '}
+                <Text style={[styles.footerAction, { color: colors.accent }]}>{a.footers.toSignin.action}</Text>
+              </Text>
             </PressableScale>
           </Animated.View>
         </ScrollView>
@@ -129,12 +153,17 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
   content: { flexGrow: 1, gap: SPACE.md },
   title: { ...TYPE.headline },
-  subline: { ...TYPE.body, marginBottom: SPACE.sm },
+  subline: { ...TYPE.body, fontSize: 15, lineHeight: 21, marginBottom: SPACE.sm },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  orText: { fontFamily: FONTS.body.medium, fontSize: 13 },
   fields: { gap: SPACE.lg },
   termsRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
+  checkWrap: { borderWidth: 1.5, borderColor: 'transparent', borderRadius: 8, padding: 2 },
   terms: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 19 },
   error: { fontFamily: FONTS.body.regular, fontSize: 14, textAlign: 'center' },
   action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
   footerLink: { alignItems: 'center', paddingVertical: SPACE.sm },
   footerText: { fontFamily: FONTS.body.medium, fontSize: 14 },
+  footerAction: { fontFamily: FONTS.body.semibold, fontSize: 14 },
 });

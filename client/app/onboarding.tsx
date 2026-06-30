@@ -67,8 +67,10 @@ export default function CarouselScreen() {
       >
         {copy.slides.map((slide, i) => (
           <View key={i} style={[styles.slide, { width }]}>
-            <View style={[styles.illo, { backgroundColor: colors.accentTint }]}>
-              <Ionicons name={SLIDE_ICONS[i]} size={64} color={colors.accent} />
+            {/* Doctrine: no accent-tinted tile — the glyph floats in open warm space (placeholder
+                until the bespoke ThreadArt/ChatArt/PresenceArt SVGs land). */}
+            <View style={styles.illo}>
+              <Ionicons name={SLIDE_ICONS[i]} size={72} color={colors.textTertiary} />
             </View>
             <Text style={[styles.headline, { color: colors.textPrimary }]}>{slide.headline}</Text>
             <Text style={[styles.support, { color: colors.textSecondary }]}>{slide.support}</Text>
