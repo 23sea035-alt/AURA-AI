@@ -30,7 +30,7 @@ node_modules
 # misc
 /.sass-cache
 /connect.lock
-/coverage
+# /coverage — un-ignored on test-results so coworker eval/coverage output is committed
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
@@ -51,8 +51,8 @@ Thumbs.db
 # Environment
 .env
 
-# Eval reports (regenerable)
-server/eval/reports/
+# Eval reports — tracked on test-results so Jason can review results
+# server/eval/reports/
 artifacts/
 
 # Voice TTS A/B sample audio — regenerable via server/test-tts-*.mjs, do not commit
