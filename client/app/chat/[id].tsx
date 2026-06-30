@@ -16,12 +16,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/BottomSheet';
 import { Button } from '@/components/Button';
-import { ChatHeader, MessageBubble, ChatComposer, DisclosureBanner } from '@/components/chat';
+import { ChatHeader, MessageBubble, ChatComposer, DisclosureBanner, ReportSheet } from '@/components/chat';
+import { CrisisSupport } from '@/components/CrisisSupport';
 import { PressableScale } from '@/components/motion';
+import { Toast } from '@/components/Toast';
 import { CHAT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { type Message, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { apiReportMessage } from '@/lib/api';
 import { connectChatWs } from '@/lib/websocket';
 
 const FALLBACK_REPLY = "I'm here with you. Tell me a little more?";
@@ -51,8 +54,25 @@ export default function ChatScreen() {
   const [isTyping, setIsTyping] = useState(false);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  const [toast, setToast] = useState(false);
   // Set when the next send originated from hold-to-talk dictation; consumed (and cleared) on send.
   const [voiceDraft, setVoiceDraft] = useState<{ audioUri?: string } | null>(null);
+
+  // A message is reportable once it's a real assistant turn (not the local greeting or the
+  // in-progress streaming placeholder).
+  const isReportable = (m: Message) => m.role === 'assistant' && m.id !== 'initial' && m.id !== 'streaming';
+  const openReport = (messageId: string | null) => {
+    setReportTargetId(messageId);
+    setReportOpen(true);
+  };
+  const submitReport = (reason: string, note: string) => {
+    setReportOpen(false);
+    // Fire-and-forget + non-punitive: never surface a report error to the user.
+    if (reportTargetId) apiReportMessage(reportTargetId, reason, note || undefined);
+    setToast(true);
+  };
 
   const greeting: Message = {
     id: 'initial',
@@ -115,7 +135,7 @@ export default function ChatScreen() {
         if (!usedWs) return;
         setStreaming((prev) => {
           const final = prev ?? '';
-          const aiMsg: Message = { id: String(msg.messageId), role: 'assistant', content: final, createdAt: new Date().toISOString() };
+          const aiMsg: Message = { id: String(msg.messageId), role: 'assistant', content: final, createdAt: new Date().toISOString(), safetyFlagged: msg.safetyFlagged };
           setMessages((m) => [...m, aiMsg]);
           addMessage(cid, { role: 'assistant', content: final, createdAt: new Date().toISOString() });
           if (msg.breakReminder) setBreakReminder(msg.breakReminder);
@@ -182,7 +202,19 @@ export default function ChatScreen() {
           onContentSizeChange={scrollToEnd}
           ListHeaderComponent={safetyState.showDisclosure ? <DisclosureBanner text={CHAT.disclosureBanner.replace('{Companion}', companion?.name ?? 'Aurora')} /> : null}
           renderItem={({ item }) => (
-            <MessageBubble role={item.role === 'user' ? 'user' : 'assistant'} text={item.content} audioUri={item.audioUri} />
+            <>
+              <MessageBubble
+                role={item.role === 'user' ? 'user' : 'assistant'}
+                text={item.content}
+                audioUri={item.audioUri}
+                onLongPress={isReportable(item) ? () => openReport(item.id) : undefined}
+              />
+              {item.role === 'assistant' && item.safetyFlagged ? (
+                <View style={styles.crisisWrap}>
+                  <CrisisSupport companion={companion?.name ?? 'Aurora'} />
+                </View>
+              ) : null}
+            </>
           )}
           ListFooterComponent={isTyping ? <TypingDots /> : null}
         />
@@ -225,7 +257,11 @@ export default function ChatScreen() {
               danger: false,
             },
             { label: CHAT.overflow.viewMemory, go: () => router.push('/long-term-memory'), danger: false },
-            { label: CHAT.overflow.report, go: () => {}, danger: true },
+            {
+              label: CHAT.overflow.report,
+              go: () => openReport([...messages].reverse().find(isReportable)?.id ?? null),
+              danger: true,
+            },
           ].map((row) => (
             <PressableScale
               key={row.label}
@@ -243,6 +279,10 @@ export default function ChatScreen() {
           ))}
         </View>
       </BottomSheet>
+
+      <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} onSubmit={submitReport} />
+
+      <Toast visible={toast} message={CHAT.report.confirmToast} onHide={() => setToast(false)} />
     </View>
   );
 }
@@ -262,6 +302,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   thread: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
+  crisisWrap: { marginVertical: SPACE.sm },
   typing: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

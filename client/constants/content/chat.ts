@@ -28,8 +28,10 @@ export const CHAT = {
 
   // report sheet — low-friction, non-punitive.
   report: {
-    title: 'Help us keep {AppName} safe',
+    title: 'Help us keep {AppName} safe', // wrap with withAppName()
+    body: "Tell us what felt off. This is private and won't interrupt your chat.",
     reasons: ['Inappropriate', 'Harmful', 'Not helpful', 'Other'],
+    notePlaceholder: 'Add a note (optional)',
     submit: 'Submit report',
     cancel: 'Cancel',
     confirmToast: "Thanks. We'll review this.",

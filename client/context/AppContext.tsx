@@ -31,6 +31,8 @@ export interface Message {
   audioUri?: string;
   /** How the user composed the message. Absent = text. */
   inputModality?: 'text' | 'voice';
+  /** Set on an assistant turn the safety pipeline flagged as crisis — renders the inline support block. */
+  safetyFlagged?: boolean;
 }
 
 export interface UserProfile {
@@ -348,7 +350,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     setApiError(null);
-    const aiMsg = toMessage(data.aiMessage);
+    const aiMsg: Message = { ...toMessage(data.aiMessage), safetyFlagged: data.safetyFlagged };
     setMessages(prev => {
       const updated = {
         ...prev,

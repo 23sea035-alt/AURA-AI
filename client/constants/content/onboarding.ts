@@ -95,7 +95,7 @@ export const ONBOARDING = {
     title: 'How old are you?',
     body: '{AppName} is for adults. You must be 18 or older to continue.', // wrap with withAppName()
     cta: 'Continue',
-    under18: 'You need to be 18 to use {AppName}. Thanks for stopping by.', // wrap with withAppName()
+    under18: 'You need to be 18 to use {AppName}.', // inline gate notice; wrap with withAppName()
   },
 
   disclosure: {

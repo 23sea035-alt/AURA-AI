@@ -20,6 +20,7 @@
     "@expo-google-fonts/hanken-grotesk": "^0.4.3",
     "@expo-google-fonts/newsreader": "^0.4.1",
     "@expo/metro-runtime": "~6.1.2",
+    "@quidone/react-native-wheel-picker": "^1.7.0",
     "expo": "~54.0.35",
     "expo-audio": "~1.1.1",
     "expo-av": "~16.0.8",
