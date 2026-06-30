@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,7 +16,7 @@ import { ListGroup } from '@/components/ListGroup';
 import { PressableScale, enterUp } from '@/components/motion';
 import { MEMORY, PERSONAS } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
-import { FONTS, SPACE, TYPE } from '@/constants/design';
+import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
 type Mem = { id: string; category: string; fact: string };
@@ -35,6 +35,24 @@ export default function MemoryScreen() {
   );
   const [actionFor, setActionFor] = useState<Mem | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Mem | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+
+  const startEdit = (m: Mem) => {
+    setActionFor(null);
+    setEditingId(m.id);
+    setEditText(m.fact);
+  };
+  const saveEdit = () => {
+    const text = editText.trim();
+    if (editingId && text) setMemories((ms) => ms.map((x) => (x.id === editingId ? { ...x, fact: text } : x)));
+    setEditingId(null);
+    setEditText('');
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditText('');
+  };
 
   const grouped = MEMORY.categories
     .map((cat) => ({ cat, items: memories.filter((m) => m.category === cat) }))
@@ -61,20 +79,43 @@ export default function MemoryScreen() {
           grouped.map((g, gi) => (
             <Animated.View key={g.cat} entering={enterUp(gi + 2)}>
               <ListGroup label={g.cat}>
-                {g.items.map((m, i) => (
-                  <View
-                    key={m.id}
-                    style={[
-                      styles.row,
-                      i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
-                    ]}
-                  >
-                    <Text style={[styles.fact, { color: colors.textPrimary }]}>{m.fact}</Text>
-                    <PressableScale haptic="light" hitSlop={8} onPress={() => setActionFor(m)} style={styles.more}>
-                      <Ionicons name="ellipsis-horizontal" size={18} color={colors.textTertiary} />
-                    </PressableScale>
-                  </View>
-                ))}
+                {g.items.map((m, i) => {
+                  const editing = editingId === m.id;
+                  return (
+                    <View
+                      key={m.id}
+                      style={[
+                        styles.row,
+                        i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider },
+                      ]}
+                    >
+                      {editing ? (
+                        <>
+                          <TextInput
+                            value={editText}
+                            onChangeText={setEditText}
+                            autoFocus
+                            multiline
+                            style={[styles.factInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                          />
+                          <PressableScale haptic="light" hitSlop={8} onPress={saveEdit} style={styles.more}>
+                            <Ionicons name="checkmark" size={20} color={colors.accent} />
+                          </PressableScale>
+                          <PressableScale haptic="light" hitSlop={8} onPress={cancelEdit} style={styles.more}>
+                            <Ionicons name="close" size={20} color={colors.textTertiary} />
+                          </PressableScale>
+                        </>
+                      ) : (
+                        <>
+                          <Text style={[styles.fact, { color: colors.textPrimary }]}>{m.fact}</Text>
+                          <PressableScale haptic="light" hitSlop={8} onPress={() => setActionFor(m)} style={styles.more}>
+                            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textTertiary} />
+                          </PressableScale>
+                        </>
+                      )}
+                    </View>
+                  );
+                })}
               </ListGroup>
             </Animated.View>
           ))
@@ -83,7 +124,7 @@ export default function MemoryScreen() {
 
       <BottomSheet visible={!!actionFor} onClose={() => setActionFor(null)}>
         <View style={styles.sheet}>
-          <PressableScale haptic="light" onPress={() => setActionFor(null)} style={styles.sheetRow}>
+          <PressableScale haptic="light" onPress={() => actionFor && startEdit(actionFor)} style={styles.sheetRow}>
             <Text style={[styles.sheetText, { color: colors.textPrimary }]}>{MEMORY.edit}</Text>
           </PressableScale>
           <PressableScale
@@ -123,6 +164,18 @@ const styles = StyleSheet.create({
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md },
   fact: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
+  factInput: {
+    flex: 1,
+    fontFamily: FONTS.body.regular,
+    fontSize: 15,
+    lineHeight: 21,
+    borderWidth: 1,
+    borderRadius: RADIUS.edit,
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: SPACE.xs,
+    minHeight: 38,
+    textAlignVertical: 'top',
+  },
   more: { padding: 2 },
   sheet: { paddingTop: SPACE.xs },
   sheetRow: { paddingVertical: SPACE.md, alignItems: 'center' },
