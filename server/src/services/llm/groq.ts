@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { GENERATION_TEMPERATURE, GENERATION_MAX_TOKENS } from "@aura/shared";
 import type { LLMProvider } from "./index.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -22,13 +23,21 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
       ];
 
       const completion = await client.chat.completions.create({
-        model: resolvedModel,
-        messages: chatMessages,
-        temperature: 0.8,
-        max_tokens: maxTokensForModel(resolvedModel),
+        model,
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ],
+        temperature: GENERATION_TEMPERATURE,
+        max_tokens: GENERATION_MAX_TOKENS,
       });
 
-      return completion.choices[0]?.message?.content?.trim() ?? "";
+      const content = completion.choices[0]?.message?.content?.trim() ?? "";
+      // Empty responses from classification models (e.g. gpt-oss-safeguard-20b
+      // when given a system message) indicate the model couldn't process the
+      // request — treat as a failure so the caller's fallback logic kicks in.
+      if (!content) throw new Error("Empty model response");
+      return content;
     },
   };
 }

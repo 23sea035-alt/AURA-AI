@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, usersTable, companionsTable } from "../db/src/index.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
@@ -14,6 +14,14 @@ const AGE_GUARD_ERROR = { error: "Age verification required. Complete onboarding
 
 function isAdult(dateOfBirth: string): boolean {
   return Date.now() - new Date(dateOfBirth).getTime() >= EIGHTEEN_YEARS_MS;
+}
+
+function isPlausibleDob(dateOfBirth: string): boolean {
+  const t = new Date(dateOfBirth).getTime();
+  if (Number.isNaN(t)) return false;
+  if (t > Date.now()) return false; // not in the future
+  if (t < Date.UTC(1900, 0, 1)) return false; // not absurdly old
+  return true;
 }
 
 const router = Router();
@@ -176,6 +184,8 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
       ageVerified: user.ageVerified,
       onboardingDone: user.onboardingDone,
       aiDisclosureAccepted: user.aiDisclosureAccepted,
+      avatarColor: user.avatarColor,
+      primaryCompanionId: user.primaryCompanionId,
     });
   } catch (err) {
     logger.error({ err }, "Failed to fetch user");
@@ -186,22 +196,39 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
 // PUT /api/auth/me — update profile
 router.put("/auth/me", requireAuth, validate(UpdateProfileSchema), async (req: AuthRequest, res) => {
   try {
-    const { firstName, lastName, dateOfBirth, onboardingDone, aiDisclosureAccepted, tosAcceptedVersion } = req.body;
+    const { firstName, lastName, dateOfBirth, onboardingDone, aiDisclosureAccepted, tosAcceptedVersion, avatarColor, primaryCompanionId } = req.body;
 
     const updates: Record<string, unknown> = {};
     if (firstName !== undefined) updates.firstName = firstName;
     if (lastName !== undefined) updates.lastName = lastName;
     if (dateOfBirth !== undefined) {
+      if (!isPlausibleDob(dateOfBirth)) { res.status(400).json({ error: "Please enter a valid date of birth." }); return; }
       if (!isAdult(dateOfBirth)) { res.status(403).json({ error: "You must be 18 or older to use Aura." }); return; }
       updates.dateOfBirth = dateOfBirth;
       updates.isMinor = false;
       updates.ageVerified = true;
+      updates.ageVerifiedAt = new Date();
     }
     if (onboardingDone !== undefined) updates.onboardingDone = onboardingDone;
     if (aiDisclosureAccepted !== undefined) updates.aiDisclosureAccepted = aiDisclosureAccepted;
     if (tosAcceptedVersion !== undefined) {
       updates.tosAcceptedVersion = tosAcceptedVersion;
       updates.tosAcceptedAt = new Date().toISOString();
+    }
+    if (avatarColor !== undefined) updates.avatarColor = avatarColor;
+    if (primaryCompanionId !== undefined) {
+      if (primaryCompanionId === null) {
+        updates.primaryCompanionId = null; // unpin the Home companion
+      } else {
+        // Ownership guard: only a companion the caller owns can be pinned (IDOR + FK safety).
+        const [owned] = await db
+          .select({ id: companionsTable.id })
+          .from(companionsTable)
+          .where(and(eq(companionsTable.id, primaryCompanionId), eq(companionsTable.userId, req.userId!)))
+          .limit(1);
+        if (!owned) { res.status(404).json({ error: "Companion not found" }); return; }
+        updates.primaryCompanionId = primaryCompanionId;
+      }
     }
 
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nothing to update" }); return; }
@@ -212,6 +239,7 @@ router.put("/auth/me", requireAuth, validate(UpdateProfileSchema), async (req: A
       isPremium: user.isPremium, isMinor: user.isMinor,
       ageVerified: user.ageVerified, onboardingDone: user.onboardingDone,
       aiDisclosureAccepted: user.aiDisclosureAccepted,
+      avatarColor: user.avatarColor, primaryCompanionId: user.primaryCompanionId,
     });
   } catch (err) {
     logger.error({ err }, "Failed to update profile");

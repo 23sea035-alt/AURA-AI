@@ -1,5 +1,4 @@
-import { db, memoriesTable, memoryJobsTable } from "../db/src/index.js";
-import type * as schema from "../db/src/schema/index.js";
+import { db, memoriesTable, memoryJobsTable, type DbOrTx } from "../db/src/index.js";
 import { and, eq, desc } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { extractKeywords, jaccardSimilarity } from "./memory/keywords.js";
@@ -65,7 +64,7 @@ export async function enqueueMemoryJob(
   userId: string,
   companionId: string,
   rawContent: string,
-  tx?: TxOrDb,
+  tx?: DbOrTx,
 ): Promise<string | null> {
   const client = tx ?? db;
   try {

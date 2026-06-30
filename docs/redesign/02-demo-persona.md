@@ -5,6 +5,11 @@
 > the sibling repo's "Jason" persona ran through all its screens. Pull exact copy/figures from here;
 > don't invent new ones. All content is **fictional demo data**.
 
+> **⚠️ As of 2026-06-24, these values live in code.** Demo fixtures (Maya, the conversation, the
+> memories, the dates) are canonical in **`client/constants/demo.ts`**; shared UI copy is in
+> **`client/constants/content/*`**. This doc is the design-time reference and a **frozen snapshot** —
+> change values in code, not here.
+
 ---
 
 ## The user — Maya Chen

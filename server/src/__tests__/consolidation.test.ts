@@ -22,6 +22,9 @@ vi.mock("../db/src/index.js", () => ({
       from: vi.fn(() => ({
         where: vi.fn(() => ({
           limit: vi.fn(() => Promise.resolve([mockJob])),
+          // refreshRemember selects the top memory via where().orderBy().limit(); resolve to none so
+          // the (separately tested) remember path is a harmless no-op inside consolidation tests.
+          orderBy: vi.fn(() => ({ limit: vi.fn(() => Promise.resolve([])) })),
         })),
         orderBy: vi.fn(() => ({
           limit: vi.fn(() => Promise.resolve([])),
@@ -39,6 +42,7 @@ vi.mock("../db/src/index.js", () => ({
   },
   memoryJobsTable: {},
   memoriesTable: {},
+  companionsTable: {},
 }));
 
 vi.mock("../services/llm/index.js", () => ({

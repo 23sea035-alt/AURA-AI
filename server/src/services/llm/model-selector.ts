@@ -4,7 +4,6 @@ import { createNvidiaProvider } from "./nvidia.js";
 import { createAnthropicProvider } from "./anthropic.js";
 import { createOpenRouterProvider } from "./openrouter.js";
 import { createGroqProvider } from "./groq.js";
-import { getEnv } from "../../config/env.js";
 
 export type TaskType =
   | "generate-reply"
@@ -24,22 +23,20 @@ export function resetModelOverrides(): void {
 }
 
 function defaultModelForTask(task: TaskType): string {
-  const env = getEnv();
   switch (task) {
-    case "generate-reply": return env.MODEL_GENERATE_REPLY;
-    case "moderate-input": return env.MODEL_MODERATE_INPUT;
-    case "moderate-output": return env.MODEL_MODERATE_OUTPUT;
-    case "consolidate-memory": return env.MODEL_CONSOLIDATE_MEMORY;
+    case "generate-reply": return process.env.MODEL_GENERATE_REPLY ?? "llama-3.3-70b-versatile";
+    case "moderate-input": return process.env.MODEL_MODERATE_INPUT ?? "meta-llama/llama-prompt-guard-2-86m";
+    case "moderate-output": return process.env.MODEL_MODERATE_OUTPUT ?? "openai/gpt-oss-safeguard-20b";
+    case "consolidate-memory": return process.env.MODEL_CONSOLIDATE_MEMORY ?? "llama-3.1-8b-instant";
   }
 }
 
 function fallbackModelForTask(task: TaskType): string {
-  const env = getEnv();
   switch (task) {
-    case "generate-reply": return env.MODEL_FALLBACK_GENERATE_REPLY;
-    case "moderate-input": return env.MODEL_FALLBACK_MODERATE_INPUT;
-    case "moderate-output": return env.MODEL_FALLBACK_MODERATE_OUTPUT;
-    case "consolidate-memory": return env.MODEL_FALLBACK_CONSOLIDATE_MEMORY;
+    case "generate-reply": return process.env.MODEL_FALLBACK_GENERATE_REPLY ?? "llama-3.1-8b-instant";
+    case "moderate-input": return process.env.MODEL_FALLBACK_MODERATE_INPUT ?? "llama-3.3-70b-versatile";
+    case "moderate-output": return process.env.MODEL_FALLBACK_MODERATE_OUTPUT ?? "llama-3.3-70b-versatile";
+    case "consolidate-memory": return process.env.MODEL_FALLBACK_CONSOLIDATE_MEMORY ?? "llama-3.3-70b-versatile";
   }
 }
 

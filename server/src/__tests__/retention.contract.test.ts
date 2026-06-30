@@ -26,43 +26,12 @@ vi.mock("../db/src/index.js", () => ({
   bannedIdentitiesTable: {},
 }));
 
+// NOTE: enforceRetention() (global 90-day message purge) and markInactiveUsers() were REMOVED —
+// retention is account-deletion-only (data-retention-policy.md). The remaining purges are exercised below.
 describe("Retention purge — contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockDeleteResult.rowCount = 0;
-  });
-
-  describe("enforceRetention", () => {
-    it("calls db.delete with messagesTable", async () => {
-      const { enforceRetention } = await import("../services/retention.js");
-      await enforceRetention();
-
-      expect(mockDb.delete).toHaveBeenCalledTimes(1);
-    });
-
-    it("dryRun does not call delete", async () => {
-      const mockSelect = vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        })),
-      }));
-      mockDb.select.mockImplementation(mockSelect);
-
-      const { enforceRetention } = await import("../services/retention.js");
-      const reported = await enforceRetention({ dryRun: true });
-
-      expect(reported).toBe(0);
-      expect(mockDb.delete).not.toHaveBeenCalled();
-    });
-
-    it("returns count from delete result", async () => {
-      mockDeleteResult.rowCount = 5;
-      const { enforceRetention } = await import("../services/retention.js");
-      const deleted = await enforceRetention();
-      expect(deleted).toBe(5);
-    });
   });
 
   describe("enforceSafetyEventRetention", () => {
@@ -79,23 +48,12 @@ describe("Retention purge — contract", () => {
 
       expect(mockDb.delete).not.toHaveBeenCalled();
     });
-  });
 
-  describe("markInactiveUsers", () => {
-    it("dryRun does not call update", async () => {
-      const mockSelect = vi.fn(() => ({
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn().mockResolvedValue([]),
-          })),
-        })),
-      }));
-      mockDb.select.mockImplementation(mockSelect);
-
-      const { markInactiveUsers } = await import("../services/retention.js");
-      await markInactiveUsers({ dryRun: true });
-
-      expect(mockDb.update).not.toHaveBeenCalled();
+    it("returns count from delete result", async () => {
+      mockDeleteResult.rowCount = 5;
+      const { enforceSafetyEventRetention } = await import("../services/retention.js");
+      const deleted = await enforceSafetyEventRetention();
+      expect(deleted).toBe(5);
     });
   });
 
@@ -128,22 +86,16 @@ describe("Retention purge — contract", () => {
   }
 
   describe("deleteWhere guards", () => {
-    it("throws on null table", async () => {
-      const { enforceRetention } = await import("../services/retention.js");
-      const deleteMock = vi.fn(() => ({
-        where: vi.fn(() => { throw new Error("table is null"); }),
-      }));
-      const selectMock = vi.fn(() => ({
+    it("propagates errors from the underlying query", async () => {
+      mockDb.select.mockImplementation(() => ({
         from: vi.fn(() => ({
           where: vi.fn(() => ({
             limit: vi.fn().mockRejectedValue(new Error("table is null")),
           })),
         })),
       }));
-      mockDb.delete = deleteMock as any;
-      mockDb.select = selectMock as any;
-      await expect(enforceRetention({ dryRun: true })).rejects.toThrow("table is null");
-      resetDbMocks();
+      const { enforceSafetyEventRetention } = await import("../services/retention.js");
+      await expect(enforceSafetyEventRetention({ dryRun: true })).rejects.toThrow();
     });
 
     it("dry-run with no candidates returns 0", async () => {
@@ -156,8 +108,8 @@ describe("Retention purge — contract", () => {
       }));
       mockDb.select.mockImplementation(mockSelect);
 
-      const { enforceRetention } = await import("../services/retention.js");
-      const result = await enforceRetention({ dryRun: true });
+      const { enforceSafetyEventRetention } = await import("../services/retention.js");
+      const result = await enforceSafetyEventRetention({ dryRun: true });
       expect(result).toBe(0);
     });
   });

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, unique, index } from "drizzle-orm/pg-core";
 import { usersTable } from "./users.js";
 
 export const bannedIdentitiesTable = pgTable("banned_identities", {
@@ -9,9 +9,10 @@ export const bannedIdentitiesTable = pgTable("banned_identities", {
   sourceUserId: uuid("source_user_id").references(() => usersTable.id, { onDelete: "set null" }),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-}, (table) => ({
-  identifierTypeHashUnique: { name: "uq_identifier_type_hash", columns: [table.identifierType, table.identifierHash] },
-}));
+}, (table) => [
+  unique("uq_identifier_type_hash").on(table.identifierType, table.identifierHash),
+  index("idx_banned_identities_hash").on(table.identifierHash),
+]);
 
 export type BannedIdentity = typeof bannedIdentitiesTable.$inferSelect;
 export type NewBannedIdentity = typeof bannedIdentitiesTable.$inferInsert;

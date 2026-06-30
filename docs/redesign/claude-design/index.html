@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aura — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F4ECE0; --raised:#FBF5EB; --sheet:#FFFCF6; --accent:#8F4150; --accentTint:#F1E2E4;
+    --ink:#33271E; --ink2:#6A5848; --ink3:#9A8973; --line:rgba(58,46,36,.12);
+    --display:'Newsreader',Georgia,serif; --body:'Hanken Grotesk',-apple-system,system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{min-height:100vh;background:radial-gradient(120% 90% at 50% -10%, #FBF3E6 0%, var(--bg) 55%, #ECE0CC 100%);
+    font-family:var(--body);color:var(--ink);-webkit-font-smoothing:antialiased;
+    display:flex;align-items:center;justify-content:center;padding:40px 20px;}
+  main{width:100%;max-width:760px;}
+  .eyebrow{font-family:var(--body);font-weight:600;font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 14px;}
+  h1{font-family:var(--display);font-weight:500;font-size:52px;line-height:1.02;letter-spacing:-.015em;margin:0 0 10px;}
+  .lede{font-size:16px;line-height:1.55;color:var(--ink2);margin:0 0 34px;max-width:46ch;}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+  @media (max-width:640px){.cards{grid-template-columns:1fr;}h1{font-size:42px;}}
+  .card{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit;background:var(--sheet);
+    border:1px solid var(--line);border-radius:20px;padding:20px 18px 18px;box-shadow:0 1px 2px rgba(58,46,36,.04);
+    transition:transform .18s cubic-bezier(.2,.7,.2,1),box-shadow .18s,border-color .18s;position:relative;}
+  .card:hover{transform:translateY(-3px);box-shadow:0 18px 36px -18px rgba(58,46,36,.3);border-color:rgba(143,65,80,.3);}
+  .card .n{font-family:var(--display);font-size:15px;color:var(--accent);font-weight:600;}
+  .card h2{font-family:var(--display);font-weight:600;font-size:22px;margin:2px 0 0;letter-spacing:-.01em;}
+  .card p{font-size:13.5px;line-height:1.5;color:var(--ink2);margin:0;}
+  .card .go{margin-top:6px;font-size:13px;font-weight:600;color:var(--accent);display:inline-flex;align-items:center;gap:6px;}
+  .tips{margin:30px 0 0;display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12.5px;color:var(--ink3);}
+  .tips b{color:var(--ink2);font-weight:600;}
+  kbd{font-family:var(--body);font-weight:600;font-size:11px;color:var(--ink2);background:var(--raised);
+    border:1px solid var(--line);border-radius:6px;padding:2px 7px;}
+  .foot{margin:26px 0 0;font-size:12px;color:var(--ink3);}
+  .foot a{color:var(--ink2);}
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">Aura · Warm Sanctuary</p>
+  <h1>Interactive design preview</h1>
+  <p class="lede">The locked iOS design, running in the browser. Each flow opens in a clean present mode for recording. Move with the on-screen controls or the keyboard.</p>
+
+  <div class="cards">
+    <a class="card" href="Onboarding.html?present=1">
+      <span class="n">01</span>
+      <h2>Onboarding</h2>
+      <p>Welcome through the first conversation — auth, the 3-slide carousel, age gate, disclosure, profile, companion.</p>
+      <span class="go">Open ›</span>
+    </a>
+    <a class="card" href="HomeTabs.html?present=1">
+      <span class="n">02</span>
+      <h2>Home</h2>
+      <p>The three tabs — Home, Companions, You — with their happy, empty, loading, and error states.</p>
+      <span class="go">Open ›</span>
+    </a>
+    <a class="card" href="OneOff.html?present=1">
+      <span class="n">03</span>
+      <h2>Screens</h2>
+      <p>The pushed screens — chat, paywall, memory, sign-in &amp; security, settings, safety, and more.</p>
+      <span class="go">Open ›</span>
+    </a>
+  </div>
+
+  <div class="tips">
+    <span><b>Move:</b> on-screen <b>‹ ›</b> or <kbd>←</kbd> <kbd>→</kbd></span>
+    <span><b>Theme:</b> the toggle or <kbd>T</kbd></span>
+    <span><b>Hide controls:</b> the × or <kbd>H</kbd></span>
+    <span><b>States &amp; Free/Premium:</b> the chips in the bar</span>
+  </div>
+
+  <p class="foot">For the full review tooling (all toggles, screen jumper), open a flow without <code>?present=1</code> — e.g. <a href="OneOff.html">OneOff.html</a>.</p>
+</main>
+</body>
+</html>

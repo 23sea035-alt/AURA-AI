@@ -32,7 +32,7 @@ router.post("/companions", requireAuth, validate(CreateCompanionSchema), async (
     const [companion] = await db.insert(companionsTable).values({
       userId: req.userId!,
       name,
-      personaKey: personaKey ?? "aura",
+      personaKey: personaKey ?? "aurora",
       traits: traits ?? {},
     }).returning();
 

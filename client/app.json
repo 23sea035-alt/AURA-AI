@@ -4,24 +4,27 @@
     "slug": "aura-ai",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/logo/app-icon-1024.png",
     "scheme": "aura-ai",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#F4ECE0",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0B1020"
-    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.aura.ai.companion"
     },
     "android": {
-      "package": "com.aura.ai.companion"
+      "package": "com.aura.ai.companion",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo/app-icon-1024.png",
+        "backgroundColor": "#F4ECE0"
+      }
     },
     "web": {
-      "favicon": "./assets/images/icon.png"
+      "favicon": "./assets/logo/app-icon-1024.png"
     },
     "plugins": [
       [
@@ -31,7 +34,31 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Aura to use the microphone for voice messages.",
+          "speechRecognitionPermission": "Allow Aura to transcribe your voice messages to text.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo/logo-mono-wine-1024.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F4ECE0",
+          "dark": {
+            "image": "./assets/logo/logo-mono-cream-1024.png",
+            "backgroundColor": "#1B1712"
+          }
+        }
+      ],
+      "expo-audio"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -6,11 +6,12 @@ import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 import { handleRevenueCatWebhook } from "../services/payments/revenuecat.js";
 import { reconcilePremiumStaleness } from "../services/retention.js";
+import { webhookLimiter } from "../middleware/rate-limit.js";
 
 const router = Router();
 
 // POST /api/payments/webhook — RevenueCat webhook
-router.post("/payments/webhook", async (req, res) => {
+router.post("/payments/webhook", webhookLimiter, async (req, res) => {
   try {
     const signature = req.headers["x-revenuecat-signature"] as string;
     if (!signature) {

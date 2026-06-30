@@ -24,6 +24,14 @@ const envSchema = z.object({
   APNS_KEY_FILE: z.string().optional(),
   APNS_ENVIRONMENT: z.enum(["production", "sandbox"]).default("sandbox"),
 
+  // ── Voice (Inworld TTS + Groq STT over WebSocket) ──────────────
+  // All optional: the voice feature degrades gracefully (routes 4xx/500) when unset.
+  // Per-persona voice IDs — fill in after casting voices in the Inworld portal.
+  INWORLD_API_KEY: z.string().optional(),
+  INWORLD_VOICE_ID_AURORA: z.string().optional(),
+  INWORLD_VOICE_ID_ORION: z.string().optional(),
+  INWORLD_VOICE_ID_LYRA: z.string().optional(),
+
   BANNED_IDENTITY_PEPPER: z.string().min(1, "BANNED_IDENTITY_PEPPER is required"),
 
   SENTRY_DSN: z.string().optional(),
@@ -40,12 +48,15 @@ const envSchema = z.object({
 
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
+  // Comma-separated browser origins allowed by CORS. Empty = no cross-origin browser
+  // access (native iOS app is unaffected). Set only if a web client is added.
+  CORS_ALLOWED_ORIGINS: z.string().optional(),
+
   // ── Model selection ─────────────────────────────────────────────
-  MODEL_GROQ: z.string().default("llama-3.3-70b-versatile"),
-  MODEL_GENERATE_REPLY: z.string().default("llama-3.1-8b-instant"),
-  MODEL_MODERATE_INPUT: z.string().default("llama-3.1-8b-instant"),
-  MODEL_MODERATE_OUTPUT: z.string().default("llama-3.1-8b-instant"),
-  MODEL_CONSOLIDATE_MEMORY: z.string().default("llama-3.3-70b-versatile"),
+  MODEL_GENERATE_REPLY: z.string().default("llama-3.3-70b-versatile"),
+  MODEL_MODERATE_INPUT: z.string().default("meta-llama/llama-prompt-guard-2-86m"),
+  MODEL_MODERATE_OUTPUT: z.string().default("openai/gpt-oss-safeguard-20b"),
+  MODEL_CONSOLIDATE_MEMORY: z.string().default("llama-3.1-8b-instant"),
 
   MODEL_FALLBACK_GENERATE_REPLY: z.string().default("llama-3.3-70b-versatile"),
   MODEL_FALLBACK_MODERATE_INPUT: z.string().default("llama-3.3-70b-versatile"),

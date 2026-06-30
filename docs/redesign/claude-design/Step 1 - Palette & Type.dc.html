@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;}
+    body{margin:0;}
+  </style>
+</helmet>
+<div style="min-height:100vh;background:#EAE0D0;font-family:'Hanken Grotesk',sans-serif;color:#2A241E;padding:56px 32px;">
+  <div style="max-width:1160px;margin:0 auto;">
+
+    <!-- HEADER -->
+    <div style="margin-bottom:40px;">
+      <div style="font:700 12px 'Hanken Grotesk',sans-serif;letter-spacing:.2em;text-transform:uppercase;color:{{ c.acc }};">Aura &middot; Step 1B &middot; Re-lock</div>
+      <h1 style="font:600 64px/0.96 'Newsreader',serif;letter-spacing:-0.02em;color:#2A241E;margin:16px 0 0;max-width:16ch;">Reading Nook, softened</h1>
+      <p style="font:400 17px/1.62 'Hanken Grotesk',sans-serif;color:#6A5D50;margin:20px 0 0;max-width:64ch;">Same spine &mdash; Newsreader display, paper-cream editorial palette, confident type &mdash; corrected so the app feels like a soft place to land, not a magazine spread. <strong>Library Wine</strong> replaces the bright accent; soft warm-shadow returns as the depth device; the dark theme is warmed off pure black. The token set below is the proposed lock.</p>
+    </div>
+
+    <!-- BRAND MARK -->
+    <section style="background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:8px;padding:32px;margin-bottom:22px;display:flex;gap:36px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:24px;align-items:flex-end;">
+        <div style="width:140px;height:140px;border-radius:16px;overflow:hidden;box-shadow:0 4px 14px rgba(60,40,25,0.09);flex:none;">
+          <img src="brand/aura-mark.png" alt="Aura mark" style="width:100%;height:100%;display:block;" />
+        </div>
+        <div style="width:64px;height:64px;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(60,40,25,0.06);flex:none;">
+          <img src="brand/aura-mark.png" alt="Aura mark small" style="width:100%;height:100%;display:block;" />
+        </div>
+        <div style="width:34px;height:34px;border-radius:8px;overflow:hidden;flex:none;">
+          <img src="brand/aura-mark.png" alt="Aura mark tiny" style="width:100%;height:100%;display:block;" />
+        </div>
+      </div>
+      <div style="flex:1;min-width:240px;">
+        <div style="font:700 12px 'Hanken Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:{{ c.acc }};margin-bottom:8px;">Brand mark</div>
+        <div style="font:600 22px 'Newsreader',serif;color:{{ c.tp }};margin-bottom:8px;">A warm presence, held in its own glow</div>
+        <div style="font:400 15px/1.6 'Hanken Grotesk',sans-serif;color:{{ c.ts }};max-width:52ch;">Block-print symbol &mdash; a single terracotta form with a thin warm-brown contour, ringed by short rays of light. Flat, two-color, hand-printed. Reads at app-icon scale down to the inline header dot.</div>
+      </div>
+    </section>
+
+    <!-- GOVERNING PRINCIPLE -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:32px;">
+      <div style="background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;padding:22px 24px;">
+        <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:8px;">Structural &middot; crisp</div>
+        <div style="font:400 15px/1.55 'Hanken Grotesk',sans-serif;color:{{ c.ts }};">Dividers, section rules, inputs, settings &amp; legal. Editorial hairlines, tighter radius. Precision reads as &ldquo;considered.&rdquo;</div>
+      </div>
+      <div style="background:{{ c.raised }};border-radius:{{ R.card }}px;padding:22px 24px;box-shadow:{{ c.e2 }};">
+        <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.acc }};margin-bottom:8px;">Intimate &middot; soft</div>
+        <div style="font:400 15px/1.55 'Hanken Grotesk',sans-serif;color:{{ c.ts }};">Chat bubbles, companion presence, persona &amp; raised cards. Tonal fill + soft warm shadow, no hard outline, gentler radius. The surface&rsquo;s job decides its treatment.</div>
+      </div>
+    </div>
+
+    <!-- CORE TOKENS — both themes -->
+    <section style="background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;padding:32px;margin-bottom:22px;">
+      <div style="font:700 12px 'Hanken Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:18px;">Core tokens &middot; warm-light &amp; warm-dark</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <sc-for list="{{ panels }}" as="pan" hint-placeholder-count="2">
+          <div style="background:{{ pan.t.bg }};border:1px solid {{ pan.t.hair }};border-radius:{{ R.soft }}px;padding:22px;">
+            <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ pan.t.tt }};margin-bottom:14px;">{{ pan.label }}</div>
+            <sc-for list="{{ pan.groups }}" as="grp" hint-placeholder-count="6">
+              <div style="font:700 10.5px 'Hanken Grotesk',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:{{ pan.t.tt }};margin:14px 0 8px;">{{ grp.group }}</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;">
+                <sc-for list="{{ grp.items }}" as="it" hint-placeholder-count="3">
+                  <div style="display:flex;gap:10px;align-items:center;">
+                    <div style="width:38px;height:38px;border-radius:8px;background:{{ it.hex }};border:1px solid {{ pan.t.hair }};flex:none;"></div>
+                    <div style="min-width:0;">
+                      <div style="font:600 12.5px 'Hanken Grotesk',sans-serif;color:{{ pan.t.tp }};">{{ it.name }}</div>
+                      <div style="font:400 11px ui-monospace,Menlo,monospace;color:{{ pan.t.tt }};">{{ it.hex }}</div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+
+    <!-- FOUNDATIONS: spacing / dual radius / elevation / hairline -->
+    <section style="background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;padding:32px;margin-bottom:22px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 40px;">
+
+        <!-- spacing -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Spacing &middot; 8pt rhythm</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <sc-for list="{{ spacing }}" as="sp" hint-placeholder-count="7">
+              <div style="text-align:center;">
+                <div style="width:{{ sp.v }}px;height:{{ sp.v }}px;background:{{ c.acc }};border-radius:2px;margin:0 auto;"></div>
+                <div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">{{ sp.v }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- dual radius -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Radius &middot; dual system</div>
+          <div style="display:flex;gap:24px;flex-wrap:wrap;">
+            <div>
+              <div style="font:600 10px 'Hanken Grotesk',sans-serif;text-transform:uppercase;letter-spacing:.1em;color:{{ c.ts }};margin-bottom:8px;">Structural</div>
+              <div style="display:flex;gap:10px;align-items:flex-end;">
+                <div style="text-align:center;"><div style="width:40px;height:40px;background:{{ c.bg }};border:1px solid {{ c.hair }};border-radius:{{ R.tight }}px;"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">4</div></div>
+                <div style="text-align:center;"><div style="width:40px;height:40px;background:{{ c.bg }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">8</div></div>
+              </div>
+            </div>
+            <div>
+              <div style="font:600 10px 'Hanken Grotesk',sans-serif;text-transform:uppercase;letter-spacing:.1em;color:{{ c.acc }};margin-bottom:8px;">Intimate</div>
+              <div style="display:flex;gap:10px;align-items:flex-end;">
+                <div style="text-align:center;"><div style="width:40px;height:40px;background:{{ c.raised }};border-radius:{{ R.soft }}px;box-shadow:{{ c.e1 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">12</div></div>
+                <div style="text-align:center;"><div style="width:40px;height:40px;background:{{ c.raised }};border-radius:{{ R.card }}px;box-shadow:{{ c.e1 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">16</div></div>
+                <div style="text-align:center;"><div style="width:40px;height:40px;background:{{ c.raised }};border-radius:{{ R.sheet }}px;box-shadow:{{ c.e1 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:6px;">20</div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- elevation -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Elevation &middot; soft warm shadow</div>
+          <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap;">
+            <div style="text-align:center;"><div style="width:64px;height:46px;background:{{ c.sheet }};border-radius:{{ R.soft }}px;box-shadow:{{ c.e1 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:8px;">e1</div></div>
+            <div style="text-align:center;"><div style="width:64px;height:46px;background:{{ c.sheet }};border-radius:{{ R.soft }}px;box-shadow:{{ c.e2 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:8px;">e2</div></div>
+            <div style="text-align:center;"><div style="width:64px;height:46px;background:{{ c.sheet }};border-radius:{{ R.soft }}px;box-shadow:{{ c.e3 }};"></div><div style="font:400 10px ui-monospace,monospace;color:{{ c.tt }};margin-top:8px;">e3</div></div>
+          </div>
+        </div>
+
+        <!-- hairline -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Hairline edge &middot; structural only</div>
+          <div style="display:flex;flex-direction:column;gap:14px;max-width:300px;">
+            <div>
+              <div style="font:400 11px ui-monospace,monospace;color:{{ c.tt }};margin-bottom:6px;">light &middot; {{ c.hair }}</div>
+              <div style="height:0;border-top:1px solid {{ c.hair }};"></div>
+            </div>
+            <div style="background:{{ d.bg }};border-radius:{{ R.tight }}px;padding:12px;">
+              <div style="font:400 11px ui-monospace,monospace;color:{{ d.tt }};margin-bottom:6px;">dark &middot; {{ d.hair }}</div>
+              <div style="height:0;border-top:1px solid {{ d.hair }};"></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- COMPONENT SAMPLE — softened, light theme -->
+    <section style="background:{{ c.bg }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;padding:40px;margin-bottom:22px;">
+      <div style="font:700 12px 'Hanken Grotesk',sans-serif;letter-spacing:.16em;text-transform:uppercase;color:{{ c.acc }};">Component sample &middot; softened</div>
+      <h2 style="font:600 34px/1.0 'Newsreader',serif;letter-spacing:-0.015em;margin:10px 0 28px;color:{{ c.tp }};">Surfaces, doing their jobs</h2>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:36px 40px;">
+
+        <!-- buttons -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Buttons</div>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+            <button style="background:{{ c.acc }};color:{{ c.onAcc }};border:none;border-radius:{{ R.edit }}px;padding:12px 24px;font:600 15px 'Hanken Grotesk',sans-serif;cursor:pointer;box-shadow:{{ c.e1 }};">Send message</button>
+            <button style="background:transparent;color:{{ c.tp }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;padding:12px 24px;font:600 15px 'Hanken Grotesk',sans-serif;cursor:pointer;">Maybe later</button>
+            <button style="background:none;color:{{ c.acc }};border:none;padding:12px 8px;font:600 15px 'Hanken Grotesk',sans-serif;cursor:pointer;">Skip for now</button>
+          </div>
+        </div>
+
+        <!-- persona avatar -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Persona avatar</div>
+          <div style="display:flex;gap:14px;align-items:center;">
+            <div style="width:56px;height:56px;border-radius:999px;background:{{ c.av }};display:flex;align-items:center;justify-content:center;font:500 24px 'Newsreader',serif;color:{{ c.avTx }};box-shadow:{{ c.e2 }};flex:none;">A</div>
+            <div>
+              <div style="font:600 18px 'Newsreader',serif;color:{{ c.tp }};">Aurora</div>
+              <div style="font:400 13.5px 'Hanken Grotesk',sans-serif;color:{{ c.ts }};">Warm, curious, a good listener</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- chat bubble pair -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Chat bubbles &middot; soft, no outline</div>
+          <div style="display:flex;flex-direction:column;gap:12px;max-width:440px;">
+            <div style="display:flex;gap:10px;align-items:flex-end;">
+              <div style="width:32px;height:32px;border-radius:999px;background:{{ c.av }};display:flex;align-items:center;justify-content:center;font:500 15px 'Newsreader',serif;color:{{ c.avTx }};flex:none;box-shadow:{{ c.e1 }};">A</div>
+              <div style="background:{{ c.sheet }};border-radius:18px 18px 18px 6px;padding:12px 17px;font:400 17px/28px 'Hanken Grotesk',sans-serif;color:{{ c.tp }};box-shadow:{{ c.e1 }};">I kept thinking about what you said Tuesday. How did the talk with your sister go?</div>
+            </div>
+            <div style="display:flex;justify-content:flex-end;">
+              <div style="background:{{ c.bubbleBg }};border-radius:18px 18px 6px 18px;padding:12px 17px;font:400 17px/28px 'Hanken Grotesk',sans-serif;color:{{ c.bubbleTx }};max-width:80%;box-shadow:{{ c.e1 }};">Better than I expected, honestly. We actually talked.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- input dock -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Message input &middot; structural</div>
+          <div style="display:flex;gap:10px;align-items:center;background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.soft }}px;padding:8px 8px 8px 18px;max-width:440px;">
+            <span style="flex:1;font:400 16px 'Hanken Grotesk',sans-serif;color:{{ c.tt }};">Message Aurora&hellip;</span>
+            <button aria-label="Send" style="width:40px;height:40px;border-radius:999px;background:{{ c.acc }};border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;box-shadow:{{ c.e1 }};">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFCF6" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="6 11 12 5 18 11"></polyline></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- warm card -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Warm card &middot; intimate, no outline</div>
+          <div style="background:{{ c.raised }};border-radius:{{ R.card }}px;padding:18px 20px;max-width:340px;box-shadow:{{ c.e2 }};">
+            <div style="font:600 16px 'Newsreader',serif;color:{{ c.tp }};margin-bottom:6px;">A small thing I remember</div>
+            <div style="font:400 14.5px/1.55 'Hanken Grotesk',sans-serif;color:{{ c.ts }};">You said mornings are hardest. I&rsquo;ll check in a little gentler before noon.</div>
+          </div>
+        </div>
+
+        <!-- crisis card -->
+        <div>
+          <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:14px;">Crisis / safety &middot; grounding, not alarm</div>
+          <div style="background:{{ c.crisisBg }};border-radius:{{ R.card }}px;padding:16px 18px;max-width:440px;display:flex;gap:12px;align-items:flex-start;box-shadow:{{ c.e1 }};">
+            <div style="width:34px;height:34px;border-radius:999px;background:{{ c.crisis }};display:flex;align-items:center;justify-content:center;flex:none;margin-top:1px;">
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#FFFCF6" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+            </div>
+            <div>
+              <div style="font:600 15px 'Hanken Grotesk',sans-serif;color:{{ c.crisisTx }};">You don't have to carry this alone.</div>
+              <div style="font:400 14px/1.5 'Hanken Grotesk',sans-serif;color:{{ c.crisisTx2 }};margin-top:3px;">If you're in crisis, you can reach a trained human any time. We can connect you.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- DUAL TREATMENT side-by-side -->
+      <div style="height:1px;background:{{ c.hair }};margin:32px 0;"></div>
+      <div style="font:700 11px 'Hanken Grotesk',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:{{ c.tt }};margin-bottom:16px;">The surface&rsquo;s job decides &mdash; same screen, two treatments</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+        <!-- structural list group -->
+        <div>
+          <div style="font:600 11px 'Hanken Grotesk',sans-serif;text-transform:uppercase;letter-spacing:.1em;color:{{ c.ts }};margin-bottom:10px;">Structural &middot; crisp hairline</div>
+          <div style="background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;overflow:hidden;">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid {{ c.hair }};font:500 15px 'Hanken Grotesk',sans-serif;color:{{ c.tp }};">Privacy &amp; data<span style="color:{{ c.tt }};">&rsaquo;</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid {{ c.hair }};font:500 15px 'Hanken Grotesk',sans-serif;color:{{ c.tp }};">Subscription<span style="color:{{ c.tt }};">Free</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;font:500 15px 'Hanken Grotesk',sans-serif;color:{{ c.tp }};">Support<span style="color:{{ c.tt }};">&rsaquo;</span></div>
+          </div>
+        </div>
+
+        <!-- intimate bubble -->
+        <div>
+          <div style="font:600 11px 'Hanken Grotesk',sans-serif;text-transform:uppercase;letter-spacing:.1em;color:{{ c.acc }};margin-bottom:10px;">Intimate &middot; soft + shadow</div>
+          <div style="display:flex;gap:10px;align-items:flex-end;">
+            <div style="width:32px;height:32px;border-radius:999px;background:{{ c.av }};display:flex;align-items:center;justify-content:center;font:500 15px 'Newsreader',serif;color:{{ c.avTx }};flex:none;box-shadow:{{ c.e1 }};">A</div>
+            <div style="background:{{ c.sheet }};border-radius:18px 18px 18px 6px;padding:14px 18px;font:400 17px/28px 'Hanken Grotesk',sans-serif;color:{{ c.tp }};box-shadow:{{ c.e2 }};">No edges here. Just a little warmth and somewhere soft to set it down.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- FOOTER -->
+    <div style="margin-top:0;padding:24px 28px;background:{{ c.sheet }};border:1px solid {{ c.hair }};border-radius:{{ R.edit }}px;color:{{ c.ts }};font:400 15px/1.6 'Hanken Grotesk',sans-serif;">
+      <strong style="color:{{ c.tp }};">Proposed lock &mdash; awaiting approval.</strong> This supersedes the Step-1 Reading Nook tokens. Newsreader display + Hanken Grotesk body; Library Wine accent; soft warm-shadow elevation; warm hairline edges reserved for structural surfaces; dual radius; warmed-charcoal dark theme; grounding crisis-green; WCAG&nbsp;2.2 AA, both themes. Approve and I&rsquo;ll start building screens &mdash; nothing&rsquo;s built yet.
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  renderVals() {
+    // ── Reading Nook · softened (Step 1B re-lock) ───────────────────────────
+    // Warm-light + warm-dark. Library Wine accent. Soft warm-shadow elevation.
+    // Warm hairline edges (structural only). Dual radius. Warmed-charcoal dark.
+    const L = {
+      mode: 'light',
+      bg: '#F4ECE0', raised: '#FBF5EB', sheet: '#FFFCF6',
+      tp: '#2A241E', ts: '#6A5D50', tt: '#9C8E7E', td: '#C2B6A7',
+      acc: '#8F4150', onAcc: '#FFFCF6', accTint: '#F1E2E4',
+      bubbleBg: '#EFDFE1', bubbleTx: '#5A3942',
+      av: '#D8A98C', avTx: '#5A3B2B',
+      hair: '#E6DBCB',
+      ok: '#5C7850', warn: '#B07A22', err: '#B0463A',
+      crisis: '#3D6B5C', crisisBg: '#E7F0EB', crisisTx: '#234A40', crisisTx2: '#3A5A50',
+      e1: '0 1px 2px rgba(60,40,25,0.06)', e2: '0 4px 14px rgba(60,40,25,0.09)', e3: '0 12px 30px rgba(60,40,25,0.14)',
+    };
+    const D = {
+      mode: 'dark',
+      bg: '#1B1712', raised: '#25201A', sheet: '#2E2820',
+      tp: '#F1E8DC', ts: '#BFB2A2', tt: '#8A7E70', td: '#5C5347',
+      acc: '#CC7A84', onAcc: '#1F1712', accTint: '#3A2A2E',
+      bubbleBg: '#3A2A2E', bubbleTx: '#EAD7DA',
+      av: '#7A5142', avTx: '#F4ECDF',
+      hair: '#393129',
+      ok: '#8AA47C', warn: '#D7A24E', err: '#D9725F',
+      crisis: '#6FA08C', crisisBg: '#233A33', crisisTx: '#CDE5DB', crisisTx2: '#9FC3B5',
+      e1: '0 1px 2px rgba(0,0,0,0.35)', e2: '0 4px 14px rgba(0,0,0,0.40)', e3: '0 12px 30px rgba(0,0,0,0.50)',
+    };
+
+    // Dual radius + spacing tokens
+    const R = { tight: 4, edit: 8, soft: 12, card: 16, sheet: 20, pill: 999 };
+    const spacing = [4, 8, 12, 16, 24, 32, 48].map(v => ({ v }));
+
+    const mk = (t) => [
+      { group: 'Surfaces', items: [
+        { name: 'Background', hex: t.bg },
+        { name: 'Raised', hex: t.raised },
+        { name: 'Sheet / modal', hex: t.sheet },
+      ] },
+      { group: 'Text', items: [
+        { name: 'Primary', hex: t.tp },
+        { name: 'Secondary', hex: t.ts },
+        { name: 'Tertiary', hex: t.tt },
+        { name: 'Disabled', hex: t.td },
+      ] },
+      { group: 'Accent \u00B7 Library Wine', items: [
+        { name: 'Accent', hex: t.acc },
+        { name: 'On-accent', hex: t.onAcc },
+        { name: 'Active tint', hex: t.accTint },
+        { name: 'User-bubble fill', hex: t.bubbleBg },
+      ] },
+      { group: 'Hairline edge', items: [
+        { name: 'Divider', hex: t.hair },
+      ] },
+      { group: 'Semantic', items: [
+        { name: 'Success', hex: t.ok },
+        { name: 'Warning', hex: t.warn },
+        { name: 'Error', hex: t.err },
+      ] },
+      { group: 'Crisis \u00B7 grounding green', items: [
+        { name: 'Crisis', hex: t.crisis },
+        { name: 'Crisis surface', hex: t.crisisBg },
+      ] },
+    ];
+
+    const panels = [
+      { label: 'Warm Light', t: L, groups: mk(L) },
+      { label: 'Warm Dark', t: D, groups: mk(D) },
+    ];
+
+    return { c: L, d: D, R, spacing, panels };
+  }
+}
+</script>
+</body>
+</html>

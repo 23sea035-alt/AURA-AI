@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/hooks/useTheme";
 
 export type ErrorFallbackProps = {
   error: Error;
@@ -20,7 +20,17 @@ export type ErrorFallbackProps = {
 };
 
 export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
-  const colors = useColors();
+  const t = useTheme();
+  // Map the cosmic-era field names this screen uses onto the Warm Sanctuary tokens.
+  const colors = {
+    background: t.colors.bg,
+    card: t.colors.raised,
+    foreground: t.colors.textPrimary,
+    mutedForeground: t.colors.textSecondary,
+    primary: t.colors.accent,
+    primaryForeground: t.colors.onAccent,
+    border: t.colors.border,
+  };
   const insets = useSafeAreaInsets();
 
   const [isModalVisible, setIsModalVisible] = useState(false);

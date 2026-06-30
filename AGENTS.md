@@ -1,44 +1,53 @@
 # Aura AI — Agent Guide
 
-> **Plan of record:** read [`docs/README.md`](docs/README.md) first, then the specs in
-> [`docs/specs/`](docs/specs/) ([v1-architecture](docs/specs/v1-architecture.md), [v1-schema](docs/specs/v1-schema.md)).
-> **The backend is built but audited NO-GO — current work is [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
-> (fix per the audit; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
-> For backend/server work also see [`replit.md`](replit.md).
-> Those docs are authoritative — follow them; don't relitigate decisions without a real reason.
+> **Start here:** [`docs/README.md`](docs/README.md) (what Aura is + how to run) →
+> [`docs/CHANGELOG.md`](docs/CHANGELOG.md) (what has shipped) →
+> [`docs/TODO.md`](docs/TODO.md) (your task list — work it top-to-bottom).
+> For full Replit setup details, see [`replit.md`](replit.md).
 
 ## What this is
 
-Aura AI — an iOS AI-companion chat app (**18+, US-first**). The current code is a Replit-Agent
-**prototype** being rebuilt for v1.0 per `docs/`; treat existing code as a sketch, not a foundation.
+Aura AI — an iOS AI-companion chat app (18+, US-first). Users chat 1:1 with AI personas (Aurora, Orion, Lyra) that remember facts across conversations; safety-first design; $9.99/month premium (free tier: 30 msgs/day).
 
-## Ownership
+This workspace owns the **backend / server only.** The frontend (Expo RN app) is owned separately — do NOT build frontend here. Backend changes that affect the client get appended to [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) under "Backend-driven items."
 
-- **Backend / server** (Express + Drizzle + Neon, moderation, memory, payments, jobs) — coworker, on
-  Replit. See [`replit.md`](replit.md).
-- **Frontend / client** (Expo app) — owned separately; tracked in
-  [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md). **Do not build frontend from the server side.**
-- **Contract = `@aura/shared`** (Zod DTOs, enums, constants).
+## Branch and push rules
+
+You are on the **`test-results`** branch. At the start of each session:
+
+```bash
+git pull origin test-results
+```
+
+After each task, push here only:
+
+```bash
+git push origin test-results
+```
+
+Do NOT push to `main` or `backend` — Jason owns those branches.
+
+## After each task
+
+1. `pnpm build && pnpm typecheck && npx vitest run` — all green (baseline: **342 tests**).
+2. No `console.*` or hardcoded secrets in the diff.
+3. Commit (`feat:` / `fix:` / `test:` / `chore:` prefix).
+4. Add a CHANGELOG entry in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+5. Push to `origin/test-results`.
 
 ## Critical rules
 
-- Follow `docs/`. **No hardcoded secrets** (env-validated, fail-closed). **Versioned migrations**, not `push`.
-- **Legal-review items** in the docs (retention numbers, `safety_events.flagged_content`,
-  jurisdictions, policy wording) are **NOT to be guessed**.
-- Target structure is **`client` + `server` + `shared`** (replaces the prototype's `artifacts/*`).
+- **Follow `docs/`.** Architecture, schema, and design decisions are deliberate — don't relitigate without a real reason.
+- **No hardcoded secrets** — env-validated at boot; fail-closed. See `server/src/config/env.ts` for the full list.
+- **Versioned migrations only** — `drizzle-kit generate`, never `drizzle-kit push` in shared/prod. Schema is squashed to a single `0000_init` baseline; add new migrations on top.
+- **Legal-review items** (retention numbers, `safety_events.flagged_content` retain-vs-scrub, jurisdictions, policy wording) are NOT to be guessed — leave flags for counsel.
+- **Jason owns `safetyCritical` eval labels** — tune moderation prompts to labels, never the reverse.
 
----
+## Ownership
 
-## Replit Custom Instructions (workspace settings, always-on)
-
-The backend is built but audited **NO-GO**. Work `docs/planning/backend-fixlist-v1.md` in order
-(P0 blockers → P4), ONE item at a time — do not rebuild from scratch and do not batch unrelated fixes.
-Then build the test/eval loop in `docs/testing/testing-readiness-v1.md` and iterate the prompts. After
-each item: `pnpm build && typecheck && lint && test` pass (add/keep tests), no `console.*` or hardcoded
-secrets, then commit. Backend/server only — do not build the frontend; append client-affecting changes
-to `docs/planning/frontend-todo.md`. Don't guess the legal-review items.
-
----
-
-_This file intentionally defers to `docs/` + `replit.md` to avoid drift. The previous contents
-(a prototype build log) are in git history._
+| Role | Person | Scope |
+|---|---|---|
+| **Backend / server** | Coworker (Replit, `test-results` branch) | Work [`docs/TODO.md`](docs/TODO.md) top-to-bottom |
+| **Frontend / client** | Jason (Claude Code) | Expo app — do not build frontend here |
+| **Safety labels / eval corpus** | Jason | Coworker may run evals and scale non-safety cases, but must not author or freeze `safetyCritical` labels |
+| **Contract boundary** | `@aura/shared` | Zod DTOs, enums, constants — single source of truth for client + server types |

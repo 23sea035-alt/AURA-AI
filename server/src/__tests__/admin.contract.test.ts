@@ -12,10 +12,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockSelect = vi.fn();
 const mockInsert = vi.fn();
 const mockDelete = vi.fn();
+const mockUpdate = vi.fn();
 
 vi.mock("../db/src/index.js", () => ({
-  db: { select: mockSelect, insert: mockInsert, delete: mockDelete },
-  usersTable: { id: "id", role: "role", isAdmin: "is_admin" },
+  db: { select: mockSelect, insert: mockInsert, delete: mockDelete, update: mockUpdate },
+  usersTable: { id: "id", role: "role", email: "email", status: "status" },
   safetyEventsTable: { id: "id", createdAt: "created_at" },
   bannedIdentitiesTable: { identifierHash: "identifier_hash", identifierType: "identifier_type", reason: "reason" },
   messagesTable: { id: "id", userId: "user_id" },
@@ -87,6 +88,9 @@ describe("Admin route handlers", () => {
         returning: vi.fn(() => Promise.resolve([{ id: "ban-001" }])),
       })),
     });
+    mockUpdate.mockReturnValue({
+      set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
+    });
 
     const { default: router } = await import("../routes/compliance.js");
     const handler = findHandler(router, "/admin/ban", "post");
@@ -107,6 +111,9 @@ describe("Admin route handlers", () => {
   it("allows admin user to unban", async () => {
     mockDelete.mockReturnValue({
       where: vi.fn(() => Promise.resolve()),
+    });
+    mockUpdate.mockReturnValue({
+      set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
     });
 
     const { default: router } = await import("../routes/compliance.js");

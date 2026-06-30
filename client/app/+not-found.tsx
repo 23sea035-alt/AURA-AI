@@ -1,10 +1,15 @@
 import { Link, Stack } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
 
-import { useColors } from "@/hooks/useColors";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function NotFoundScreen() {
-  const colors = useColors();
+  const t = useTheme();
+  const colors = {
+    background: t.colors.bg,
+    foreground: t.colors.textPrimary,
+    primary: t.colors.accent,
+  };
 
   return (
     <>

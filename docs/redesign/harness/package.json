@@ -1,0 +1,17 @@
+{
+  "name": "aura-design-harness",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Playwright-driven capture/iteration harness for the Warm Sanctuary web prototypes in ../claude-design. Serves the static prototypes over http, drives the dev rail, and produces a contact-sheet gallery, flow clips, and animation burst frames. Isolated from the pnpm workspace (docs/ is not a workspace package).",
+  "scripts": {
+    "serve": "node serve.mjs",
+    "smoke": "node smoke.mjs",
+    "capture": "node capture.mjs",
+    "clip": "node clip.mjs",
+    "burst": "node burst.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.49.0"
+  }
+}

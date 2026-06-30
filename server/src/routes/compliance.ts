@@ -1,10 +1,12 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable } from "../db/src/index.js";
+import { eq, and, desc } from "drizzle-orm";
+import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable, subscriptionsTable } from "../db/src/index.js";
 import { requireAuth, requireAdmin, AuthRequest } from "../middleware/auth.js";
+import { authBruteForceLimiter } from "../middleware/rate-limit.js";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
 import { hashIdentifier } from "../lib/crypto.js";
+import { getMetrics } from "../lib/metrics.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 import { ReportMessageSchema, BanUserSchema, UnbanUserSchema } from "@aura/shared";
 
@@ -73,8 +75,21 @@ router.get("/account/export", requireAuth, async (req: AuthRequest, res) => {
     const allCompanions = await db.select().from(companionsTable).where(eq(companionsTable.userId, userId));
     const allMessages = await db.select().from(messagesTable).where(eq(messagesTable.userId, userId));
     const allMemories = await db.select().from(memoriesTable).where(eq(memoriesTable.userId, userId));
+    // GDPR/CCPA right-to-know covers ALL personal data: include subscriptions, device tokens, and
+    // the user-associated safety/moderation signals (de-identified content is the user's data too).
+    const allSubscriptions = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.userId, userId));
+    const allDeviceTokens = await db.select().from(deviceTokensTable).where(eq(deviceTokensTable.userId, userId));
+    const allSafetyEvents = await db.select().from(safetyEventsTable).where(eq(safetyEventsTable.userId, userId));
 
-    sendSuccess(res, { user, companions: allCompanions, messages: allMessages, memories: allMemories });
+    sendSuccess(res, {
+      user,
+      companions: allCompanions,
+      messages: allMessages,
+      memories: allMemories,
+      subscriptions: allSubscriptions,
+      deviceTokens: allDeviceTokens,
+      safetyEvents: allSafetyEvents,
+    });
   } catch (err) {
     logger.error({ err }, "Data export failed");
     sendError(res, "Data export failed", 500);
@@ -88,7 +103,9 @@ router.post("/messages/:id/report", requireAuth, validate(ReportMessageSchema), 
     const messageId = req.params.id as string;
     const { reason, detail } = req.body;
 
-    const [message] = await db.select().from(messagesTable).where(eq(messagesTable.id, messageId)).limit(1);
+    const [message] = await db.select().from(messagesTable)
+      .where(and(eq(messagesTable.id, messageId), eq(messagesTable.userId, userId)))
+      .limit(1);
     if (!message) {
       sendError(res, "Message not found", 404);
       return;
@@ -99,8 +116,10 @@ router.post("/messages/:id/report", requireAuth, validate(ReportMessageSchema), 
       messageId,
       eventType: "user_reported",
       source: "user_report",
+      // Non-info so user reports surface in the review queue rather than sitting invisible (Apple 1.2).
+      severity: "warning",
       detail: reason,
-      flaggedContent: detail ?? null,
+      flaggedContent: (detail ?? "").slice(0, 500) || null,
     });
 
     logger.info({ userId, messageId }, "Message reported");
@@ -123,19 +142,31 @@ router.get("/admin/safety-events", requireAuth, requireAdmin, async (req: AuthRe
   }
 });
 
+// GET /api/admin/metrics — Operational counters (safety events, rate-limit rejections) — admin only.
+// Per-instance, in-memory; intended for a quick health read or to be scraped/aggregated.
+router.get("/admin/metrics", requireAuth, requireAdmin, async (_req: AuthRequest, res) => {
+  sendSuccess(res, getMetrics());
+});
+
 // POST /api/admin/ban — Ban a user by email (admin only)
-router.post("/admin/ban", requireAuth, requireAdmin, validate(BanUserSchema), async (req: AuthRequest, res) => {
+router.post("/admin/ban", requireAuth, requireAdmin, authBruteForceLimiter, validate(BanUserSchema), async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
     const { email, reason } = req.body;
 
     await db.insert(bannedIdentitiesTable).values({
       identifierHash: hashIdentifier(email.toLowerCase()),
-      identifierType: "email",
+      identifierType: "email_hash",
       reason: reason ?? "Violation of terms",
     });
 
-    logger.info({ adminId: userId, bannedEmail: email }, "User banned");
+    // Revoke access for an already-registered account with this email (requireAuth blocks
+    // non-active users). Banning must affect existing users, not just future re-registration.
+    await db.update(usersTable)
+      .set({ status: "banned", updatedAt: new Date() })
+      .where(eq(usersTable.email, email.toLowerCase()));
+
+    logger.info({ adminId: userId }, "User banned");
     sendSuccess(res, { banned: true }, 201);
   } catch (err) {
     logger.error({ err }, "Ban failed");
@@ -144,14 +175,19 @@ router.post("/admin/ban", requireAuth, requireAdmin, validate(BanUserSchema), as
 });
 
 // POST /api/admin/unban — Unban a user by email (admin only)
-router.post("/admin/unban", requireAuth, requireAdmin, validate(UnbanUserSchema), async (req: AuthRequest, res) => {
+router.post("/admin/unban", requireAuth, requireAdmin, authBruteForceLimiter, validate(UnbanUserSchema), async (req: AuthRequest, res) => {
   try {
     const { email } = req.body;
 
     const hash = hashIdentifier(email.toLowerCase());
     await db.delete(bannedIdentitiesTable).where(eq(bannedIdentitiesTable.identifierHash, hash));
 
-    logger.info({ adminId: req.userId!, unbannedEmail: email }, "User unbanned");
+    // Reactivate a previously-banned account with this email.
+    await db.update(usersTable)
+      .set({ status: "active", updatedAt: new Date() })
+      .where(and(eq(usersTable.email, email.toLowerCase()), eq(usersTable.status, "banned")));
+
+    logger.info({ adminId: req.userId! }, "User unbanned");
     sendSuccess(res, { unbanned: true });
   } catch (err) {
     logger.error({ err }, "Unban failed");

@@ -3,6 +3,9 @@ import { eq, and } from "drizzle-orm";
 import { getLLMProvider } from "../llm/index.js";
 import { logger } from "../../lib/logger.js";
 import { extractKeywords } from "./keywords.js";
+import { isCrisisContent } from "../moderation/deterministic.js";
+import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
+import { refreshRemember } from "./remember.js";
 
 interface ConsolidationDecision {
   action: "ADD" | "UPDATE" | "NONE";
@@ -13,34 +16,10 @@ interface ConsolidationDecision {
   rationale: string;
 }
 
-const CATEGORIES = ["identity", "preference", "attribute", "relationship", "work", "location", "general"];
-
-const CONSOLIDATION_PROMPT = `You are a memory consolidation system for an AI companion.
-Given a raw user message and existing memories, decide how to consolidate.
-
-Return a JSON array of consolidation decisions:
-[{ "action": "ADD"|"UPDATE"|"NONE", "memoryId": null|"<uuid>", "content": "<fact>", "category": "<category>", "importance": 0.0-1.0, "rationale": "<why>" }]
-
-Rules:
-- ADD: New durable fact not covered by existing memories
-- UPDATE <id>: Existing memory needs updating (contradiction or refinement). OVERWRITE in place.
-- NONE: Transient/chatty content, no durable value
-- Keep facts concise (<100 chars). Do not store instructions or meta-commentary.
-- Category must be one of: ${CATEGORIES.join(", ")}
-
-DEDUP — STRICT: If a fact is already represented in existing memories (even if reworded differently or with added detail), return NONE. For example, if "loves oat-milk lattes" is stored, a message about "can't start the day without an oat-milk latte" is still DEDUP — the core preference is unchanged. Only ADD genuinely new information not present in ANY existing memory.
-
-DURABLE vs TRANSIENT — STRICT: Life events that establish ongoing facts ARE always durable — ADD them. This includes: adopting/getting a pet, naming a pet, moving, starting a new job, allergy diagnosis. Pet ownership and pet names are always durable attributes. Transient moods ("exhausting day"), complaints about a single event, or conversational gambits are NOT durable — return NONE.
-
-ADDITIVE vs REPLACE — STRICT: When new information ADDS to a fact that can have multiple instances (multiple pets, multiple hobbies, multiple children), ALWAYS ADD — never UPDATE the existing one. Getting a second dog does NOT contradict having a first dog. Only UPDATE when the new information directly contradicts and REPLACES the old (e.g., changed jobs, moved to a new city).
-
-HEALTH — ABSOLUTE BLOCK: Never store mental health diagnoses (anxiety, depression, PTSD, bipolar, etc.), medical conditions (diabetes, cancer, etc.), or therapy details as memories. This is a hard block — return NONE regardless of context. Allergies are the ONLY health exception — store those as durable facts.
-
-SAFETY-SKIP: If the message expresses self-harm, suicidal ideation, or crisis content, return NONE.
-SAFETY-SKIP: If the message was blocked or flagged by a safety filter, return NONE.
-Never store crisis content, self-harm statements, or blocked material as a memory.`;
-
-const CRISIS_PATTERNS = /\b(kill myself|want to die|end my life|suicide|self-harm|self harm|can'?t keep going|don'?t think I can|ending it all)\b/i;
+// Extra crisis phrases beyond the shared L0 detector. The skip fires on isCrisisContent() (the
+// single L0 source of truth — so consolidation is never narrower than L0) OR these broader phrases.
+const EXTRA_CRISIS_PATTERNS = /\b(can'?t keep going|don'?t think I can|ending it all)\b/i;
+const MAX_CONSOLIDATION_ATTEMPTS = 3;
 
 export async function consolidateMemory(jobId: string): Promise<void> {
   const [job] = await db
@@ -49,10 +28,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
     .where(eq(memoryJobsTable.id, jobId))
     .limit(1);
 
-  if (!job || job.status !== "pending") return;
+  // Accept jobs claimed by the worker (status 'processing') as well as raw 'pending'.
+  if (!job || (job.status !== "pending" && job.status !== "processing")) return;
 
-  // Safety pre-check: skip crisis/self-harm content
-  if (CRISIS_PATTERNS.test(job.rawContent)) {
+  // Safety pre-check: skip crisis/self-harm content (shared L0 detector + broader extras).
+  if (isCrisisContent(job.rawContent) || EXTRA_CRISIS_PATTERNS.test(job.rawContent)) {
     await db.update(memoryJobsTable)
       .set({ status: "processed", safetySkipped: true, result: JSON.stringify([{ action: "NONE", memoryId: null, content: "", category: "general", importance: 0, rationale: "Safety-skip: crisis content" }]), processedAt: new Date() })
       .where(eq(memoryJobsTable.id, jobId));
@@ -72,9 +52,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
       ? `\nExisting memories:\n${existingMemories.map(m => `- [${m.id}] (${m.category}, ${m.importance}) ${m.content}`).join("\n")}`
       : "\nNo existing memories.";
 
+    // Datamark the raw user message: it is untrusted data to extract facts from, never instructions
+    // to follow (it flows into a future system prompt via stored memories — an injection surface).
     const response = await llm.generateReply({
       systemPrompt: CONSOLIDATION_PROMPT,
-      messages: [{ role: "user", content: `Raw message: "${job.rawContent}"${existingContext}` }],
+      messages: [{ role: "user", content: `<<RAW_MESSAGE data-only>>\n${job.rawContent}\n<</RAW_MESSAGE>>${existingContext}` }],
     });
 
     let decisions: ConsolidationDecision[];
@@ -100,6 +82,8 @@ export async function consolidateMemory(jobId: string): Promise<void> {
           keywords: extractKeywords(decision.content),
         });
       } else if (decision.action === "UPDATE" && decision.memoryId) {
+        // Scope the write by the job's owner as well as the id: never trust an LLM-returned id
+        // alone (defense-in-depth against a hallucinated/injected foreign memory id).
         await db.update(memoriesTable)
           .set({
             content: decision.content.slice(0, 200),
@@ -108,7 +92,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
             keywords: extractKeywords(decision.content),
             updatedAt: new Date(),
           })
-          .where(eq(memoriesTable.id, decision.memoryId));
+          .where(and(
+            eq(memoriesTable.id, decision.memoryId),
+            eq(memoriesTable.userId, job.userId),
+            eq(memoriesTable.companionId, job.companionId),
+          ));
       }
     }
 
@@ -117,11 +105,30 @@ export async function consolidateMemory(jobId: string): Promise<void> {
       .where(eq(memoryJobsTable.id, jobId));
 
     logger.info({ jobId, decisions: decisions.length }, "Memory consolidated");
+
+    // Refresh the Home "remembers" card cache when something durable changed. Best-effort: the job is
+    // already 'processed', so a question-gen hiccup must never re-queue or fail it.
+    const changed = decisions.some(d => d.action === "ADD" || d.action === "UPDATE");
+    if (changed) {
+      try {
+        await refreshRemember(job.userId, job.companionId);
+      } catch (rememberErr) {
+        logger.warn({ err: rememberErr, jobId, companionId: job.companionId }, "Remember refresh failed (non-fatal)");
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown";
+    const attempts = (job.attempts ?? 0) + 1;
+    const giveUp = attempts >= MAX_CONSOLIDATION_ATTEMPTS;
+    // Re-queue (status -> 'pending') for a bounded number of retries; give up after that.
     await db.update(memoryJobsTable)
-      .set({ status: "failed", error: message, processedAt: new Date() })
+      .set({
+        status: giveUp ? "failed" : "pending",
+        attempts,
+        error: message,
+        processedAt: giveUp ? new Date() : null,
+      })
       .where(eq(memoryJobsTable.id, jobId));
-    logger.error({ err, jobId }, "Memory consolidation failed");
+    logger.error({ err, jobId, attempts, giveUp }, "Memory consolidation failed");
   }
 }

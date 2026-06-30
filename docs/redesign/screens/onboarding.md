@@ -9,12 +9,24 @@
 
 Flow order: **Welcome → Auth → Carousel → Age gate → AI disclosure + ToS → Profile → Choose companion → Conversation.**
 
+> **⚠️ Copy now lives in code — this deck is design-only.** Every user-facing string is canonical in
+> **`client/constants/content/*`** (UI copy) and **`client/constants/demo.ts`** (demo fixtures). The
+> strings quoted in these blocks are a **frozen snapshot for context** — do **not** edit copy here;
+> change wording in the content module, the single source of truth. Layout / motion / "borrow & avoid"
+> guidance below stays authoritative. Conventions used in both places:
+> - **App name → `{AppName}`.** The name is unresolved (see [`docs/README.md`](../../README.md) naming
+>   TODO); every rendered use is the token **`{AppName}`**, resolving to `BRAND.appName` at build time.
+>   Where the name isn't actually needed, the copy avoids it.
+> - **Names in copy → tokens.** The user's first name is `{firstName}` (demo: **Maya**); the chosen
+>   companion is `{Companion}` (demo: **Aurora**). **Pre-selection screens never name a companion.**
+> - **No em dashes** in copy (use a comma or a sentence break).
+
 ---
 
 ## Welcome (value prop) — `welcome`
 
 Design the **Welcome** screen — a single pre-auth value-prop page (NOT a carousel). Calm and inviting,
-it sets the tone in one breath. Top→bottom: the **Aura** wordmark / warm mark; a short **value-prop
+it sets the tone in one breath. Top→bottom: the **{AppName}** wordmark / warm mark; a short **value-prop
 headline** (*"A companion who remembers you."*) + one supporting line (*"Talk through whatever's on your mind, quietly and at your own pace."*); a primary **Get started →** and a
 secondary **I already have an account** (→ auth); a quiet **"For adults 18+"** note. One warm focal
 image/illustration is welcome (no glowing orb, no stock). States: `default`. Guardrail: one page, one
@@ -23,7 +35,7 @@ clear primary action — the 3-screen narrative lives later, post-auth, in the c
 **▸ Recommended layout + motion** *(layout/animation research — built on the softened "Reading Nook" tokens; defaults to guide Claude Design, not rigid constraints)*
 
 *Layout:* Word-led, vertically generous, centered around a single promise — let the cream `bg` carry it,
-no hero gradient. Top→bottom: the **Aura** wordmark (small, quiet) near the top; a **warm hand-drawn
+no hero gradient. Top→bottom: the **{AppName}** wordmark (small, quiet) near the top; a **warm hand-drawn
 illustration anchor** as the focal middle (the brand's positive identity anchor — a soft tonal mark, not
 a glowing orb, not stock); below it the **serif promise** in **Newsreader Display/Headline** (*"A companion
 who remembers you."*) on **text-primary**, with one supporting line (*"Talk through whatever's on your mind, quietly and at your own pace."*) in **Hanken Body/`text-secondary`**;
@@ -47,7 +59,7 @@ techy/`Inter` display face.
 ## Auth — `auth`
 
 Design the **Auth** screen — one surface, `mode` switches the body (don't build five screens). This is
-where people decide to trust Aura, so keep it calm and trustworthy.
+where people decide to trust {AppName}, so keep it calm and trustworthy.
 - *signup* (default): email + password (reveal eye); **Continue with Apple** + **Continue with Google**;
   agree-to-terms checkbox linking ToS/Privacy; primary **Create account**; footer toggle *"Already have
   an account? Sign in."* Show button `idle / loading / done`.
@@ -62,21 +74,29 @@ States = the five modes. After signup/verify → carousel.
 *Layout:* This is the **trust moment** — keep it a calm, single **structural** surface (forms are crisp:
 warm **hairline** fields, **tight radius 4/8**, no soft shadow on inputs). Top→bottom: a short **Newsreader
 Title** that names the current mode (*"Create your account"* / *"Welcome back"* / *"Reset your password"* /
-*"Check your email"*); a tight **field stack** (email, then password with a **reveal-eye** affordance,
+*"Check your email"* / *"Set a new password"* — see the locked per-state copy below); a tight **field stack** (email, then password with a **reveal-eye** affordance,
 placeholders in **`text-secondary`** never tertiary); inline links (**Forgot password?**) as quiet
 text-buttons; the **social row** — **Continue with Apple** + **Continue with Google** as neutral
 outlined/`raised` buttons (system glyphs, **not** accent-tinted); the **agree-to-terms checkbox** with
 ToS/Privacy as inline links; the single **primary CTA** (Library Wine fill) carrying `idle / loading / done`;
 a **footer toggle** swapping signup↔signin. Only the body between title and CTA swaps per `mode` — frame,
 social row, and footer stay put. Keep the active field above the `IOSKeyboard`; tap-outside dismisses.
-*Per-state:*
-- **signup** — email + password (reveal eye) + terms checkbox + **Create account**; footer *"Already have
-  an account? Sign in."*
-- **signin** — email + password + **Forgot password?** + **Sign in**; footer → signup.
-- **forgot** — email only + **Send reset link** + a *"we'll email a code"* helper; back to signin.
-- **verify** — a **6-digit code** entry (segmented or single field) + **Verify** + a **resend timer** that
-  counts down then re-enables.
-- **reset** — new-password + confirm + **Update password**; inline match validation.
+*Per-state (locked copy — title · fields · CTA · footer/helper · example inline error):*
+- **signup** — title **"Create your account"**; **Email** (placeholder `you@email.com`) + **Password**
+  (placeholder `At least 8 characters`, reveal-eye); terms checkbox *"I agree to the Terms & Privacy
+  Policy"*; CTA **"Create account"**; footer *"Already have an account? Sign in."* Error (email taken):
+  *"An account already exists for this email. Sign in instead."*
+- **signin** — title **"Welcome back"**; **Email** + **Password** (placeholder `Your password`);
+  *"Forgot password?"* inline; CTA **"Sign in"**; footer *"New here? Create an account."* Error (bad
+  credentials): *"That email or password doesn't match. Try again."*
+- **forgot** — title **"Reset your password"**; **Email** only; CTA **"Send reset link"**; helper
+  *"Enter your email and we'll send a code to reset your password."*; back to signin.
+- **verify** — title **"Check your email"**; a **6-digit code** entry (segmented or single field); CTA
+  **"Verify"**; helper *"Enter the 6-digit code we sent to {email}."*; a **"Resend code"** action that
+  counts down (*"Resend in 0:30"*) then re-enables. Error (wrong code): *"That code isn't right. Check it
+  and re-enter."*
+- **reset** — title **"Set a new password"**; **New password** + **Confirm password**; CTA **"Update
+  password"**; inline match validation (*"Passwords don't match yet."*).
 *Motion (design intent — feel, not timings):* **Near-still — this is pre-trust, calm earns it.** The body
 **cross-fades** when `mode` changes (no slide-the-whole-screen drama). The real micro-moment is the CTA:
 a smooth **idle → loading (in-button progress, not a full-screen spinner) → done (soft check)** transition
@@ -109,11 +129,13 @@ hand-drawn illustration** as each slide's focal anchor (one per slide, distinct,
 `text-secondary`**. Bottom row: a quiet **Skip** text-button (always present, left) and **Continue →**
 (right — the primary). The slide canvas is an intimate surface (no outlines); keep horizontal inset and
 illustration size identical across slides so only the content changes.
-*Per-state:*
-- **slide1** — *"Meet a companion who remembers you."* (continuity across conversations); segment 1 filled.
-- **slide2** — *"A calm, private place to talk."* (judgment-free; your conversations are yours); segment 2.
-- **slide3** — *"Here whenever you need."* (always available; honest that it's an AI); segment 3 →
-  **Continue** becomes the flow's forward action to the age gate.
+*Per-state (locked copy — serif headline + supporting line; buttons **"Skip"** / **"Continue →"**):*
+- **slide1** — headline *"Meet a companion who remembers you."* · support *"Pick up where you left off.
+  Your companion carries what matters across every conversation."*; segment 1 filled.
+- **slide2** — headline *"A calm, private place to talk."* · support *"No judgment, no audience. Your
+  conversations are yours."*; segment 2.
+- **slide3** — headline *"Here whenever you need."* · support *"Day or night, your companion's around,
+  and always honest that it's an AI."*; segment 3 → **Continue** becomes the forward action to the age gate.
 *Motion (design intent — feel, not timings):* The **slide tracks the swipe** under the finger and **honors
 direction** (forward slides come from the right, back from the left); the segment bar fills to match the
 landed slide. **NEVER auto-advance** — the user owns the pace (auto-advancing benefit slides is a classic
@@ -129,16 +151,16 @@ accent used on both the bar *and* the CTA *and* an icon at once.
 ## Age gate — `agegate`
 
 Design the **Age gate** — a warm, single-purpose screen, the FIRST gate after auth. Header *"How old are
-you?"*; a friendly **date-of-birth picker** (wheel or field); one honest line *"Aura is for adults. You
+you?"*; a friendly **date-of-birth picker** (wheel or field); one honest line *"{AppName} is for adults. You
 must be 18 or older to continue."*; primary **Continue**.
 - *default*: a valid 18+ DOB → Continue enabled → disclosure.
-- *under18*: under 18 → **fail closed** — a calm, non-shaming stop: *"You need to be 18 to use Aura.
+- *under18*: under 18 → **fail closed** — a calm, non-shaming stop: *"You need to be 18 to use {AppName}.
   Thanks for stopping by."* (no path forward). Design this state explicitly.
 
 **▸ Recommended layout + motion** *(layout/animation research — built on the softened "Reading Nook" tokens; defaults to guide Claude Design, not rigid constraints)*
 
 *Layout:* Warm and single-purpose — one question on the screen. Top→bottom: a **Newsreader Title**
-*"How old are you?"*; a short honest line in **Hanken `text-secondary`** (*"Aura is for adults. You must be
+*"How old are you?"*; a short honest line in **Hanken `text-secondary`** (*"{AppName} is for adults. You must be
 18 or older to continue."*); a **friendly DOB picker** as a **structural** control — a native-feeling wheel
 or a tidy field group with **hairline** edges + **tight radius (8)**, never a soft-shadow card; then the
 single **Continue** primary (Library Wine), bottom-anchored. Generous whitespace; the picker is the only
@@ -146,7 +168,7 @@ interactive focal element.
 *Per-state:*
 - **default** — a valid 18+ DOB makes **Continue** enabled (Library Wine fill) → disclosure.
 - **under18** — **fail-closed dead-end**: the picker and Continue give way to a calm, **non-shaming** stop —
-  a warm line *"You need to be 18 to use Aura. Thanks for stopping by."* on plain `bg`, **no path forward**
+  a warm line *"You need to be 18 to use {AppName}. Thanks for stopping by."* on plain `bg`, **no path forward**
   (no Continue, no retry-into-the-app). Keep it gentle and final, not an error/alarm surface — neutral
   tokens, **not** error-red.
 *Motion (design intent — feel, not timings):* Minimal and still — this is a gate, not a moment. The only
@@ -162,9 +184,10 @@ soft-shadowed "card" wrapping a utility picker · accent used on the picker chro
 ## AI disclosure + ToS — `disclosure`
 
 Design the **AI disclosure + Terms** screen — the honesty moment, warm not legalistic. Header *"A few
-things to know."* Short human cards: *"Aurora is an AI"* (supportive company — not a real person, not a
-substitute for professional care); *"If you're ever in crisis,"* Aura shares real resources (988) and
-you can always reach them; *"Your conversations are private"* and yours to export or delete. A checkbox
+things to know."* Three short human cards (head + one line): *"Your companion is an AI"* — real support,
+not a real person, and never a substitute for professional care; *"If things ever get heavy"* — you'll
+always find real resources here, like the **988** Suicide & Crisis Lifeline; *"Your conversations are
+private"* — they're yours to export or delete. A checkbox
 *"I understand and agree to the Terms & Privacy Policy"* + primary **Continue** (disabled until checked)
 → profile. States: `default`. Guardrail: honest, no dark patterns on the consent checkbox.
 
@@ -173,11 +196,13 @@ you can always reach them; *"Your conversations are private"* and yours to expor
 *Layout:* The honesty moment — warm and human, not a legal wall. Top→bottom: a **Newsreader Title** *"A few
 things to know."*; then **three short human cards** stacked vertically — these are gentle, intimate
 **`raised`-card** surfaces (tonal fill + soft shadow `e1`, **no outline**, soft radius 12/16), each with a
-plain warm glyph + a one-line plain-language statement (**Hanken Body** head + **`text-secondary`** support):
-(1) *Aurora is an AI* — supportive company, not a real person or a substitute for professional care; (2)
-*If you're ever in crisis* — Aura shares real resources (**988**) and you can always reach them, using the
-**calm crisis/safety token** (grounding green), **never** alarm-red; (3) *Your conversations are private* —
-yours to export or delete. Below the cards: a clearly-tappable **checkbox row** *"I understand and agree to
+plain warm glyph + a one-line plain-language statement (**Hanken Body** head + **`text-secondary`** support) —
+locked copy:
+(1) head *"Your companion is an AI"* — *"Real support, not a real person, and never a substitute for
+professional care."*; (2) head *"If things ever get heavy"* — *"You'll always find real resources here,
+like the 988 Suicide & Crisis Lifeline."*, using the **calm crisis/safety token** (grounding green),
+**never** alarm-red; (3) head *"Your conversations are private"* — *"They're yours to export or delete
+anytime."* Below the cards: a clearly-tappable **checkbox row** *"I understand and agree to
 the Terms & Privacy Policy"* (ToS/Privacy as inline links), then the **Continue** primary (Library Wine),
 **genuinely disabled** until the box is checked.
 *Motion (design intent — feel, not timings):* Calm — the three cards arrive in a **gentle staggered
@@ -194,7 +219,7 @@ a fake "scroll to accept" timer.
 
 ## Profile setup — `profile`
 
-Design the **Profile setup** screen — light and welcoming. Header *"What should Aurora call you?"*;
+Design the **Profile setup** screen — light and welcoming. Header *"What should your companion call you?"*;
 first-name + last-name fields (first name is what the companion uses); an optional friendly subline;
 primary **Continue** → persona. Keep it minimal — no demographic interrogation. States: `default`
 (+ focus/error on the fields).
@@ -202,8 +227,8 @@ primary **Continue** → persona. Keep it minimal — no demographic interrogati
 **▸ Recommended layout + motion** *(layout/animation research — built on the softened "Reading Nook" tokens; defaults to guide Claude Design, not rigid constraints)*
 
 *Layout:* Light, welcoming, and short — a **structural** form, but a friendly one. Top→bottom: a
-**Newsreader Title** *"What should Aurora call you?"*; an optional warm subline in **Hanken `text-secondary`**
-(*"First name is what Aurora will use."*); then two **crisp** text fields — **First name** then **Last name**
+**Newsreader Title** *"What should your companion call you?"*; an optional warm subline in **Hanken `text-secondary`**
+(*"First name is what your companion will use."*); then two **crisp** text fields — **First name** then **Last name**
 — with **hairline** edges + **tight radius (8)**, labels above, placeholders in **`text-secondary`**; the
 **Continue** primary (Library Wine) bottom-anchored. Only two fields — no demographics, no avatar upload,
 no interrogation. Keep the active field above the `IOSKeyboard`.
@@ -273,9 +298,11 @@ Design the **first conversation** — onboarding ends HERE, not a dashboard. Ope
 the chosen companion greeting Maya warmly by name; let it breathe. This is the **first appearance of the
 reusable chat components** (header with avatar + name + honest "AI companion" marker; warm bubbles; the
 bottom input dock) — build them here so the one-off Chat screen reuses them.
-- *opening*: one warm opener from Aurora — *"Hi Maya — I'm really glad you're here. There's no script and
-  no rush. What's on your mind today?"* — with a quiet first-session AI-disclosure banner above the
-  thread.
+- *opening*: one warm opener from Aurora — *"Hi Maya, I'm really glad you're here. There's no script and
+  no rush. What's on your mind today?"* — with a quiet, dismissible first-session AI-disclosure banner
+  pinned above the thread: *"Aurora is an AI companion, here for support, not a substitute for
+  professional care."* (template: *"{Companion} is an AI companion, …"*; **Maya** is the demo
+  `{firstName}`, **Aurora** the demo `{Companion}`).
 - *typing*: the greeting arriving via the **calm typing reveal** (natural-writing pace; reduce-motion →
   snap to final, keep the haptic).
 Guardrail: end in the conversation; reuse these chat components in the Chat one-off rather than rebuilding.
@@ -291,7 +318,7 @@ the **thread** with the quiet, dismissible **first-session AI-disclosure banner 
 appears only when the field is non-empty). Aurora's greeting is a **two-sided softened companion bubble**
 (left, warm-paper `sheet` + soft shadow `e1`, **softened asymmetric radius 18/18/18/6**, **Hanken** inside);
 a **Newsreader serif greeting/divider moment** ("Today") is welcome since this is *the* moment. Cap the
-bubble ~78–82% width for a comfortable measure. The greeting (verbatim): *"Hi Maya — I'm really glad you're
+bubble ~78–82% width for a comfortable measure. The greeting (verbatim): *"Hi Maya, I'm really glad you're
 here. There's no script and no rush. What's on your mind today?"* — it **invites, doesn't interrogate, and
 doesn't over-claim intimacy**.
 *Per-state:*

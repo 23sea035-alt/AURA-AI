@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aura — Home Tabs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; }
+  body { background: #0c0c0f; -webkit-font-smoothing: antialiased; }
+  * { box-sizing: border-box; }
+  input, button, select, textarea { font-family: inherit; }
+  /* iOS: hide scrollbars on in-app scroll surfaces */
+  .app-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  .app-scroll::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  /* Home — presence PLACED on entry, then holds still (no idle loop) */
+  @keyframes home-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes home-fade { from { opacity: 0; } to { opacity: 1; } }
+  .home-enter { animation: home-rise .62s cubic-bezier(.22,.61,.36,1) both; }
+  .home-enter-2 { animation: home-rise .62s cubic-bezier(.22,.61,.36,1) .34s both; }
+  .home-cta { transition: transform .12s ease, box-shadow .12s ease; }
+  .home-cta:active { transform: scale(.978); }
+  @media (prefers-reduced-motion: reduce) {
+    .home-enter, .home-enter-2 { animation: home-fade .4s ease both; }
+    .home-cta:active { transform: none; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<script src="tokens.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="dev-harness.jsx"></script>
+<script type="text/babel" src="hometabs-app.jsx"></script>
+</body>
+</html>

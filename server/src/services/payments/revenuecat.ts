@@ -52,24 +52,47 @@ export async function handleRevenueCatWebhook(
   }
 
   const payload: RevenueCatWebhookPayload = JSON.parse(rawBody);
-  const { event, app_user_id, environment, product_id, store, period_type, expiration_at_ms, original_transaction_id } = payload;
+  const { event, app_user_id, environment, product_id, store, period_type, expiration_at_ms, original_transaction_id, event_timestamp_ms } = payload;
 
   if (!app_user_id) {
     logger.warn({ event }, "RevenueCat webhook missing app_user_id");
     return { received: true };
   }
 
-  const isProduction = environment.toUpperCase() === "PRODUCTION";
-  if (!isProduction) {
-    const allowSandbox = getEnv().RC_ALLOW_SANDBOX;
-    if (!allowSandbox) {
-      logger.warn({ environment, event }, "RevenueCat webhook — sandbox event rejected (RC_ALLOW_SANDBOX=false)");
-      return { received: true };
-    }
-    logger.info({ environment, event }, "RevenueCat webhook — processing non-production event");
+  // In production, ignore SANDBOX events so test purchases can't grant real premium.
+  if (environment.toUpperCase() !== "PRODUCTION" && getEnv().NODE_ENV === "production") {
+    logger.warn({ environment, event }, "RevenueCat SANDBOX event in production — ignoring");
+    return { received: true };
   }
 
   const userId = app_user_id;
+
+  // app_user_id is client-provided — validate it maps to a real user before mutating entitlements.
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!UUID_RE.test(userId)) {
+    logger.warn({ event }, "RevenueCat webhook app_user_id is not a valid user id — ignoring");
+    return { received: true };
+  }
+  const [knownUser] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!knownUser) {
+    logger.warn({ event, userId }, "RevenueCat webhook for unknown user — ignoring");
+    return { received: true };
+  }
+
+  // Reject stale / out-of-order / replayed events — RevenueCat does not guarantee ordering.
+  const [existingSub] = await db
+    .select({ lastEventTimestampMs: subscriptionsTable.lastEventTimestampMs })
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.userId, userId))
+    .limit(1);
+  if (
+    typeof event_timestamp_ms === "number" &&
+    existingSub?.lastEventTimestampMs != null &&
+    event_timestamp_ms <= existingSub.lastEventTimestampMs
+  ) {
+    logger.warn({ event, userId }, "RevenueCat stale/out-of-order event — ignoring");
+    return { received: true };
+  }
 
   switch (event) {
     case "INITIAL_PURCHASE":
@@ -87,6 +110,7 @@ export async function handleRevenueCatWebhook(
         periodType: period_type,
         expiresAt,
         willRenew: expiresAt ? expiresAt > new Date() : true,
+        lastEventTimestampMs: event_timestamp_ms,
       }).onConflictDoUpdate({
         target: subscriptionsTable.userId,
         set: {
@@ -96,6 +120,7 @@ export async function handleRevenueCatWebhook(
           periodType: period_type,
           expiresAt,
           willRenew: expiresAt ? expiresAt > new Date() : true,
+          lastEventTimestampMs: event_timestamp_ms,
           updatedAt: new Date(),
         },
       });
@@ -109,7 +134,7 @@ export async function handleRevenueCatWebhook(
     case "CANCELLATION":
     case "EXPIRATION": {
       await db.update(subscriptionsTable)
-        .set({ status: "expired", willRenew: false, updatedAt: new Date() })
+        .set({ status: "expired", willRenew: false, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
         .where(eq(subscriptionsTable.userId, userId));
 
       await db.update(usersTable)
@@ -120,7 +145,7 @@ export async function handleRevenueCatWebhook(
 
     case "UNCANCELLATION": {
       await db.update(subscriptionsTable)
-        .set({ status: "active", willRenew: true, updatedAt: new Date() })
+        .set({ status: "active", willRenew: true, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
         .where(eq(subscriptionsTable.userId, userId));
 
       await db.update(usersTable)
@@ -131,7 +156,7 @@ export async function handleRevenueCatWebhook(
 
     case "BILLING_ISSUE": {
       await db.update(subscriptionsTable)
-        .set({ status: "billing_retry", updatedAt: new Date() })
+        .set({ status: "billing_retry", lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
         .where(eq(subscriptionsTable.userId, userId));
       break;
     }

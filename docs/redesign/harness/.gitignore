@@ -1,0 +1,7 @@
+node_modules/
+
+# Generated capture artifacts (stills, galleries, clips, burst frames) are large binaries that
+# are regenerated on demand, so they're not tracked. Named "captures/" (not the common "out/") so
+# this ignore can never collide with other output directories elsewhere in the repo.
+# The harness scripts themselves ARE tracked.
+captures/

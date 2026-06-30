@@ -17,6 +17,7 @@ interface ClerkWebhookPayload {
     public_metadata?: {
       role?: string;
     };
+    external_accounts?: Array<{ provider?: string; provider_user_id?: string }>;
     created_at?: number;
     updated_at?: number;
     deleted?: boolean;
@@ -33,6 +34,16 @@ function getWebhook() {
   return wh;
 }
 
+function gatherOAuthSubs(data: ClerkWebhookPayload["data"]): { appleSub?: string; googleSub?: string } {
+  const subs: { appleSub?: string; googleSub?: string } = {};
+  for (const acc of data.external_accounts ?? []) {
+    const p = acc.provider?.toLowerCase() ?? "";
+    if (p.includes("apple") && acc.provider_user_id) subs.appleSub = acc.provider_user_id;
+    if (p.includes("google") && acc.provider_user_id) subs.googleSub = acc.provider_user_id;
+  }
+  return subs;
+}
+
 // POST /webhooks/clerk
 router.post("/clerk", async (req, res) => {
   const svixId = req.headers["svix-id"] as string;
@@ -44,9 +55,14 @@ router.post("/clerk", async (req, res) => {
     return;
   }
 
+  const rawBody = req.rawBody;
+  if (!rawBody) {
+    res.status(400).json({ error: "Missing raw body for signature verification" });
+    return;
+  }
+
   let payload: ClerkWebhookPayload;
   try {
-    const rawBody = JSON.stringify(req.body);
     const msg = getWebhook().verify(rawBody, {
       "svix-id": svixId,
       "svix-timestamp": svixTimestamp,
@@ -65,9 +81,10 @@ router.post("/clerk", async (req, res) => {
     switch (type) {
       case "user.created": {
         const email = data.email_addresses?.[0]?.email_address ?? "";
-        const banned = await checkBan(email);
+        const subs = gatherOAuthSubs(data);
+        const banned = await checkBan(email, subs);
         if (banned) {
-          logger.warn({ clerkUserId: data.id, email }, "Banned user attempted registration — blocking");
+          logger.warn({ clerkUserId: data.id }, "Banned identity attempted registration — blocking");
           res.json({ success: true, action: "blocked_ban_evasion" });
           return;
         }
@@ -83,6 +100,13 @@ router.post("/clerk", async (req, res) => {
       }
       case "user.updated": {
         const updEmail = data.email_addresses?.[0]?.email_address ?? "";
+        const updSubs = gatherOAuthSubs(data);
+        if (await checkBan(updEmail, updSubs)) {
+          logger.warn({ clerkUserId: data.id }, "Banned identity on user.updated — removing mirrored user");
+          await deleteUserByClerkId(data.id);
+          res.json({ success: true, action: "blocked_ban_evasion" });
+          return;
+        }
         await upsertUserFromClerk({
           clerkUserId: data.id,
           email: updEmail,

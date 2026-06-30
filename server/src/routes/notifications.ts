@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db, deviceTokensTable } from "../db/src/index.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
+import { getEnv } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 
@@ -22,7 +23,7 @@ router.post("/notifications/register", requireAuth, validate(RegisterTokenSchema
       userId: req.userId!,
       token,
       platform,
-      environment: "sandbox",
+      environment: getEnv().APNS_ENVIRONMENT,
     }).onConflictDoNothing();
 
     logger.info({ userId: req.userId!, platform }, "Device token registered");
@@ -42,7 +43,7 @@ router.delete("/notifications/register", requireAuth, async (req: AuthRequest, r
     }
 
     await db.delete(deviceTokensTable)
-      .where(eq(deviceTokensTable.token, token));
+      .where(and(eq(deviceTokensTable.token, token), eq(deviceTokensTable.userId, req.userId!)));
 
     logger.info({ userId: req.userId! }, "Device token removed");
     sendSuccess(res, { removed: true });

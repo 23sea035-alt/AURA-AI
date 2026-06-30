@@ -1,97 +1,137 @@
-# Aura AI — Companion Chat (Backend / Server)
+# Aura AI — Backend / Server (Replit Workspace)
 
-> **Read [`docs/README.md`](docs/README.md) first.** Specs live in [`docs/specs/`](docs/specs/)
-> ([v1-architecture](docs/specs/v1-architecture.md), [v1-schema](docs/specs/v1-schema.md)).
-> **The backend is built but audited NO-GO — current work is [`docs/planning/backend-fixlist-v1.md`](docs/planning/backend-fixlist-v1.md)**
-> (fix per the audit; don't rebuild), then the test/eval loop in [`docs/testing/testing-readiness-v1.md`](docs/testing/testing-readiness-v1.md).
-> Those docs are the **plan of record** — follow them; don't relitigate decisions without a real reason.
+> **Start here:** [`docs/README.md`](docs/README.md) → [`docs/CHANGELOG.md`](docs/CHANGELOG.md) → [`docs/TODO.md`](docs/TODO.md).
+> Work `docs/TODO.md` top-to-bottom, one task at a time. Do not rebuild from scratch.
 
 ## What this is
 
-Aura AI — an iOS AI-companion chat app (**18+, US-first**). Users chat 1:1 with vetted AI personas
-that remember facts across conversations; safety-first design; **$9.99/month** premium (free tier
-**30 msgs/day**). The current code is a **Replit-Agent prototype** being rebuilt per `docs/` — treat
-existing code as a sketch, not a foundation.
+Aura AI — an iOS AI-companion chat app (18+, US-first). This workspace owns the **backend / server only.** The iOS client (Expo RN) is owned separately and cannot be built or tested on Replit.
 
-**This workspace owns the BACKEND / SERVER.** The frontend (Expo app) is owned separately —
-**do NOT build frontend here.** Backend changes that affect the client get appended to
-[`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) → "Backend-driven items."
+Stack: pnpm monorepo — `client` (Expo RN, not yours) + `server` (Express 5 + TypeScript) + `shared` (`@aura/shared` Zod DTOs + constants — the client/server contract).
 
-## Stack (v1.0 target)
+- **DB:** PostgreSQL on Neon + Drizzle ORM — versioned migrations (`drizzle-kit generate`), never `push` in shared/prod. Schema is squashed to a single `0000_init` baseline; add new migrations on top.
+- **LLM:** Groq — `llama-3.3-70b-versatile` (primary), `llama-3.1-8b-instant` (fallback).
+- **Moderation:** layered L0–L3 pipeline — prompt-guard (Groq) + OpenAI safeguard + LLM adjudicator. Fail-closed. See [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md).
+- **Memory:** async consolidation job (Groq) + vector retrieval. See [`docs/specs/memory-pipeline.md`](docs/specs/memory-pipeline.md).
+- **Auth:** Clerk (managed — email/password + Apple + Google; server verifies Clerk session tokens; webhook mirrors users to DB).
+- **Payments:** RevenueCat + StoreKit webhooks.
+- **Push:** APNs (skipped automatically when a live WebSocket connection is open).
+- **Voice (optional):** Inworld TTS 2 over WebSocket for text-to-speech; Groq Whisper (`whisper-large-v3-turbo`) for speech-to-text. Voice features degrade gracefully when `INWORLD_*` env vars are unset.
+- **Hosting:** Render (or Replit always-on Reserved VM — required for reliable RevenueCat webhook delivery).
 
-- Monorepo (pnpm): **`client`** (Expo/RN) + **`server`** (Express 5 + TS) + **`shared`**
-  (`@aura/shared` — enums, Zod DTOs, constants = the client/server contract). (Replaces the prototype's
-  `artifacts/*` + `lib/*` layout.)
-- DB: PostgreSQL on **Neon** + Drizzle ORM — **versioned migrations, NOT `drizzle-kit push`**.
-- LLM: **NVIDIA** (Llama 3.1 via NVIDIA API). Moderation: OpenAI omni + NVIDIA safeguard + prompt-guard
-  (layered, server-side, fail-closed). **Auth: Clerk** (managed — email/password + Apple + Google;
-  reset/verification handled by Clerk; server verifies Clerk session tokens, webhook mirrors users).
-  Payments: **RevenueCat + StoreKit**. Notifications: APNs.
-  Hosting: **Render** (or Replit always-on Reserved VM).
+## Branch and push rules
 
-## Run & operate (after the Phase 0 restructure)
+You are on **`test-results`**. At the start of each session:
 
-- `pnpm --filter @aura/shared run build` — build `shared` first (server depends on it)
-- `pnpm --filter @aura/server run dev` — run the API server
-- `pnpm --filter @aura/server run typecheck`
-- DB: `drizzle-kit generate` → commit the SQL → `migrate` (see `docs/specs/v1-schema.md`)
-- Required env: see the env-var list in `docs/planning/v1-tasklist.md` (validated at boot, fail-closed)
+```bash
+git pull origin test-results
+```
+
+After each task, push here only:
+
+```bash
+git push origin test-results
+```
+
+Do NOT push to `main` or `backend`.
+
+## Run & operate
+
+```bash
+# from repo root
+pnpm install
+
+# from server/
+pnpm dev        # build + run with ../.env
+pnpm build      # esbuild bundle → dist/
+pnpm typecheck  # tsc --noEmit
+
+# tests — run from repo root, not server/
+npx vitest run
+
+# evals — needs GROQ_API_KEY set; NOT part of CI
+pnpm eval       # moderation pipeline (L0–L3) + confusion matrix
+pnpm eval:gen   # generation (persona × trait × scenario) + LLM judge
+```
+
+## Required environment variables
+
+Set these in `.env` (dev) or Render/Replit environment variables (prod).
+The server validates all required vars at boot and fails closed if any are missing (`server/src/config/env.ts`).
+
+```
+# Database
+DATABASE_URL=<neon-postgres-connection-string>
+
+# Auth (Clerk)
+CLERK_SECRET_KEY=
+CLERK_PUBLISHABLE_KEY=
+CLERK_WEBHOOK_SECRET=
+
+# LLM + STT (Groq)
+GROQ_API_KEY=
+
+# Moderation (OpenAI — L2 output safeguard)
+OPENAI_API_KEY=
+
+# Payments (RevenueCat)
+REVENUECAT_WEBHOOK_SECRET=
+
+# Security
+BANNED_IDENTITY_PEPPER=<random-32-byte-hex>
+
+# Push notifications (APNs — optional, skipped gracefully when unset)
+APNS_KEY_ID=
+APNS_TEAM_ID=
+APNS_KEY_FILE=<path-to-.p8-key-file>
+APNS_ENVIRONMENT=sandbox   # or production
+
+# Voice — Inworld TTS 2 (optional — voice features skip gracefully when unset)
+# Fill INWORLD_VOICE_ID_* values after completing TODO §1 (voice ID selection)
+INWORLD_API_KEY=
+INWORLD_VOICE_ID_AURORA=
+INWORLD_VOICE_ID_ORION=
+INWORLD_VOICE_ID_LYRA=
+
+# Optional
+SENTRY_DSN=
+LOG_LEVEL=info
+NODE_ENV=development
+PORT=8080
+```
+
+## After each task
+
+1. `pnpm build && pnpm typecheck && npx vitest run` — all green (baseline: **342 tests**).
+2. No `console.*` or hardcoded secrets in the diff.
+3. Commit with a `feat:` / `fix:` / `test:` / `chore:` prefix.
+4. Add a CHANGELOG entry in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+5. Push to `origin/test-results`.
 
 ## Critical rules
 
-- **Follow `docs/`** — the architecture, schema, and task list are deliberate decisions.
-- **Don't build the frontend.** Append client-affecting changes to `docs/planning/frontend-todo.md`.
-- **No hardcoded secrets** — Zod-validate env at boot and fail closed (replace the prototype's
-  `process.env.X ?? "fallback"` patterns). **Auth is Clerk-managed (D8):** verify the Clerk session
-  token server-side; there is **no app-minted JWT** — delete the prototype's `SESSION_SECRET`/JWT
-  logic. Add `CLERK_SECRET_KEY` / `CLERK_PUBLISHABLE_KEY` / `CLERK_WEBHOOK_SECRET`.
-- **Versioned migrations**, never `push` in shared/prod.
-- **Legal-review items** (retention numbers, `safety_events.flagged_content` retain-vs-scrub,
-  jurisdictions, policy wording) are **NOT to be guessed** — leave the defaults + flags for counsel.
-- Build the **`Moderator` interface (Phase 2) before the chat turn pipeline (Phase 3)** — they're
-  co-dependent.
+- **Follow `docs/`** — architecture, schema, and decisions are deliberate. Don't relitigate without a real reason.
+- **No hardcoded secrets** — Zod-validate env at boot; fail-closed.
+- **Versioned migrations only** — `drizzle-kit generate` → review → runtime `migrate()`. Never `push` in shared/prod.
+- **Do not build the frontend.** Append client-affecting contract changes to [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) under "Backend-driven items."
+- **Legal-review items** (retention numbers, `safety_events.flagged_content` retain-vs-scrub, jurisdictions, policy wording) are NOT to be guessed — leave defaults + flags for counsel.
+- **Jason owns `safetyCritical` eval labels** — tune moderation prompts to the labels, never the reverse.
 
-## Build protocol (work incrementally — do NOT build everything at once)
+## The docs
 
-Replit Agent defaults to building whole apps in one pass; for this backend, **don't.**
-
-- The backend is built but audited **NO-GO**: work `docs/planning/backend-fixlist-v1.md` **in order (P0→P4), one item at a time** (fix per the audit, don't rebuild), then the test/eval loop in `docs/testing/testing-readiness-v1.md`.
-- Each subsystem (moderation, chat turn pipeline, payments/webhook, memory consolidation, auth) is
-  substantial — give it **focused depth**, not a diluted all-at-once scaffold.
-- **One task ≈ one commit.** Definition of Done before the next: typecheck passes, tests for that unit
-  pass, no `console.*`/hardcoded secrets, committed.
-- **Stop and confirm at the end of each phase.** Full rules: the `incremental-backend-build` skill.
-
-## Skills & customization
-
-- Project skills live in **`.agents/skills/`** (Replit applies them when relevant):
-  `incremental-backend-build` (the guardrail), `database-migrations`, `api-design`, `backend-patterns`,
-  `cost-aware-llm-pipeline`, `ai-regression-testing`.
-- Also set **Custom Instructions** in your Replit workspace (always-on) — suggested text is in
-  `docs/README.md` → "Replit setup."
-
-## Where things live (target)
-
-- `server/src/` — layered `route → controller → service → db (repositories)`; see the server-structure
-  reference in `docs/planning/v1-tasklist.md`. The chat turn pipeline + `Moderator`/`LLMProvider` interfaces
-  live under `server/src/services/`.
-- `server/eval/` — **already on disk + committed:** the synthetic chat-pipeline eval corpus
-  (`cases/` + the to-be-compiled `rubrics/`). Read `server/eval/cases/README.md`. The eval *harness*
-  is still to be built (this workspace); the cases/labels are the seed it runs against. Note:
-  `cases/retrieval/` holds **Tier-1 deterministic** fixtures (consumed by the CI unit tests, not the
-  human report).
-- `shared/` — `@aura/shared` enum/DTO/constant catalog (`docs/specs/v1-schema.md`).
-- `docs/` — the plan of record (start at `docs/README.md`).
-
-## Gotchas
-
-- The **iOS client can't be built/tested on Replit** (needs Mac + Xcode + simulator + EAS). This
-  workspace is the server; client work happens elsewhere.
-- The old `.replit` / `.replit-artifact/*` config targets the prototype's `artifacts/*` structure and
-  **needs rewriting** for `client/server/shared`.
-- **`server/` already exists** (it holds the committed `server/eval/` corpus). The Phase 0 restructure
-  maps `artifacts/api-server`→`server/` — do that by adding `server/src/` + `server/package.json`
-  **around** the existing tree; do **NOT** `rm`/recreate `server/` or move `api-server` to *become*
-  `server/`, or you'll clobber `server/eval/`. Preserve it.
-- If hosting on Replit instead of Render, use an **always-on Reserved VM** (not a sleeping instance)
-  so RevenueCat webhooks deliver within their retry window.
+| What | Doc |
+|---|---|
+| What Aura is + how to run | [`docs/README.md`](docs/README.md) |
+| What has shipped | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) |
+| Your task list | [`docs/TODO.md`](docs/TODO.md) |
+| Architecture + decisions (D1–D12) | [`docs/specs/v1-architecture.md`](docs/specs/v1-architecture.md) |
+| DB schema + `@aura/shared` catalog | [`docs/specs/v1-schema.md`](docs/specs/v1-schema.md) |
+| Moderation pipeline (L0–L3) | [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md) |
+| Memory pipeline | [`docs/specs/memory-pipeline.md`](docs/specs/memory-pipeline.md) |
+| Generation pipeline | [`docs/specs/generation-pipeline.md`](docs/specs/generation-pipeline.md) |
+| Testing strategy | [`docs/testing/test-harness.md`](docs/testing/test-harness.md) |
+| Eval safety rubric | [`docs/testing/eval-safety-rubric.md`](docs/testing/eval-safety-rubric.md) |
+| Production-readiness audit (2026-06-29) | [`docs/audit/backend-audit-2026-06.md`](docs/audit/backend-audit-2026-06.md) |
+| Frontend items (client owner only) | [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) |
+| Post-launch roadmap | [`docs/planning/post-v1.0-roadmap.md`](docs/planning/post-v1.0-roadmap.md) |
+| Compliance drafts (do not publish without counsel) | [`docs/compliance/`](docs/compliance/) |

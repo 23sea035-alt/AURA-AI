@@ -15,6 +15,13 @@
 > the shared primitives and the **system-states kit** (screen 12) rather than reinventing them. Run the
 > `01-doctrine.md` §13 gate before calling a screen done.
 
+> **⚠️ Copy now lives in code — this deck is design-only.** Every user-facing string is canonical in
+> **`client/constants/content/*`** (UI copy) and **`client/constants/demo.ts`** (demo fixtures, e.g.
+> Maya's conversation and memories). The strings quoted below are a **frozen snapshot for context** — do
+> **not** edit copy here; change wording in the content module. Layout / motion / "borrow & avoid"
+> guidance stays authoritative. Tokens: `{AppName}` → `BRAND.appName`; `{firstName}` (Maya) and
+> `{Companion}` (Aurora) bind at runtime. No em dashes in copy.
+
 ---
 
 ## Chat conversation — `chat`  ★ HERO

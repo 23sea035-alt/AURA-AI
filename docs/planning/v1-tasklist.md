@@ -72,6 +72,7 @@ prototype scaffolding from the Replit-Agent build.
 - [ ] Memory retrieval: keyword/Jaccard + `importance` + **recency decay**; inject top-N into the **system prompt** (not the user message) **(cleanup: rename `embedding`→`keywords`, now `text[]`)**
 - [ ] Memory writes: **async post-turn LLM consolidation** pass — extract durable facts + **dedup** + **light contradiction** (`ADD`/`UPDATE <id>`/`NONE`; `UPDATE` overwrites in place); guardrails (no hard deletes) + eval set **(design done — cards/rubric specced + seed corpus in `server/eval/cases/consolidation/`; just implement the harness on Replit)**
 - [ ] `MEMORY_CATEGORY` enum in `@aura/shared`; per-companion scope
+- [x] **Memory-management API (2026-06-30):** `GET /api/companions/:companionId/memories` (list), `PATCH /api/memories/:id` (edit, body = `UpdateMemorySchema`), `DELETE /api/memories/:id` (delete) — ownership-scoped; powers the client view/delete-memories UI.
 - [ ] Input length cap: `MAX_MESSAGE_CHARS` (~2000, `@aura/shared`) in the turn Zod schema — client live counter + block-send; **server rejects 400** (authoritative); check after trim; count code points not UTF-16 units
 - [ ] Prompt-assembly budget: cap injected memories at **top-N** + keep facts concise + cap history to last **K** msgs; **trim-to-fit** (drop lowest-scored memories / oldest history first) so a valid message never fails on context size
 - [ ] Drop the unused `summaries` table + dead `generateSummary`/`shouldSummarize` code; log rolling-summarization under Deferred **(cleanup)**
@@ -144,11 +145,11 @@ Principles: routes never touch db/services internals; services never see `req`/`
 Resolve in an implementation-kickoff session (a fresh session loading these docs is sufficient — the docs carry the state).
 
 **Product decisions (your call):**
-- [x] **Voice scope — DECIDED: deferred to post-v1.0.** v1.0 is text-only. Voice = STT → the existing turn pipeline → TTS (a modality wrapper, not a separate AI); re-adds later with a provider + `voice_usage` metering table + transcript moderation. See Deferred section.
+- [x] **Voice scope — DECIDED: deferred to post-v1.0.** v1.0 is text-only. Voice = STT → the existing turn pipeline → TTS (a modality wrapper, not a separate AI); re-adds later with a provider + `voice_usage` metering table + transcript moderation. See Deferred section. **⚠️ 2026-06-30 — REVERSED/LANDED:** the voice backend has since shipped (`server/src/services/voice/` — LiveKit + Cartesia TTS + Deepgram STT, `/api/voice/*` endpoints, `voice_usage` metering table). No longer deferred.
 - [x] **Async-job substrate — DECIDED: durable lightweight queue** (`memory_jobs` table polled by an in-process interval worker; pg-boss acceptable). Powers async memory consolidation (D12) + retention jobs. Lives in `server/src/services/jobs/`.
 
 **P0 — blockers / silently-wrong-if-guessed:**
-- [x] Explicit Phase 0 task: **author + commit the initial Drizzle migration** for all 8 tables.
+- [x] Explicit Phase 0 task: **author + commit the initial Drizzle migration** for all tables (originally 8; as-built = **12 tables**, adding `memory_jobs`, `rate_limits`, `deletion_audit`, `voice_usage`; migrations later squashed to a single `0000_init` baseline).
 - [x] **`userId` numeric → UUIDv7** breaking change across auth/chat/memory/safety/payments + JWT payload + `AuthRequest` — explicit early task.
 - [x] **Response/error envelope** (`{success,data?,error?,meta?}`) + client-switchable error codes (`LIMIT_REACHED` 429, `BLOCKED`, `CRISIS`); centralize in `lib/response.ts` + `error-handler.ts`.
 
@@ -168,7 +169,7 @@ Resolve in an implementation-kickoff session (a fresh session loading these docs
 - [x] Graceful shutdown (drain in-flight turns + jobs on SIGTERM — Render sends it on deploy).
 - [x] Transactions: `turn_id` unique-violation handling; `companions.last_message`/`message_count` in one DB transaction.
 
-**Env vars to publish:** `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `REVENUECAT_WEBHOOK_SECRET`, `APNS_*`, `BANNED_IDENTITY_PEPPER`, `SENTRY_DSN`, `PORT`, `NODE_ENV`, `APNS_ENVIRONMENT`. *(Clerk replaces `JWT_SECRET`; Apple/Google OAuth creds live in the Clerk dashboard, not server env.)*
+**Env vars to publish:** `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`, `GROQ_API_KEY`, `OPENAI_API_KEY`, `REVENUECAT_WEBHOOK_SECRET`, `APNS_*`, `BANNED_IDENTITY_PEPPER`, `SENTRY_DSN`, `PORT`, `NODE_ENV`, `APNS_ENVIRONMENT`. **Voice (optional tier):** `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`, `DEEPGRAM_API_KEY`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL`. *(Clerk replaces `JWT_SECRET`; Apple/Google OAuth creds live in the Clerk dashboard, not server env.)*
 
 **Ordering fixes:** Phase 2 (moderation) and Phase 3 (chat turn) are co-dependent — build the `Moderator` interface before the turn pipeline; secret-fallback removal (Phase 0) must land with/before Phase 1 auth.
 

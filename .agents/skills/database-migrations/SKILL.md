@@ -176,16 +176,26 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_email ON users (email);
 
 ## Drizzle (TypeScript/Node.js)
 
+> **Aura AI repo override.** In this repo `drizzle-kit push` is **FORBIDDEN** (no history; drops
+> SQL-only objects). The workflow is: edit the Drizzle TS schema → `drizzle-kit generate` (drafts SQL;
+> config at `server/drizzle.config.ts`, generate-only) → review/commit the SQL → runtime `migrate()` on
+> boot applies it (advisory-locked). There is a single squashed **`0000_init`** baseline. The Drizzle
+> schema is the **complete source of truth** (all CHECKs/indexes/UNIQUEs are modeled, and `rate_limits`
+> + `deletion_audit` are modeled as pgTables, not SQL-only). Guarded dev re-baseline tool:
+> `server/scripts/db-reset.mjs`.
+
 ### Workflow
 
 ```bash
-# Generate migration from schema changes
+# Generate migration from schema changes (drafts SQL for review)
 npx drizzle-kit generate
 
-# Apply migrations
+# Apply migrations (in this repo, runtime migrate() on boot applies them)
 npx drizzle-kit migrate
 
 # Push schema directly (dev only, no migration file)
+# FORBIDDEN in the Aura AI repo — no history, can drop SQL-only objects.
+# Use generate → review → migrate() instead.
 npx drizzle-kit push
 ```
 

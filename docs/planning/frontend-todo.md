@@ -27,7 +27,7 @@
 - [ ] **Chat conversation** — client-side **typing animation** on the (already-moderated) reply; render break-reminders, crisis responses, and the AI-disclosure banner; optimistic bubble keyed by `turn_id`, reconcile on re-fetch
 - [ ] **Input cap** — live char counter (count code points, not UTF-16) + block-send at `MAX_MESSAGE_CHARS`
 - [ ] **Companions** — create/customize UI (3×3×3 trait selectors: warmth/energy/verbosity), persona-name auto-numbering ("Aurora 2"); **premium-gate** trait tuning + creation; **downgrade = lock-not-delete** UX
-- [ ] **Memory** — view/delete memories UI
+- [ ] **Memory** — view/delete memories UI *(now unblocked — backend memory-management API is live; see Backend-driven items)*
 - [ ] **Premium / paywall** — render the price **from StoreKit/RevenueCat** (remove the hardcoded `$19.99`), **"Restore Purchases"** button, RevenueCat SDK integration
 - [ ] **Safety/UGC** — report/flag an AI message (Apple Guideline 1.2)
 - [ ] **Account** — in-app account deletion + data export UI
@@ -49,16 +49,6 @@
 - [ ] **Account deletion soft-delete (30d grace)** — `DELETE /api/account` now soft-deletes (anonymizes PII, toggles `status` to `"deleted"`). Show a confirmation: "Your account will be deactivated for 30 days before permanent deletion. You can reactivate by signing in." Add a **Reactivate Account** flow (re-enables account if within 30-day window; client calls `PATCH /api/account/reactivate`).
 - [ ] **Reactivate Account endpoint** — frontend needs to call `PATCH /api/account/reactivate` to restore a soft-deleted account. The endpoint sets `status = "active"`, `deletedAt = null`, and clears the tombstoned email.
 - [ ] **Premium staleness refresh** — call `GET /api/payments/entitlements` on app foreground to reconcile `isPremium` staleness (fires DB expiry check server-side). Response envelope: `{ success: true, data: { isPremium: boolean } }`.
-- [ ] **Voice calls (new)** — backend added Cartesia TTS service + voice metering. Frontend needs:
-  - Integrate `livekit-client` SDK into Expo app
-  - Add voice call UI (call button, in-call controls, end call)
-  - Connect to LiveKit server for real-time audio
-  - Voice time remaining display (daily limit: 10min free / 60min premium)
-  - `CARTESIA_API_KEY` / `LIVEKIT_API_KEY` / `LIVEKIT_HOST` env vars added to server; client needs `LIVEKIT_HOST` only
-  - New shared constants: `VOICE_DAILY_LIMIT_SECONDS` (600), `VOICE_CALL_MAX_DURATION_SECONDS` (900), `DEFAULT_CARTESIA_VOICE_ID`
-  - New `voice_usage` table tracks STT/TTS duration per user per day (server-enforced metering)
-- [ ] **Voice call push notifications** — APNs push events wired for voice call start/end. On `POST /api/voice/start` server sends push `{ type: "voice_call_started", companionId }`. On disconnect, server sends `{ type: "voice_call_ended", companionId }`. Client needs to:
-  - Register push token via `POST /api/notifications/register` (existing endpoint)
-  - Handle `voice_call_started` push to show ring/incoming UI
-  - Handle `voice_call_ended` push to dismiss call UI
-- [ ] **Voice rate limiters added** — `POST /api/voice/token` limited to 20/min, `POST /api/voice/tts` limited to 10/min. Client should handle 429 `VOICE_RATE_LIMITED` / `TTS_RATE_LIMITED` error codes and show retry-after UX.
+- [ ] **Home pin + avatar color (2026-06-30)** — `PUT /api/auth/me` now accepts `avatarColor` and `primaryCompanionId` (the companion pinned to Home, backed by `users.primary_companion_id`). Add the avatar-color picker + a "pin to Home" affordance, and send both fields on profile update.
+- [ ] **Memory-management API live (2026-06-30)** — `GET /api/companions/:companionId/memories` (list), `PATCH /api/memories/:id` (edit; body = `UpdateMemorySchema`), `DELETE /api/memories/:id` (delete). Unblocks the "Memory — view/delete memories UI" item above; wire the list/edit/delete screens to these routes.
+- [ ] **Home "remembers" card (2026-06-30)** — the Groq consolidation service populates `companions.remember_memory_id` / `remember_question` / `remember_generated_at`. Render a Home resurface card from these fields (read-only on Home).

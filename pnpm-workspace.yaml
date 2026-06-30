@@ -29,6 +29,7 @@ allowBuilds:
   protobufjs: true
   sharp: true
 
+# LiveKit Agents 1.4.11 is recent; exempt from any minimum-release-age supply-chain delay.
 minimumReleaseAgeExclude:
   - '@livekit/agents@1.4.11'
   - '@livekit/agents-plugin-cartesia@1.4.11'

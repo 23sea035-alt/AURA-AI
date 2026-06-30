@@ -15,6 +15,13 @@
 > ErrorState). **Tokens only**; app surfaces **warm + opaque** (the only glass is the OS chrome from
 > ios-frame); render **both warm-light and warm-dark**.
 
+> **⚠️ Copy now lives in code — this deck is design-only.** Every user-facing string is canonical in
+> **`client/constants/content/*`** (UI copy) and **`client/constants/demo.ts`** (demo fixtures, e.g.
+> Maya's conversation and memories). The strings quoted below are a **frozen snapshot for context** — do
+> **not** edit copy here; change wording in the content module. Layout / motion / "borrow & avoid"
+> guidance stays authoritative. Tokens: `{AppName}` → `BRAND.appName`; `{firstName}` (Maya) and
+> `{Companion}` (Aurora) bind at runtime. No em dashes in copy.
+
 ---
 
 ## Home — `home`

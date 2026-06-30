@@ -3,7 +3,7 @@
 > **DRAFT — internal policy pending legal counsel. Not legal advice. [Bracketed] values to confirm.**
 
 **Audience:** Engineering / Ops (operational reference). **Not** the user-facing privacy policy.
-**Status:** Draft · **Last updated:** 2026-06-22 · **Companion docs:** [v1-schema.md](../specs/v1-schema.md) (table definitions, FK behavior), [v1-architecture.md](../specs/v1-architecture.md), [v1-tasklist.md](../planning/v1-tasklist.md) (Phase 6 retention jobs)
+**Status:** Draft · **Last updated:** 2026-06-30 · **Companion docs:** [v1-schema.md](../specs/v1-schema.md) (table definitions, FK behavior), [v1-architecture.md](../specs/v1-architecture.md), [v1-tasklist.md](../planning/v1-tasklist.md) (Phase 6 retention jobs)
 **Cross-reference:** Retention numbers here MUST stay in sync with the user-facing privacy-policy draft. If one changes, change both.
 
 ---
@@ -16,7 +16,7 @@ This document is the operational schedule that tells the engineering/ops team **
 - Retention windows are enforced by **scheduled jobs**, not by memory or ad-hoc SQL.
 - A later legal review has a single, concrete artifact to mark up.
 
-**In scope:** all 8 v1.0 Postgres (Neon) tables, database backups, and data mirrored to third parties (Groq, RevenueCat/Apple, Clerk).
+**In scope:** all 12 v1.0 Postgres (Neon) tables, database backups, and data mirrored to third parties (Groq, RevenueCat/Apple, Clerk, and the voice providers LiveKit/Cartesia/Deepgram).
 
 **Out of scope:** the user-facing privacy policy wording, marketing/analytics tooling (none in v1.0), and server/application logs beyond what is noted under §7.
 
@@ -34,6 +34,10 @@ This document is the operational schedule that tells the engineering/ops team **
 | `subscriptions` | RevenueCat mirror (RC/Apple = system of record). Financial record. |
 | `device_tokens` | APNs push tokens, one per device install. |
 | `banned_identities` | Anti-evasion blocklist. **Salted/keyed hashes only** of email + OAuth `sub`. Survives deletion. |
+| `memory_jobs` | Background memory-consolidation job queue/state. Operational; no conversation prose. |
+| `voice_usage` | Voice metering rows (duration, `direction` stt/tts, `model_id`) per user/companion. **No audio or transcript content.** Cascade-purges with the account. |
+| `rate_limits` | Per-user/route rate-limit counters. Operational; no conversation content. |
+| `deletion_audit` | Proof-of-erasure records (request id + timestamp, **no content**). Retained long-term (see §3). |
 
 ---
 
@@ -87,6 +91,7 @@ On account deletion we **purge the intimate bulk** (conversations, memories, com
 | **`safety_events` de-identified metadata** (event label, severity, classifier score, referral-fired flag, timestamp — **no raw content**) | **long** (structured fields, not prose) | Legitimate interest (Art. 6(1)(f)) — safety signal, trend/abuse analysis, SB 243 reporting; Art. 17(3)(b)/(e), CCPA §1798.105(d)(2) | Retained as structured fields; pseudonym↔identity key deleted once linkage no longer needed (→ effectively anonymized). SB 243 §22603 annual report draws **only** from this layer |
 | **`banned_identities`** (salted hash) | **24 months / until ban lifted** | Legitimate interest (Art. 6(1)(f)) — fraud/ban-evasion prevention; CCPA §1798.105(d)(2) | Retention-expiry job; delete on ban lift; honor `expires_at` |
 | **`subscriptions` / financial mirror** | **up to 7 years** | Legal obligation (Art. 6(1)(c)) — tax/accounting; CCPA §1798.105(d)(8). RC/Apple = system of record | Retained; RevenueCat/Apple is authoritative, this is a mirror |
+| **`voice_usage` metering** (duration, direction stt/tts, model_id — **no audio/transcript content**) | **purged on account deletion (cascade); otherwise a short operational window** [confirm window] | Minimization/storage limitation — usage metering/abuse limits only; no retained purpose after erasure | `on delete cascade` on both FKs (user + companion); no separate erasure step needed |
 | **Deletion audit record** (request id + timestamp, **no content**) | **long-term** | Accountability (Art. 5(2)) — proof of erasure | Never purged on the normal cycle; content-free by design |
 
 `device_tokens` is not a standalone row in this table — it cascade-purges with the account (see §5). Auth identities live at **Clerk** (no local table); account deletion deletes the Clerk user (§4 / §5).
@@ -106,6 +111,7 @@ On account deletion we **purge the intimate bulk** (conversations, memories, com
 - **In-app:** Settings → Delete Account (primary channel; v1.0).
 - **Email/support:** privacy@[domain-to-confirm] — logged into the same deletion queue.
 - All requests, regardless of channel, create a **deletion request record** (request id + timestamp + verified user id) that seeds the soft-delete and the eventual audit record.
+- **Granular in-app deletion (not account-level):** users can delete an individual remembered fact via `DELETE /api/memories/:id` (the Memory screen). This is an immediate, scoped delete — it removes the `memories` row directly and does not run the account-deletion lifecycle below.
 
 ### Identity verification
 
@@ -126,7 +132,7 @@ Requests must be tied to a verified, authenticated session or a verified email m
    (recoverable)    account locked out of app; 30-day grace begins
                     ↓  (grace elapses, no recovery)
 3. HARD-PURGE       anonymize users row (null PII, tombstone email)
-   (irreversible)   cascade-purge companions/messages/memories/device_tokens; delete the Clerk user
+   (irreversible)   cascade-purge companions/messages/memories/device_tokens/voice_usage; delete the Clerk user
                     set-null on safety_events identity FKs
                     upsert banned_identities hashes if ban applies
                     write deletion audit record (content-free)
@@ -157,12 +163,13 @@ Behavior on **account hard-purge**. FK on-delete semantics are defined in [v1-sc
 |---|---|---|
 | `users` | **Anonymize (soft-delete row kept)** | null `first_name`, `last_name`, `date_of_birth`; **tombstone** `email` (frees it for re-registration); `status='deleted'`; `deleted_at` set. Row is retained as the anchor for the tombstone + audit. |
 | _Clerk (auth)_ | **Delete Clerk user** | Not a local table — credentials/OAuth identifiers live at Clerk. On hard-purge, delete the Clerk user via API (fires `user.deleted` → mirror sever). [Confirm Clerk retention/deletion terms.] |
-| `companions` | **Cascade purge** | `on delete cascade` — companions removed. |
+| `companions` | **Cascade purge** | `on delete cascade` — companions removed. Each row also holds the resurfaced-memory ("remembers") cache (`remember_memory_id`/`remember_question`/`remember_generated_at`); `remember_memory_id` is FK `set null` to `memories`, so deleting a memory nulls it, and the cache cascade-purges with the companion. |
 | `messages` | **Cascade purge** | `on delete cascade` — the intimate conversation bulk removed. |
 | `memories` | **Cascade purge** | `on delete cascade` — extracted personal facts removed. (`memories.source_message_id` is `set null`, but the rows themselves cascade with the user.) |
 | `safety_events` | **Split: retain metadata, tier raw content; set-null identity** | Identifiers are stripped at ingestion (pseudonym↔identity key held separately, deleted when linkage is no longer needed); `user_id` / `companion_id` / `message_id` → null on purge. The **de-identified metadata** (label, severity, score, referral-fired flag, timestamp) is retained long as structured fields. **Raw flagged content** is retained only by severity tier — T1 ~90d (extendable on hold), T2 ~6–12mo snippet, T3 none — then scrubbed to metadata by the retention-expiry job (§3). |
 | `subscriptions` | **Retain (financial), identity severed** | FK is `on delete set null` — the subscription mirror survives with `user_id = null`, preserving the financial record (RC/Apple = system of record). |
 | `device_tokens` | **Cascade purge** | `on delete cascade` — push tokens removed. |
+| `voice_usage` | **Cascade purge** | `on delete cascade` on both FKs (user + companion) — metering rows removed. No audio/transcript content is stored. |
 | `banned_identities` | **Retain (hash only)** | Not deleted on account purge. `source_user_id` is `set null` (identity severed); `identifier_hash` retained. Purged by the 24-month / ban-lifted job. |
 
 > **`subscriptions` retention:** FK is `on delete set null` (not cascade) — so the financial mirror survives even if the `users` row is later hard-purged, with `user_id` set to null (identity severed). The only open question (for counsel) is whether to keep the user↔transaction link for chargeback/dispute handling rather than anonymizing — see §9.

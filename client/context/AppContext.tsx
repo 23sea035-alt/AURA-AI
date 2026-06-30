@@ -27,6 +27,10 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  /** Local URI of the captured audio clip when the message was dictated (push-to-talk). */
+  audioUri?: string;
+  /** How the user composed the message. Absent = text. */
+  inputModality?: 'text' | 'voice';
 }
 
 export interface UserProfile {

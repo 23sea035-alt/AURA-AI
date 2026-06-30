@@ -1,8 +1,12 @@
 const CRISIS_PATTERNS = [
   { pattern: /\b(kill myself|end my life)\b/i, category: "self-harm/crisis" },
+  { pattern: /\bwant to die\b/i, category: "self-harm/low-precision" },
   { pattern: /\b(suicide|suicidal|self-harm|self harm)\b/i, category: "self-harm/crisis" },
   { pattern: /\b(cutting|hurt myself|not worth living|better off (dead|without))\b/i, category: "self-harm/crisis" },
   { pattern: /\b(no reason to live|want to end it|can't go on)\b/i, category: "self-harm/crisis" },
+  // Broader distress signals — catch content L2 omni would detect but L0 regex misses.
+  // These are intentionally broad; the safeguard adjudicates false positives.
+  { pattern: /\b(everything\s+(feels?\s+)?(heavy|pointless|hopeless)|can'?t\s+shake\s+(it|this\s+feeling))\b/i, category: "self-harm/crisis" },
 ];
 
 const HARD_BLOCK_PATTERNS = [
@@ -27,6 +31,15 @@ export interface L0Result {
   matchedPattern?: string;
 }
 
+// Shared crisis detector (single source of truth for "is this crisis content?"). Used by L0 and by
+// the memory-consolidation safety-skip so the two never diverge — consolidation must never be
+// NARROWER than L0. Intentionally broad (includes low-precision patterns) since the only effect
+// for the consolidation caller is skipping a memory write, which is the safe direction.
+export function isCrisisContent(text: string): boolean {
+  const normalized = normalizeEncoding(text);
+  return CRISIS_PATTERNS.some((cp) => cp.pattern.test(text) || cp.pattern.test(normalized));
+}
+
 export function runL0(text: string): L0Result {
   const normalized = normalizeEncoding(text);
 
@@ -38,6 +51,9 @@ export function runL0(text: string): L0Result {
 
   for (const cp of CRISIS_PATTERNS) {
     if (cp.pattern.test(text) || cp.pattern.test(normalized)) {
+      // Low-precision patterns (e.g. "want to die" in idioms) are skipped at L0;
+      // they pass to L1/L2/safeguard for contextual adjudication.
+      if (cp.category === "self-harm/low-precision") continue;
       return { action: "crisis", reason: `Crisis pattern matched: ${cp.category}`, category: cp.category, matchedPattern: cp.pattern.source };
     }
   }

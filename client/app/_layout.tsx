@@ -1,16 +1,16 @@
 import {
-  Manrope_400Regular,
-  Manrope_500Medium,
-  Manrope_600SemiBold,
-  useFonts as useManropeFonts,
-} from '@expo-google-fonts/manrope';
+  HankenGrotesk_400Regular,
+  HankenGrotesk_500Medium,
+  HankenGrotesk_600SemiBold,
+  HankenGrotesk_700Bold,
+  useFonts as useHankenFonts,
+} from '@expo-google-fonts/hanken-grotesk';
 import {
-  Sora_400Regular,
-  Sora_500Medium,
-  Sora_600SemiBold,
-  Sora_700Bold,
-  useFonts as useSoraFonts,
-} from '@expo-google-fonts/sora';
+  Newsreader_400Regular,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+  useFonts as useNewsreaderFonts,
+} from '@expo-google-fonts/newsreader';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -22,6 +22,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AppProvider } from '@/context/AppContext';
+import { ThemeProvider } from '@/context/ThemeContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,10 +43,6 @@ function RootLayoutNav() {
         options={{ animation: 'slide_from_right' }}
       />
       <Stack.Screen
-        name="settings"
-        options={{ animation: 'slide_from_right' }}
-      />
-      <Stack.Screen
         name="voice-call"
         options={{ animation: 'slide_from_bottom' }}
       />
@@ -58,20 +55,21 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  const [soraLoaded, soraError] = useSoraFonts({
-    Sora_400Regular,
-    Sora_500Medium,
-    Sora_600SemiBold,
-    Sora_700Bold,
+  // Warm Sanctuary families (design.ts FONTS) — display (Newsreader) + body (Hanken Grotesk).
+  const [newsreaderLoaded, newsreaderError] = useNewsreaderFonts({
+    Newsreader_400Regular,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
   });
-  const [manropeLoaded, manropeError] = useManropeFonts({
-    Manrope_400Regular,
-    Manrope_500Medium,
-    Manrope_600SemiBold,
+  const [hankenLoaded, hankenError] = useHankenFonts({
+    HankenGrotesk_400Regular,
+    HankenGrotesk_500Medium,
+    HankenGrotesk_600SemiBold,
+    HankenGrotesk_700Bold,
   });
 
-  const fontsLoaded = soraLoaded && manropeLoaded;
-  const fontError = soraError || manropeError;
+  const fontsLoaded = newsreaderLoaded && hankenLoaded;
+  const fontError = newsreaderError || hankenError;
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -87,10 +85,12 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <AppProvider>
-                <StatusBar style="light" />
-                <RootLayoutNav />
-              </AppProvider>
+              <ThemeProvider>
+                <AppProvider>
+                  <StatusBar style="auto" />
+                  <RootLayoutNav />
+                </AppProvider>
+              </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

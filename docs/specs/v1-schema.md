@@ -1,11 +1,25 @@
 # Aura AI — v1.0 Database Schema
 
-**Status:** Locked · **Target:** the first Drizzle migration in `server/src/db/`
-**Last updated:** 2026-06-22 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../planning/v1-tasklist.md) (build order)
+**Status:** Locked (design) · **As-built reconciled:** 2026-06-30 · **Target:** Drizzle migrations in `server/src/db/migrations/`
+**Last updated:** 2026-06-30 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../planning/v1-tasklist.md) (build order)
 
-> Single source of truth for the v1.0 schema. 8 tables (auth is Clerk-managed — D8). Build this as a **versioned Drizzle
-> migration** — not `drizzle-kit push`. Enums and shared types live in `@aura/shared`; the Drizzle
-> tables live in `server/src/db/` and import the enum constants from `shared`.
+> Single source of truth for the v1.0 schema. Build this as **versioned Drizzle migrations** — not
+> `drizzle-kit push`. Enums and shared types live in `@aura/shared`; the Drizzle tables live in
+> `server/src/db/` and import the enum constants from `shared`.
+
+> **As-built (2026-06-30) — reconcile note.** The shipped schema is **12 tables**, not the 8 in the
+> original design: the 8 core tables **+ `memory_jobs`** (durable async-consolidation queue; has
+> `attempts`, `safety_skipped`, and `claimed_at` for the worker reaper) **+ `rate_limits`** (durable
+> rate-limit store) **+ `deletion_audit`** (content-free proof-of-erasure) **+ `voice_usage`**
+> (per-call voice-seconds metering; §10). The 16 incremental migrations were **squashed into a single
+> `0000_init` baseline** — every table, CHECK constraint, UNIQUE, and index now originates there (no
+> per-table migration numbers anymore). The `text + CHECK` enum convention below is now **actually
+> enforced** in the DB for the safety-critical columns: `users.status`, `messages.role/status`,
+> `companions.persona_key`, `safety_events.event_type/source/severity`. Composite UNIQUEs use proper
+> Drizzle `unique()` builders, and `banned_identities (identifier_type, identifier_hash)` has its
+> UNIQUE. `rate_limits` and `deletion_audit` are now modeled as Drizzle `pgTable`s (SQL-only before) —
+> the TS schema is the **complete Drizzle source of truth**. The enum catalog below reflects the
+> shipped `@aura/shared` values.
 
 ---
 
@@ -18,8 +32,9 @@
 - **Enums:** **`text` + `CHECK` constraint**, values defined once in `@aura/shared` (NOT native
   Postgres `enum` types — those are painful to alter).
 - **Timestamps:** `timestamptz`, `default now()`; `updated_at` bumped via Drizzle `$onUpdate`.
-- **Migrations:** `drizzle-kit generate` → commit the SQL → `migrate` on deploy. Set `out: "./migrations"`.
-  No `push` in shared/prod environments.
+- **Migrations:** edit the TS schema → `drizzle-kit generate` (drafts SQL) → review/commit the SQL →
+  runtime `migrate()` applies on boot. Config lives in `server/drizzle.config.ts`. **`drizzle-kit push`
+  is FORBIDDEN** in shared/prod environments. The current set is the single squashed `0000_init` baseline.
 - **Email:** stored **lowercased/normalized** on write.
 - **FKs:** on-delete behavior is explicit per table (see each). Cascade = "their data goes with them";
   `set null` = "retain the record, sever identity."
@@ -43,8 +58,8 @@ SUBSCRIPTION_STORE     = ['app_store', 'play_store', 'stripe']
 SUBSCRIPTION_PERIOD    = ['normal', 'trial', 'intro']
 DEVICE_PLATFORM        = ['ios']                                        // 'android' post-v1.0
 DEVICE_ENVIRONMENT     = ['production', 'sandbox']
-SAFETY_EVENT_TYPE      = ['input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected']
-SAFETY_SOURCE          = ['input', 'output', 'injection']
+SAFETY_EVENT_TYPE      = ['input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected', 'user_reported']  // user_reported = UGC report (Apple 1.2)
+SAFETY_SOURCE          = ['input', 'output', 'injection', 'user_report']
 SAFETY_SEVERITY        = ['info', 'warning', 'critical']
 SAFETY_STATUS          = ['open', 'reviewed', 'actioned', 'dismissed']
 SAFETY_ACTION          = ['none', 'warned', 'suspended', 'banned']
@@ -75,6 +90,10 @@ MEMORY_IMPORTANCE_BY_CATEGORY = { identity:0.9, relationship:0.9, work:0.7, loca
 HISTORY_WINDOW        = 8       // recent messages sent to the LLM per turn (bumped 6->8 for coherence)
 GENERATION_TEMPERATURE = 0.7    // companion warmth without drift; NOT a safety control (L3 is)
 GENERATION_MAX_TOKENS = 512     // headroom for the 2-4 sentence target
+
+// ── voice (always metered; D4) ───────────────────────────────────────
+VOICE_DAILY_LIMIT_SECONDS        = 600    // free-tier voice seconds/day (premium variant = 3600)
+VOICE_CALL_MAX_DURATION_SECONDS  = 900    // per-call ceiling (premium variant = 3600)
 ```
 
 ---
@@ -98,6 +117,8 @@ users
   age_verified_at         timestamptz nullable
   is_minor                boolean notNull default false   -- dormant (18+ in v1.0)
   is_premium              boolean notNull default false   -- entitlement cache (RevenueCat webhook updates)
+  avatar_color            text  nullable                  -- Home avatar tint (user-set)
+  primary_companion_id    uuid  nullable FK -> companions.id (on delete set null)  -- user-switchable Home pin
   status                  text  notNull default 'active'  -- USER_STATUS (CHECK)
   onboarding_done         boolean notNull default false
   ai_disclosure_accepted  boolean notNull default false
@@ -118,8 +139,8 @@ password reset, and email verification. There is **no `auth_identities` table** 
 in-house identity store is removed. The only local link is **`users.clerk_user_id`** (the Clerk user
 id, unique), kept in sync by the **Clerk webhook** (`user.created` / `user.updated` / `user.deleted`
 → mirror upsert / email sync / sever; svix-signed, idempotent on `svix-id`). Key off `clerk_user_id`,
-never email. *(This is why the live table count is **8**, not 9 — slot 2 is intentionally a note, not
-a table.)*
+never email. *(Slot 2 here is intentionally a note, not a table — there is no `auth_identities` table;
+see the 12-table count in the reconcile note above.)*
 
 ### 3. `companions`
 Per-user AI companions. `id` is opaque (NOT the old `aurora-{userId}` scheme) so a user can own
@@ -136,10 +157,15 @@ companions
   last_message    text nullable                   -- chat-list preview cache (update transactionally)
   last_active_at  timestamptz nullable
   message_count   integer notNull default 0
+  remember_memory_id    uuid nullable FK -> memories.id (on delete set null)  -- "remembers" Home-card cache
+  remember_question     text nullable             -- Groq-generated follow-up question for the surfaced memory
+  remember_generated_at timestamptz nullable      -- when the consolidation job last populated the cache
   created_at      timestamptz notNull default now()
   updated_at      timestamptz notNull default now()
 ```
 Notes: gradient/colors are **derived from `persona_key`** in shared (`PERSONA_THEME`) — not stored.
+The `remember_*` cache is upserted by the post-consolidation Groq "remembers" service (a surfaced
+memory + a generated follow-up question) and read **read-only** by the Home "remembers" card.
 Free tier = the 3 seeded (`is_default`) personas on default traits; **trait tuning + creating
 companions are premium** (app-enforced). On downgrade: non-default companions **lock, not delete**.
 
@@ -282,6 +308,23 @@ Notes: populated on ban (hash of email + OAuth `sub`); registration hashes incom
 checks for a match. Still personal data under GDPR/CCPA (pseudonymized) — keep on a documented purpose
 + retention window.
 
+### 10. `voice_usage`
+Per-call voice-seconds metering, backing the always-metered voice limits (D4). One row per metered
+STT or TTS segment; the daily limit sums `duration_seconds` for the user over the UTC day.
+
+```
+voice_usage
+  id                uuid PK
+  user_id           uuid notNull FK -> users.id      (on delete cascade)
+  companion_id      uuid notNull FK -> companions.id (on delete cascade)
+  duration_seconds  integer notNull                  -- metered seconds for this segment
+  direction         text notNull                     -- 'stt' | 'tts'
+  model_id          text notNull                     -- the STT/TTS model that produced it
+  created_at        timestamptz notNull default now()
+```
+Notes: enforces `VOICE_DAILY_LIMIT_SECONDS` / `VOICE_CALL_MAX_DURATION_SECONDS` (premium variants in
+shared). Purged on account deletion (cascade) — retention parity with conversations.
+
 ---
 
 ## Deletion & retention model
@@ -292,7 +335,7 @@ bulk, retain minimal time-bounded slices. **All numbers are recommended defaults
 | Data | On account deletion | Window |
 |---|---|---|
 | `users` | **soft-delete**: null first/last/DOB, tombstone email, `status='deleted'`, set `deleted_at` | 30-day recoverable grace |
-| `companions`, `messages`, `memories` | **purge** (cascade) | within 30 days of grace expiry |
+| `companions`, `messages`, `memories`, `voice_usage` | **purge** (cascade) | within 30 days of grace expiry |
 | Backups | "beyond use" until overwritten on normal cycle | ≤ 90 days |
 | `safety_events` | **retain**, identity severed (`user_id`/`companion_id`/`message_id` → null) | 24 months |
 | `banned_identities` | **retain** (hash only) | 24 months / until ban lifted |
@@ -311,8 +354,9 @@ user↔transaction link (for chargebacks/disputes) or is fully anonymized on pur
 
 ## Migration / ops notes
 
-- One initial migration creating all 8 tables + enums-as-CHECK + indexes + FKs.
-- `drizzle.config.ts`: add `out: "./migrations"`; generate → commit SQL → `migrate` on deploy.
+- A single squashed `0000_init` baseline creating all 12 tables + enums-as-CHECK + indexes + FKs.
+- `server/drizzle.config.ts` exists; workflow = `drizzle-kit generate` → review → commit SQL →
+  runtime `migrate()` on boot. `drizzle-kit push` is forbidden; the TS schema is the complete source of truth.
 - Build order (CI + Render): `@aura/shared` compiles before `server` (tables import its enum constants).
 - Retention is enforced by scheduled jobs (purge, retention-expiry), not the schema — see
   [v1-tasklist.md](../planning/v1-tasklist.md) Phase 6.
