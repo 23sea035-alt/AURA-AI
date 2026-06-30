@@ -3,7 +3,7 @@
 **Status:** Build spec · **Scope:** the layered, server-side, fail-closed moderation pipeline — the
 *mechanism* (layers, models, thresholds, orchestration). The safety *criteria* it enforces live in
 [eval-safety-rubric.md](../testing/eval-safety-rubric.md). Implements [v1-architecture.md](v1-architecture.md) **D5 / §2**.
-**Last updated:** 2026-06-22
+**Last updated:** 2026-06-30 (L2 concurrent with generation; L1-only blocking path)
 
 > Defense-in-depth: no single layer is trusted. Deterministic pre-filter → injection classifier →
 > input moderation (+ policy-reasoning escalation) → hardened generation → **output** moderation.
@@ -21,18 +21,21 @@ USER MESSAGE
   │       hard-block denylist        → BLOCK
   │       encoding normalize (base64/hex/leet/unicode) → scan decoded form as DATA
   │
-  ├─ L1 ∥ L2  (run CONCURRENTLY — both screen the same input)
-  │    [L1] prompt-guard-2-86m (Groq)        → injection/jailbreak prob p
-  │    [L2] omni-moderation (OpenAI, free)    → per-category calibrated scores
-  │       gray-band on either → [escalate] gpt-oss-safeguard-20b (Groq) adjudicates vs. compiled policy
+  ├─ L1 ∥ L2  (start CONCURRENTLY; L1 **blocks** generation ~100ms; L2 runs **alongside** generation)
+  │    [L1] prompt-guard-2-86m (Groq)        → injection/jailbreak prob p        [BLOCKING ~100ms]
+  │    [L2] omni-moderation (OpenAI, free)    → per-category calibrated scores   [concurrent with generation]
+  │       gray-band on L1 → escalate BEFORE generation (adds to blocking path)
+  │       gray-band on L2 → escalate CONCURRENT with generation
   │
+  ▼ (L1 clears ~100ms → generation starts; L2 continues running in parallel)
+GENERATE → primary LLM (see generation-pipeline.md), HARDENED prompt   (Generation cluster — §6)
+  │ [tokens stream as generated — WebSocket onToken / onSentenceComplete events]
+  ├─ → client (live token stream)                             ← concurrent with L2 + L3
+  └─[L3] OUTPUT moderation → omni (CONCURRENT with stream, STRICTER than input)
+          unsafe mid-stream → ABORT event (L2 can also abort a concurrent generation)
+          → suppress partial reply + safe fallback + log safety_event
   ▼
-GENERATE → llama-3.1-8b-instant, HARDENED prompt   (Generation cluster — §6)
-  │
-  ├─[L3] OUTPUT moderation → omni on the draft reply (STRICTER than input)
-  │       unsafe draft → suppress + safe fallback
-  ▼
-DELIVER (+ AI disclosure; break reminder per session)
+STREAM  (+ AI disclosure; break reminder per session)
 ```
 
 **Layer precedence** (when multiple fire): `sexual/minors` hard-block **>** self-harm crisis-path **>**
@@ -114,8 +117,7 @@ suggestive ceiling + memory block + history). Full spec in the **Generation clus
 - **Always persist the turn** (user msg + fallback reply) so it never dangles (§3 turn model).
 - **No oracle:** a generic safe refusal for blocks vs. a neutral "trouble right now" for service errors —
   never reveal *which* category tripped.
-- **Latency budget:** hot path ≈ `max(prompt-guard, omni)` ≈ sub-second (parallel); escalation adds the
-  safeguard call only for gray-band turns.
+- **Latency budget (streaming model):** input hot path = L1 prompt-guard **~100ms (blocking — injection must clear before generation)**. L2 omni starts concurrently with L1 but runs **concurrent with generation** once L1 clears — not on the blocking path (saves 150–400ms TTFT vs waiting for omni's 250–500ms; L2 can still abort if it triggers). L3 output moderation runs **concurrently with the token stream** — TTFT is NOT gated by L3; L3 (and L2) can only ABORT a stream already in progress. Escalation (safeguard) fires on gray-band turns only, off the hot path in either direction.
 - **Every action → a `safety_event`** logged with severity, which maps to the **tiered retention** model
   (critical → T1, etc. — see [data-retention-policy.md](../compliance/data-retention-policy.md) §3).
 

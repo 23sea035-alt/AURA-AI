@@ -8,7 +8,7 @@ import type { AuthRequest } from "../services/auth/clerk.middleware.js";
 
 // Re-export Clerk-based auth as the standard auth interface.
 // Routes continue to import requireAuth and AuthRequest from this module.
-export { requireAuth, optionalAuth } from "../services/auth/clerk.middleware.js";
+export { requireAuth, optionalAuth, verifyWebSocketAuth, extractBearer } from "../services/auth/clerk.middleware.js";
 export type { AuthRequest } from "../services/auth/clerk.middleware.js";
 
 export async function requireAdmin(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {

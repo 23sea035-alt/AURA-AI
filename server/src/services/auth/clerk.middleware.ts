@@ -104,3 +104,21 @@ export async function optionalAuth(req: AuthRequest, _res: Response, next: NextF
 
   next();
 }
+
+export function extractBearer(header: string | undefined): string | undefined {
+  if (!header?.startsWith("Bearer ")) return undefined;
+  return header.slice(7);
+}
+
+// For use during WebSocket HTTP upgrade events, where Express middleware cannot run.
+export async function verifyWebSocketAuth(token: string): Promise<{ userId: string; clerkUserId: string } | null> {
+  try {
+    const jwtPayload = await clerkVerifyToken(token, getVerifyOptions());
+    if (!jwtPayload.sub) return null;
+    const localUser = await lookupLocalUser(jwtPayload.sub);
+    if (!localUser || localUser.status !== "active") return null;
+    return { userId: localUser.id, clerkUserId: jwtPayload.sub };
+  } catch {
+    return null;
+  }
+}

@@ -20,14 +20,13 @@ const envSchema = z.object({
   APNS_KEY_FILE: z.string().optional(),
   APNS_ENVIRONMENT: z.enum(["production", "sandbox"]).default("sandbox"),
 
-  // ── Voice (LiveKit realtime + Cartesia TTS + Deepgram STT) ──────
+  // ── Voice (Inworld TTS + Groq STT over WebSocket) ──────────────
   // All optional: the voice feature degrades gracefully (routes 4xx/500) when unset.
-  CARTESIA_API_KEY: z.string().optional(),
-  CARTESIA_VOICE_ID: z.string().default("db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"),
-  DEEPGRAM_API_KEY: z.string().optional(),
-  LIVEKIT_API_KEY: z.string().optional(),
-  LIVEKIT_API_SECRET: z.string().optional(),
-  LIVEKIT_URL: z.string().optional(),
+  // Per-persona voice IDs — fill in after casting voices in the Inworld portal.
+  INWORLD_API_KEY: z.string().optional(),
+  INWORLD_VOICE_ID_AURORA: z.string().optional(),
+  INWORLD_VOICE_ID_ORION: z.string().optional(),
+  INWORLD_VOICE_ID_LYRA: z.string().optional(),
 
   BANNED_IDENTITY_PEPPER: z.string().min(1, "BANNED_IDENTITY_PEPPER is required"),
 
@@ -40,7 +39,7 @@ const envSchema = z.object({
   CORS_ALLOWED_ORIGINS: z.string().optional(),
 
   // ── Model selection ─────────────────────────────────────────────
-  MODEL_GENERATE_REPLY: z.string().default("llama-3.1-8b-instant"),
+  MODEL_GENERATE_REPLY: z.string().default("llama-3.3-70b-versatile"),
   MODEL_MODERATE_INPUT: z.string().default("meta-llama/llama-prompt-guard-2-86m"),
   MODEL_MODERATE_OUTPUT: z.string().default("openai/gpt-oss-safeguard-20b"),
   MODEL_CONSOLIDATE_MEMORY: z.string().default("llama-3.1-8b-instant"),

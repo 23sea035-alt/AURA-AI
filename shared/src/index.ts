@@ -185,9 +185,34 @@ export const HealthCheckResponse = z.object({
 });
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponse>;
 
-// ── Voice limits (LiveKit realtime + Cartesia TTS) ──────────────────────
+// ── Voice limits (Inworld TTS 2 + Groq STT over WebSocket) ──────────────
 export const VOICE_DAILY_LIMIT_SECONDS = 600;
 export const VOICE_DAILY_LIMIT_SECONDS_PREMIUM = 3600;
 export const VOICE_CALL_MAX_DURATION_SECONDS = 900;
 export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3600;
-export const DEFAULT_CARTESIA_VOICE_ID = "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4";
+
+// ── Chat session / queue constants ───────────────────────────────────────
+export const TURN_QUEUE_CONCURRENCY = 8;
+export const TURN_QUEUE_MAX_FREE_WAIT_MS = 8_000;
+export const INWORLD_CONCURRENT_LIMIT = 10;
+
+// ── Voice session constants ──────────────────────────────────────────────
+export const VOICE_FILLER_TEXTS = [
+  "Anyway...",
+  "So, as I was saying...",
+  "Right, where were we...",
+  "Mm, let me think...",
+  "So...",
+  "Well, continuing on...",
+] as const;
+export const VOICE_FALLBACK_TEXT = "I lost my train of thought for a second — say that again?";
+export const INTERJECTION_MAX_WORDS = 7;
+export const STT_MAX_RETRIES = 2;
+export const VOICE_FILLER_CLIP_COUNT = 6;
+export const VOICE_SILENCE_PROMPT_TIMEOUT_S = 45;
+export const VOICE_SILENCE_END_TIMEOUT_S = 90;
+
+// ── LLM / STT model IDs ─────────────────────────────────────────────────
+export const LLM_PRIMARY_MODEL = "llama-3.3-70b-versatile";
+export const LLM_FALLBACK_MODEL = "llama-3.1-8b-instant";
+export const STT_MODEL = "whisper-large-v3-turbo";

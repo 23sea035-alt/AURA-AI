@@ -22,7 +22,7 @@ export function resetModelOverrides(): void {
 
 function defaultModelForTask(task: TaskType): string {
   switch (task) {
-    case "generate-reply": return process.env.MODEL_GENERATE_REPLY ?? "llama-3.1-8b-instant";
+    case "generate-reply": return process.env.MODEL_GENERATE_REPLY ?? "llama-3.3-70b-versatile";
     case "moderate-input": return process.env.MODEL_MODERATE_INPUT ?? "meta-llama/llama-prompt-guard-2-86m";
     case "moderate-output": return process.env.MODEL_MODERATE_OUTPUT ?? "openai/gpt-oss-safeguard-20b";
     case "consolidate-memory": return process.env.MODEL_CONSOLIDATE_MEMORY ?? "llama-3.1-8b-instant";

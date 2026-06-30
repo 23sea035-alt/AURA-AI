@@ -36,7 +36,7 @@ describe("model-selector", () => {
 
   describe("getModelForTask", () => {
     it("returns default for generate-reply", () => {
-      expect(getModelForTask("generate-reply")).toBe("llama-3.1-8b-instant");
+      expect(getModelForTask("generate-reply")).toBe("llama-3.3-70b-versatile");
     });
 
     it("returns default for moderate-input", () => {
@@ -110,7 +110,7 @@ describe("model-selector", () => {
       setModelOverride("generate-reply", "my-model");
       setModelOverride("moderate-input", "other-model");
       resetModelOverrides();
-      expect(getModelForTask("generate-reply")).toBe("llama-3.1-8b-instant");
+      expect(getModelForTask("generate-reply")).toBe("llama-3.3-70b-versatile");
       expect(getModelForTask("moderate-input")).toBe(
         "meta-llama/llama-prompt-guard-2-86m",
       );

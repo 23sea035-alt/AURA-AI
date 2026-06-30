@@ -69,12 +69,21 @@ const server = http.createServer(app);
 // Background services (LLM provider, job worker, retention sweeps). Called from index.ts
 // AFTER migrations run, so the worker/retention never query un-migrated tables on first boot.
 export async function startBackgroundServices(): Promise<void> {
+  // ── Register WebSocket handler ───────────────────────────────────────
+  try {
+    const { registerWebSocketHandler } = await import("./websocket/handler.js");
+    registerWebSocketHandler(server);
+    logger.info("WebSocket handler registered");
+  } catch (err) {
+    logger.warn({ err }, "WebSocket handler failed to register");
+  }
+
   // ── Initialize LLM provider ──────────────────────────────────────────
   try {
     const { setLLMProvider } = await import("./services/llm/index.js");
-    const { createGroqProvider } = await import("./services/llm/groq.js");
-    setLLMProvider(createGroqProvider(getEnv().GROQ_API_KEY));
-    logger.info("Groq LLM provider initialized");
+    const { createTaskSpecificProvider } = await import("./services/llm/model-selector.js");
+    setLLMProvider(createTaskSpecificProvider("generate-reply", getEnv().GROQ_API_KEY));
+    logger.info("Groq LLM provider initialized (llama-3.3-70b-versatile / 8b-instant fallback)");
   } catch (err) {
     logger.warn({ err }, "LLM provider failed to initialize — chat will use fallback responses");
   }
@@ -110,9 +119,6 @@ export async function startBackgroundServices(): Promise<void> {
     logger.warn({ err }, "Retention enforcement failed to start");
   }
 }
-
-// WebSocket streaming is removed in v1.0 — Phase 3 of the rebuild.
-// Chat uses HTTP POST only. See docs/planning/v1-tasklist.md Phase 3.
 
 // ── Centralized error handler (must be last) ─────────────────────────
 app.use(errorHandler);

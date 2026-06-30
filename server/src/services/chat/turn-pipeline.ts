@@ -1,7 +1,6 @@
 import { eq, and, asc, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
-import { db, messagesTable, companionsTable, usersTable, safetyEventsTable } from "../../db/src/index.js";
-import { captureException } from "../../lib/observability.js";
+import { db, messagesTable, companionsTable, usersTable } from "../../db/src/index.js";
 import { SAFE_FALLBACK_REPLY, MAX_MESSAGE_CHARS, MEMORY_RETRIEVAL_TOP_N, HISTORY_WINDOW } from "@aura/shared";
 import type { PersonaTraits, PersonaKey } from "@aura/shared";
 import { createModerator, buildCrisisResponse } from "../moderation/index.js";
@@ -12,8 +11,9 @@ import { shouldShowBreakReminder } from "./break-reminder.js";
 import { autoSuspendIfNeeded } from "../auth/auth.service.js";
 import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js";
 import { logger } from "../../lib/logger.js";
-import { incrementMetric } from "../../lib/metrics.js";
 import { deviceTokensTable } from "../../db/src/index.js";
+import { logSafetyEvent } from "./safety-logging.js";
+import { persistMessages } from "./persistence.js";
 
 export interface ChatTurnInput {
   userId: string;
@@ -36,33 +36,6 @@ export interface ChatTurnResult {
   error?: string;
 }
 
-async function logSafetyEvent(
-  userId: string,
-  eventType: string,
-  details: { severity: string; detail?: string; content?: string },
-): Promise<void> {
-  // Logged on the ROOT connection, NOT the caller's turn transaction. A failed safety-event INSERT
-  // must never roll back — or, in Postgres, poison — the turn that delivers the user's reply, most
-  // critically the 988 crisis response. The failure is surfaced LOUDLY (error log + Sentry + metric),
-  // never silently swallowed, so a missing audit record is detectable. Because it commits before the
-  // subsequent autoSuspendIfNeeded count, the threshold also sees this event.
-  try {
-    await db.insert(safetyEventsTable).values({
-      userId,
-      eventType,
-      source: "input",
-      detail: details.detail ?? null,
-      flaggedContent: details.content ?? null,
-      severity: details.severity,
-    });
-    incrementMetric(`safety_event.${eventType}.${details.severity}`);
-    logger.warn({ userId, eventType, severity: details.severity }, "Safety event logged");
-  } catch (err) {
-    logger.error({ err, userId, eventType }, "Failed to write safety event");
-    captureException(err, { userId, eventType });
-    incrementMetric("safety_event.write_failed");
-  }
-}
 
 async function sendReplyPush(userId: string, companionName: string): Promise<void> {
   try {
@@ -141,20 +114,8 @@ async function executeTurn(
     await logSafetyEvent(userId, "crisis_detected", { severity: "critical", detail: inputVerdict.reason, content });
     await autoSuspendIfNeeded(userId);
     const crisisReply = buildCrisisResponse();
-    // Short write tx: user message + 988 reply + companion bump, atomic. (Safety log already
-    // committed on a separate connection, so a log failure can't suppress the lifeline reply.)
-    const { userMessage, aiMessage } = await db.transaction(async (tx) => {
-      const [u] = await tx.insert(messagesTable).values({
-        companionId, userId, turnId, role: "user", status: "complete", content: trimmed,
-      }).returning();
-      const [a] = await tx.insert(messagesTable).values({
-        companionId, userId, turnId, role: "assistant", status: "complete", content: crisisReply,
-      }).returning();
-      await tx.update(companionsTable)
-        .set({ lastMessage: trimmed.slice(0, 80), lastActiveAt: new Date() })
-        .where(eq(companionsTable.id, companionId));
-      return { userMessage: u, aiMessage: a };
-    });
+    // Safety log already committed on a separate connection, so a log failure can't suppress the lifeline reply.
+    const { userMessage, aiMessage } = await persistMessages(userId, companionId, turnId, trimmed, crisisReply);
     return { userMessage, aiMessage, turnId, safetyFlagged: true };
   }
 
@@ -209,25 +170,24 @@ async function executeTurn(
   const msgCount = history.length + 1;
 
   // ── Phase 4: write (short transaction; atomic user + assistant + companion) ──
-  const { userMessage, aiMessage } = await db.transaction(async (tx) => {
-    const [u] = await tx.insert(messagesTable).values({
-      companionId, userId, turnId, role: "user", status: "complete", content: trimmed,
-    }).returning();
-    const [a] = await tx.insert(messagesTable).values({
-      companionId, userId, turnId, role: "assistant", status: "complete", content: finalReply,
-    }).returning();
-    await tx.update(companionsTable)
-      .set({ lastMessage: trimmed.slice(0, 80), lastActiveAt: new Date(), messageCount: msgCount })
-      .where(eq(companionsTable.id, companionId));
-    return { userMessage: u, aiMessage: a };
-  });
+  const { userMessage, aiMessage } = await persistMessages(userId, companionId, turnId, trimmed, finalReply, msgCount);
 
   // ── Phase 5: post-commit side-effects (must never roll back a delivered turn) ──
   if (!outputBlocked) {
     // Enqueued AFTER commit on the root connection — a memory-job failure can't undo the turn.
     enqueueMemoryJob(userId, companionId, trimmed).catch((err) => logger.error({ err }, "Failed to enqueue memory job"));
   }
-  sendReplyPush(userId, companion.name).catch((err) => logger.warn({ err }, "Push notification failed"));
+  // Skip push if user has an active WS connection — they're already live.
+  void (async () => {
+    try {
+      const { connectionManager } = await import("../../websocket/connection-manager.js");
+      if (!connectionManager.isConnected(userId, companionId)) {
+        await sendReplyPush(userId, companion.name);
+      }
+    } catch (err) {
+      logger.warn({ err }, "Push notification failed");
+    }
+  })();
 
   const sessionStart = sessionStartedAt
     ? new Date(sessionStartedAt)

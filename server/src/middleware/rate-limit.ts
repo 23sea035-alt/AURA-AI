@@ -95,32 +95,22 @@ export const apiLimiter = rateLimit({
   },
 });
 
-// Voice room-token issuance — keyed by user; backstops LiveKit token minting.
-export const voiceTokenLimiter = rateLimit({
-  windowMs: PER_MINUTE_WINDOW_MS,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator,
-  store: new PgRateLimitStore("voice-token"),
-  handler: (_req, res) => {
-    incrementMetric("rate_limit.429.voice_token");
-    res.status(429).json({ error: "Too many voice token requests — please slow down.", code: "VOICE_RATE_LIMITED" });
-  },
-});
 
-// Non-streaming TTS synthesis — keyed by user; bounds per-user synthesis spend.
-export const voiceTtsLimiter = rateLimit({
-  windowMs: PER_MINUTE_WINDOW_MS,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator,
-  store: new PgRateLimitStore("voice-tts"),
-  handler: (_req, res) => {
-    incrementMetric("rate_limit.429.voice_tts");
-    res.status(429).json({ error: "Too many TTS requests — please slow down.", code: "TTS_RATE_LIMITED" });
-  },
-});
+// WS rate limiters — in-memory sliding window keyed by userId.
+// Each WS connection is already Clerk-authenticated and session-scoped, so flood risk
+// is lower than HTTP. Upgrade to Postgres-backed if multi-instance scaling is needed.
+function makeWsLimiter(max: number, windowMs: number): (userId: string) => boolean {
+  const windows = new Map<string, number[]>();
+  return function isAllowed(userId: string): boolean {
+    const now = Date.now();
+    const cutoff = now - windowMs;
+    const hits = (windows.get(userId) ?? []).filter((t) => t > cutoff);
+    hits.push(now);
+    windows.set(userId, hits);
+    return hits.length <= max;
+  };
+}
 
+export const wsChatLimiter = makeWsLimiter(30, PER_MINUTE_WINDOW_MS);
+export const wsVoiceLimiter = makeWsLimiter(5, PER_MINUTE_WINDOW_MS);
 
