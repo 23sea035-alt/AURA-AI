@@ -52,14 +52,20 @@ export async function handleRevenueCatWebhook(
   }
 
   const payload: RevenueCatWebhookPayload = JSON.parse(rawBody);
-  const { event, app_user_id, environment, entitlement_ids, product_id, store, period_type, expiration_at_ms, original_transaction_id } = payload;
+  const { event, app_user_id, environment, product_id, store, period_type, expiration_at_ms, original_transaction_id } = payload;
 
   if (!app_user_id) {
     logger.warn({ event }, "RevenueCat webhook missing app_user_id");
     return { received: true };
   }
 
-  if (environment.toUpperCase() !== "PRODUCTION") {
+  const isProduction = environment.toUpperCase() === "PRODUCTION";
+  if (!isProduction) {
+    const allowSandbox = getEnv().RC_ALLOW_SANDBOX;
+    if (!allowSandbox) {
+      logger.warn({ environment, event }, "RevenueCat webhook — sandbox event rejected (RC_ALLOW_SANDBOX=false)");
+      return { received: true };
+    }
     logger.info({ environment, event }, "RevenueCat webhook — processing non-production event");
   }
 

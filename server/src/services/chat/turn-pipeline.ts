@@ -1,6 +1,7 @@
 import { eq, and, asc, ne } from "drizzle-orm";
 import { randomUUID } from "crypto";
 import { db, messagesTable, companionsTable, usersTable, safetyEventsTable } from "../../db/src/index.js";
+import type * as schema from "../../db/src/schema/index.js";
 import { SAFE_FALLBACK_REPLY, MAX_MESSAGE_CHARS, MEMORY_RETRIEVAL_TOP_N, HISTORY_WINDOW } from "@aura/shared";
 import type { PersonaTraits, PersonaKey } from "@aura/shared";
 import { createModerator, buildCrisisResponse } from "../moderation/index.js";
@@ -12,6 +13,10 @@ import { autoSuspendIfNeeded } from "../auth/auth.service.js";
 import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js";
 import { logger } from "../../lib/logger.js";
 import { deviceTokensTable } from "../../db/src/index.js";
+import type { NodePgDatabase } from "drizzle-orm/node-postgres";
+import type { PgTransaction } from "drizzle-orm/pg-core";
+
+type TxOrDb = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema, any>;
 
 export interface ChatTurnInput {
   userId: string;
@@ -38,7 +43,7 @@ async function logSafetyEvent(
   userId: string,
   eventType: string,
   details: { severity: string; detail?: string; content?: string },
-  tx?: typeof db,
+  tx?: TxOrDb,
 ): Promise<void> {
   const client = tx ?? db;
   try {
@@ -231,7 +236,7 @@ async function executeTurnTransaction(
 }
 
 export async function processTurn(input: ChatTurnInput): Promise<ChatTurnResult> {
-  const { userId, companionId, content, sessionStartedAt, providedTurnId } = input;
+  const { content, providedTurnId } = input;
 
   if (!content?.trim()) {
     return { error: "Message content is required", userMessage: null, aiMessage: null, turnId: "" };

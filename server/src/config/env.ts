@@ -17,6 +17,7 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().optional(),
 
   REVENUECAT_WEBHOOK_SECRET: z.string().min(1, "REVENUECAT_WEBHOOK_SECRET is required"),
+  RC_ALLOW_SANDBOX: z.coerce.boolean().default(true),
 
   APNS_KEY_ID: z.string().optional(),
   APNS_TEAM_ID: z.string().optional(),
@@ -30,6 +31,8 @@ const envSchema = z.object({
   // ── Voice / TTS ──────────────────────────────────────────────────
   CARTESIA_API_KEY: z.string().optional(),
   CARTESIA_VOICE_ID: z.string().default("db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"),
+
+  DEEPGRAM_API_KEY: z.string().optional(),
 
   LIVEKIT_API_KEY: z.string().optional(),
   LIVEKIT_API_SECRET: z.string().optional(),

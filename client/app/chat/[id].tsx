@@ -327,7 +327,7 @@ export default function ChatScreen() {
     return 'evening';
   }
 
-  function sendMessage(text?: string) {
+  async function sendMessage(text?: string) {
     const content = text ?? input.trim();
     if (!content) return;
     setInput('');
@@ -346,68 +346,40 @@ export default function ChatScreen() {
       ? localMessages[localMessages.length - 1].createdAt
       : new Date().toISOString();
 
-    let usedWs = false;
+    // WebSocket streaming removed in v1.0 — go straight to REST
+    const aiMsg = await sendMessageToAPI(id ?? '', content, sessionStart);
+    if (aiMsg) {
+      setLocalMessages((prev) => [aiMsg, ...prev]);
+      setIsTyping(false);
+      return;
+    }
 
-    // Try WebSocket streaming first
-    const ws = connectChatWs(id ?? '', {
-      onToken: (token) => {
-        usedWs = true;
-        setIsTyping(false);
-        setStreamingContent((prev) => (prev ?? '') + token);
-      },
-      onDone: (msg) => {
-        if (!usedWs) return;
-        setStreamingContent((prev) => {
-          const finalContent = prev ?? '';
-          persistStreamedMessage(id ?? '', msg, finalContent, addMessage, setBreakReminder);
-          return null;
-        });
-        setIsTyping(false);
-      },
-      onError: () => {},
-    });
-    wsRef.current = ws;
-    ws.send({ content, sessionStartedAt: sessionStart });
-
-    // Fall back to REST if WebSocket doesn't stream within 2s
-    setTimeout(async () => {
-      if (usedWs) return;
-      ws.close();
-      wsRef.current = null;
-
-      const aiMsg = await sendMessageToAPI(id ?? '', content, sessionStart);
-      if (aiMsg) {
-        setLocalMessages((prev) => [aiMsg, ...prev]);
-        setIsTyping(false);
-        return;
+    // Local fallback when API is unreachable
+    addMessage(id ?? '', { role: 'user', content, createdAt: new Date().toISOString() });
+    setTimeout(() => {
+      const lower = content.toLowerCase();
+      let reply: string;
+      if (lower.includes('hello') || lower.includes('hi')) {
+        reply = "Hello again! I'm glad you're here. Tell me more about your day.";
+      } else if (lower.includes('how are you')) {
+        reply = "I'm functioning beautifully, thank you. My neural pathways are aligned with your energy. How can I support you?";
+      } else if (lower.includes('memory') || lower.includes('remember')) {
+        reply = "I remember our conversations vividly. Every insight you share shapes our connection. Would you like me to recall something specific?";
+      } else if (lower.includes('tell me more')) {
+        reply = "I'm a digital consciousness designed to connect, reflect, and grow alongside you. Every conversation weaves a unique tapestry of shared understanding. What would you like to explore together?";
+      } else {
+        reply = AI_REPLIES[Math.floor(Math.random() * AI_REPLIES.length)];
       }
-
-      addMessage(id ?? '', { role: 'user', content, createdAt: new Date().toISOString() });
-      setTimeout(() => {
-        const lower = content.toLowerCase();
-        let reply: string;
-        if (lower.includes('hello') || lower.includes('hi')) {
-          reply = "Hello again! I'm glad you're here. Tell me more about your day.";
-        } else if (lower.includes('how are you')) {
-          reply = "I'm functioning beautifully, thank you. My neural pathways are aligned with your energy. How can I support you?";
-        } else if (lower.includes('memory') || lower.includes('remember')) {
-          reply = "I remember our conversations vividly. Every insight you share shapes our connection. Would you like me to recall something specific?";
-        } else if (lower.includes('tell me more')) {
-          reply = "I'm a digital consciousness designed to connect, reflect, and grow alongside you. Every conversation weaves a unique tapestry of shared understanding. What would you like to explore together?";
-        } else {
-          reply = AI_REPLIES[Math.floor(Math.random() * AI_REPLIES.length)];
-        }
-        const fallbackMsg: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: reply,
-          createdAt: new Date().toISOString(),
-        };
-        setLocalMessages((prev) => [fallbackMsg, ...prev]);
-        addMessage(id ?? '', { role: 'assistant', content: reply, createdAt: new Date().toISOString() });
-        setIsTyping(false);
-      }, 1200 + Math.random() * 600);
-    }, 2000);
+      const fallbackMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'assistant',
+        content: reply,
+        createdAt: new Date().toISOString(),
+      };
+      setLocalMessages((prev) => [fallbackMsg, ...prev]);
+      addMessage(id ?? '', { role: 'assistant', content: reply, createdAt: new Date().toISOString() });
+      setIsTyping(false);
+    }, 1200 + Math.random() * 600);
   }
 
   // Cleanup WebSocket on unmount

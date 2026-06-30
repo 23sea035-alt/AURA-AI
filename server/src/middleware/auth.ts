@@ -1,4 +1,4 @@
-import type { Request, Response, NextFunction } from "express";
+import type { Response, NextFunction } from "express";
 import { db } from "../db/src/index.js";
 import { usersTable } from "../db/src/index.js";
 import { eq } from "drizzle-orm";

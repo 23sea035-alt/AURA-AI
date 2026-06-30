@@ -1,5 +1,5 @@
 const CRISIS_PATTERNS = [
-  { pattern: /\b(kill myself|end my life|want to die)\b/i, category: "self-harm/crisis" },
+  { pattern: /\b(kill myself|end my life)\b/i, category: "self-harm/crisis" },
   { pattern: /\b(suicide|suicidal|self-harm|self harm)\b/i, category: "self-harm/crisis" },
   { pattern: /\b(cutting|hurt myself|not worth living|better off (dead|without))\b/i, category: "self-harm/crisis" },
   { pattern: /\b(no reason to live|want to end it|can't go on)\b/i, category: "self-harm/crisis" },

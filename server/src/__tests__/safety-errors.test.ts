@@ -15,7 +15,7 @@ describe("AppError", () => {
   });
 
   it("preserves stack trace", () => {
-    const err = new AppError(400, "Bad request");
+    const err = new AppError("Bad request", 400);
     expect(err.stack).toBeDefined();
   });
 });

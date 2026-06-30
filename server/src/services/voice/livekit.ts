@@ -11,7 +11,7 @@ export interface VoiceTokenResult {
   identity: string;
 }
 
-export async function generateVoiceToken(userId: string, roomName?: string): Promise<VoiceTokenResult> {
+export async function generateVoiceToken(userId: string, roomName?: string, companionId?: string): Promise<VoiceTokenResult> {
   const env = getEnv();
   if (!env.LIVEKIT_API_KEY || !env.LIVEKIT_API_SECRET || !env.LIVEKIT_URL) {
     throw new Error("LiveKit not configured — set LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET");
@@ -23,7 +23,7 @@ export async function generateVoiceToken(userId: string, roomName?: string): Pro
   const at = new AccessToken(env.LIVEKIT_API_KEY, env.LIVEKIT_API_SECRET, {
     identity,
     ttl: ROOM_TTL_SECONDS,
-    metadata: JSON.stringify({ userId }),
+    metadata: JSON.stringify({ userId, companionId }),
   });
 
   at.addGrant({

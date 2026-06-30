@@ -18,12 +18,17 @@ try {
   );
   await migrate(db, { migrationsFolder: migrationsDir });
   logger.info("Database migrations up to date");
-} catch (err) {
-  logger.fatal({ err }, "Migration failed — cannot start");
-  process.exit(1);
+} catch (err: any) {
+  const msg = [err?.message, err?.cause?.message, String(err)].join(" ");
+  if (msg.includes("already exists")) {
+    logger.warn("Migration tables already exist — skipping");
+  } else {
+    logger.fatal({ err }, "Migration failed — cannot start");
+    process.exit(1);
+  }
 }
 
-server.listen(env.PORT, () => {
+server.listen(env.PORT, "0.0.0.0", () => {
   logger.info({ port: env.PORT }, "Server listening");
 });
 

@@ -2,15 +2,13 @@ import type { Moderator, InputVerdict, OutputVerdict, UserContext } from "./mode
 import { runL0 } from "./deterministic.js";
 import { runL1 } from "./prompt-guard.js";
 import { runL2Input, runL3Output } from "./openai-omni.js";
-import type { OmniCategoryScore, OmniResult } from "./openai-omni.js";
+import type { OmniResult } from "./openai-omni.js";
 import type { PromptGuardResult } from "./prompt-guard.js";
 import { adjudicate, runOutputFallback } from "./safeguard.js";
 import { SAFE_FALLBACK_REPLY } from "@aura/shared";
-import { buildCrisisResponse } from "./crisis.js";
 import type { LLMProvider } from "../llm/index.js";
 import { getLLMProvider } from "../llm/index.js";
 import { createTaskSpecificProvider } from "../llm/model-selector.js";
-import { getEnv } from "../../config/env.js";
 
 const POLICY_VERSION = "2026-06-23-001";
 
@@ -21,7 +19,7 @@ export class ModerationEngine implements Moderator {
   private getInputGuardProvider(): LLMProvider | undefined {
     if (!this.inputGuardProvider) {
       try {
-        this.inputGuardProvider = createTaskSpecificProvider("moderate-input", getEnv().GROQ_API_KEY);
+        this.inputGuardProvider = createTaskSpecificProvider("moderate-input");
       } catch {
         try { this.inputGuardProvider = getLLMProvider(); } catch { return undefined; }
       }
@@ -32,7 +30,7 @@ export class ModerationEngine implements Moderator {
   private getOutputGuardProvider(): LLMProvider | undefined {
     if (!this.outputGuardProvider) {
       try {
-        this.outputGuardProvider = createTaskSpecificProvider("moderate-output", getEnv().GROQ_API_KEY);
+        this.outputGuardProvider = createTaskSpecificProvider("moderate-output");
       } catch {
         try { this.outputGuardProvider = getLLMProvider(); } catch { return undefined; }
       }
@@ -80,6 +78,14 @@ export class ModerationEngine implements Moderator {
             action: "block", categories: [],
             escalated: false, layer: "safeguard", policyVersion: POLICY_VERSION,
             reason: `L2 degraded (${l2Result.error}) — safeguard fallback: ${fallback?.reason ?? "unavailable"}`,
+          };
+        }
+        if (fallback.crisis) {
+          return {
+            action: "crisis", categories: [{ category: "self-harm", score: 1 }],
+            escalated: true, layer: "safeguard", policyVersion: POLICY_VERSION,
+            crisisResources: ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"],
+            reason: fallback.reason,
           };
         }
         return {

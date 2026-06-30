@@ -23,7 +23,7 @@ existing code as a sketch, not a foundation.
   (`@aura/shared` — enums, Zod DTOs, constants = the client/server contract). (Replaces the prototype's
   `artifacts/*` + `lib/*` layout.)
 - DB: PostgreSQL on **Neon** + Drizzle ORM — **versioned migrations, NOT `drizzle-kit push`**.
-- LLM: **Groq** (Llama 3.1). Moderation: OpenAI omni + Groq gpt-oss-safeguard + prompt-guard
+- LLM: **NVIDIA** (Llama 3.1 via NVIDIA API). Moderation: OpenAI omni + NVIDIA safeguard + prompt-guard
   (layered, server-side, fail-closed). **Auth: Clerk** (managed — email/password + Apple + Google;
   reset/verification handled by Clerk; server verifies Clerk session tokens, webhook mirrors users).
   Payments: **RevenueCat + StoreKit**. Notifications: APNs.

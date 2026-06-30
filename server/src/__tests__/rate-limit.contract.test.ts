@@ -3,7 +3,7 @@ process.env.CLERK_SECRET_KEY = "sk_test_fake";
 process.env.CLERK_PUBLISHABLE_KEY = "pk_test_fake";
 process.env.CLERK_WEBHOOK_SECRET = "whsec_fake";
 process.env.OPENAI_API_KEY = "sk-fake";
-process.env.GROQ_API_KEY = "gsk_fake";
+process.env.NVIDIA_API_KEY = "nvapi_fake";
 process.env.REVENUECAT_WEBHOOK_SECRET = "rc_fake";
 process.env.BANNED_IDENTITY_PEPPER = "test-pepper";
 
@@ -90,5 +90,64 @@ describe("rate-limit — contract", () => {
   it("exported chatDailyHardCap compiles and is a function", async () => {
     const { chatDailyHardCap } = await import("../middleware/rate-limit.js");
     expect(typeof chatDailyHardCap).toBe("function");
+  });
+
+  it("chatPerMinuteLimiter blocks after 30 requests with same key", async () => {
+    const { chatPerMinuteLimiter } = await import("../middleware/rate-limit.js");
+    for (let i = 0; i < 30; i++) {
+      const r = await callMiddleware(chatPerMinuteLimiter, "heavy-user");
+      expect(r.nextCalled).toBe(true);
+    }
+    const blocked = await callMiddleware(chatPerMinuteLimiter, "heavy-user");
+    expect(blocked.nextCalled).toBe(false);
+    expect(blocked.status).toBe(429);
+    expect(blocked.json).toMatchObject({ code: "RATE_LIMITED" });
+  }, 15000);
+
+  it("chatDailyHardCap blocks after 1000 requests with same key", async () => {
+    const { chatDailyHardCap } = await import("../middleware/rate-limit.js");
+    for (let i = 0; i < 1000; i++) {
+      const r = await callMiddleware(chatDailyHardCap, "daily-user");
+      expect(r.nextCalled).toBe(true);
+    }
+    const blocked = await callMiddleware(chatDailyHardCap, "daily-user");
+    expect(blocked.nextCalled).toBe(false);
+    expect(blocked.status).toBe(429);
+    expect(blocked.json).toMatchObject({ code: "DAILY_CAP" });
+  }, 30000);
+
+  it("keyGenerator falls back to IP when userId is missing", async () => {
+    const { chatPerMinuteLimiter } = await import("../middleware/rate-limit.js");
+    const r = await callMiddleware(chatPerMinuteLimiter, undefined);
+    expect(r.nextCalled).toBe(true);
+    expect(r.status).toBe(200);
+  });
+
+  it("fallbackKeyGenerator returns 'unknown' when both userId and ip are missing", async () => {
+    const { default: rateLimit } = await import("express-rate-limit");
+    let capturedKey = "";
+    const limiter = rateLimit({
+      windowMs: 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      keyGenerator: (req: any) => {
+        capturedKey = req.userId ?? req.ip ?? "unknown";
+        return capturedKey;
+      },
+      handler: (_req, res) => { res.status(429).json({ error: "rate", code: "RATE_LIMITED" }); },
+    });
+
+    const req: any = { headers: {} };
+    let statusCode = 200;
+    const res: any = {
+      status: (c: number) => { statusCode = c; return res; },
+      json: () => {},
+      setHeader: () => res,
+    };
+    await new Promise<void>((resolve) => {
+      limiter(req, res, () => resolve());
+    });
+    expect(capturedKey).toBe("unknown");
   });
 });

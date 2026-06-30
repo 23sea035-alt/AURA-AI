@@ -48,7 +48,7 @@ export async function getUsage(req: AuthRequest, res: Response): Promise<void> {
 
 export async function getMessages(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const { companionId } = req.params;
+    const companionId = req.params.companionId as string;
     const { db, messagesTable } = await import("../db/src/index.js");
     const { eq, and, asc } = await import("drizzle-orm");
     const messages = await db

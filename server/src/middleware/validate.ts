@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { ZodSchema, ZodError } from "zod";
+import { ZodSchema } from "zod";
 import { sendError } from "../lib/response.js";
 
 export function validate(schema: ZodSchema): (req: Request, res: Response, next: NextFunction) => void {

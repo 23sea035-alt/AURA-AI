@@ -57,3 +57,8 @@
   - `CARTESIA_API_KEY` / `LIVEKIT_API_KEY` / `LIVEKIT_HOST` env vars added to server; client needs `LIVEKIT_HOST` only
   - New shared constants: `VOICE_DAILY_LIMIT_SECONDS` (600), `VOICE_CALL_MAX_DURATION_SECONDS` (900), `DEFAULT_CARTESIA_VOICE_ID`
   - New `voice_usage` table tracks STT/TTS duration per user per day (server-enforced metering)
+- [ ] **Voice call push notifications** — APNs push events wired for voice call start/end. On `POST /api/voice/start` server sends push `{ type: "voice_call_started", companionId }`. On disconnect, server sends `{ type: "voice_call_ended", companionId }`. Client needs to:
+  - Register push token via `POST /api/notifications/register` (existing endpoint)
+  - Handle `voice_call_started` push to show ring/incoming UI
+  - Handle `voice_call_ended` push to dismiss call UI
+- [ ] **Voice rate limiters added** — `POST /api/voice/token` limited to 20/min, `POST /api/voice/tts` limited to 10/min. Client should handle 429 `VOICE_RATE_LIMITED` / `TTS_RATE_LIMITED` error codes and show retry-after UX.

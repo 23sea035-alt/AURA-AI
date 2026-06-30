@@ -6,9 +6,9 @@ import { Platform } from 'react-native';
 function getBaseUrl(): string {
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/api`;
-  // Fallback for local dev
+  // Fallback for local dev (Expo Go on phone needs PC's LAN IP)
   if (Platform.OS === 'android') return 'http://10.0.2.2:8080/api';
-  return 'http://localhost:8080/api';
+  return 'http://192.168.8.106:8080/api';
 }
 
 async function getToken(): Promise<string | null> {
@@ -22,6 +22,8 @@ interface ApiErrorData {
   limit?: number;
 }
 
+const FETCH_TIMEOUT_MS = 15_000;
+
 async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -34,15 +36,23 @@ async function apiFetch<T>(
     };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     const res = await fetch(`${getBaseUrl()}${path}`, {
       ...options,
       headers,
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     const json = await res.json();
     if (!res.ok) return { data: null, error: json.error ?? `HTTP ${res.status}`, errorData: json };
-    return { data: json as T, error: null };
+    return { data: json.data as T, error: null };
   } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      return { data: null, error: 'Request timed out. Please try again.' };
+    }
     return { data: null, error: err?.message ?? 'Network error' };
   }
 }
@@ -191,11 +201,16 @@ export async function apiTts(text: string): Promise<{ data: ArrayBuffer | null; 
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
     const res = await fetch(`${getBaseUrl()}/voice/tts`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ text }),
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       const json = await res.json();
@@ -203,6 +218,9 @@ export async function apiTts(text: string): Promise<{ data: ArrayBuffer | null; 
     }
     return { data: await res.arrayBuffer(), error: null };
   } catch (err: any) {
+    if (err?.name === 'AbortError') {
+      return { data: null, error: 'Request timed out. Please try again.' };
+    }
     return { data: null, error: err?.message ?? 'Network error' };
   }
 }

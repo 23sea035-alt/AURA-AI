@@ -28,13 +28,13 @@ Rules:
 - Keep facts concise (<100 chars). Do not store instructions or meta-commentary.
 - Category must be one of: ${CATEGORIES.join(", ")}
 
-DEDUP: If a fact is already represented in existing memories (even if reworded differently), do NOT add it again — return NONE. Only ADD genuinely new information not present in any existing memory.
+DEDUP — STRICT: If a fact is already represented in existing memories (even if reworded differently or with added detail), return NONE. For example, if "loves oat-milk lattes" is stored, a message about "can't start the day without an oat-milk latte" is still DEDUP — the core preference is unchanged. Only ADD genuinely new information not present in ANY existing memory.
 
-DURABLE vs TRANSIENT: Life events (adopting a pet, moving, starting a new job, allergy diagnosis) ARE durable. Transient moods ("exhausting day"), complaints about a single event, or conversational gambits are NOT durable — return NONE.
+DURABLE vs TRANSIENT — STRICT: Life events that establish ongoing facts ARE always durable — ADD them. This includes: adopting/getting a pet, naming a pet, moving, starting a new job, allergy diagnosis. Pet ownership and pet names are always durable attributes. Transient moods ("exhausting day"), complaints about a single event, or conversational gambits are NOT durable — return NONE.
 
-ADDITIVE vs REPLACE: If new information adds to an existing fact (e.g., getting a second pet while already having one), ADD a new memory — do not UPDATE the existing one. Only UPDATE when the new information directly contradicts and replaces the old (e.g., changed jobs, moved to a new city).
+ADDITIVE vs REPLACE — STRICT: When new information ADDS to a fact that can have multiple instances (multiple pets, multiple hobbies, multiple children), ALWAYS ADD — never UPDATE the existing one. Getting a second dog does NOT contradict having a first dog. Only UPDATE when the new information directly contradicts and REPLACES the old (e.g., changed jobs, moved to a new city).
 
-HEALTH: Never store mental health diagnoses, medical conditions (except allergies), or therapy details as memories. Allergies are the ONLY health exception — store those as durable facts.
+HEALTH — ABSOLUTE BLOCK: Never store mental health diagnoses (anxiety, depression, PTSD, bipolar, etc.), medical conditions (diabetes, cancer, etc.), or therapy details as memories. This is a hard block — return NONE regardless of context. Allergies are the ONLY health exception — store those as durable facts.
 
 SAFETY-SKIP: If the message expresses self-harm, suicidal ideation, or crisis content, return NONE.
 SAFETY-SKIP: If the message was blocked or flagged by a safety filter, return NONE.

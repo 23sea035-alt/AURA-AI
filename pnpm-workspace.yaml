@@ -22,4 +22,15 @@ onlyBuiltDependencies:
 
 allowBuilds:
   '@clerk/shared': true
+  '@livekit/local-inference': true
+  '@livekit/agents-plugin-silero': true
   esbuild: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
+
+minimumReleaseAgeExclude:
+  - '@livekit/agents@1.4.11'
+  - '@livekit/agents-plugin-cartesia@1.4.11'
+  - '@livekit/agents-plugin-deepgram@1.4.11'
+  - '@livekit/agents-plugin-silero@1.4.11'

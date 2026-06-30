@@ -17,12 +17,12 @@ function scoreModeration(
 ): Promise<OmniResult> {
   return (async () => {
     try {
-      const { default: OpenAI } = await import("openai");
       const apiKey = process.env["OPENAI_API_KEY"];
-      if (!apiKey) {
-        return { flagged: true, categories: [], error: "OPENAI_API_KEY not set" };
+      if (!apiKey || !apiKey.startsWith("sk-") || apiKey.length < 20 || apiKey === "sk-your-openai-api-key") {
+        return { flagged: true, categories: [], error: "OPENAI_API_KEY not set or invalid" };
       }
-      const client = new OpenAI({ apiKey });
+      const { default: OpenAI } = await import("openai");
+      const client = new OpenAI({ apiKey, timeout: 5000 });
       const response = await client.moderations.create({
         model: "omni-moderation-latest",
         input: text,

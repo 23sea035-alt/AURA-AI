@@ -3,7 +3,7 @@ process.env.CLERK_SECRET_KEY = "sk_test_fake";
 process.env.CLERK_PUBLISHABLE_KEY = "pk_test_fake";
 process.env.CLERK_WEBHOOK_SECRET = "whsec_fake";
 process.env.OPENAI_API_KEY = "sk-fake";
-process.env.GROQ_API_KEY = "gsk_fake";
+process.env.NVIDIA_API_KEY = "nvapi_fake";
 process.env.REVENUECAT_WEBHOOK_SECRET = "rc_fake";
 process.env.BANNED_IDENTITY_PEPPER = "test-pepper";
 
