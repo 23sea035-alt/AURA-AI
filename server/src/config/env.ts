@@ -10,8 +10,11 @@ const envSchema = z.object({
   CLERK_PUBLISHABLE_KEY: z.string().min(1, "CLERK_PUBLISHABLE_KEY is required"),
   CLERK_WEBHOOK_SECRET: z.string().min(1, "CLERK_WEBHOOK_SECRET is required"),
 
-  OPENAI_API_KEY: z.string().min(1, "OPENAI_API_KEY is required"),
-  GROQ_API_KEY: z.string().min(1, "GROQ_API_KEY is required"),
+  OPENAI_API_KEY: z.string().optional(),
+  OPENROUTER_API_KEY: z.string().optional(),
+  ANTHROPIC_API_KEY: z.string().optional(),
+  NVIDIA_API_KEY: z.string().min(1, "NVIDIA_API_KEY is required"),
+  GROQ_API_KEY: z.string().optional(),
 
   REVENUECAT_WEBHOOK_SECRET: z.string().min(1, "REVENUECAT_WEBHOOK_SECRET is required"),
 
@@ -24,18 +27,27 @@ const envSchema = z.object({
 
   SENTRY_DSN: z.string().optional(),
 
+  // ── Voice / TTS ──────────────────────────────────────────────────
+  CARTESIA_API_KEY: z.string().optional(),
+  CARTESIA_VOICE_ID: z.string().default("db6b0ed5-d5d3-463d-ae85-518a07d3c2b4"),
+
+  LIVEKIT_API_KEY: z.string().optional(),
+  LIVEKIT_API_SECRET: z.string().optional(),
+  LIVEKIT_HOST: z.string().optional(),
+
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
   // ── Model selection ─────────────────────────────────────────────
+  MODEL_GROQ: z.string().default("llama-3.3-70b-versatile"),
   MODEL_GENERATE_REPLY: z.string().default("llama-3.1-8b-instant"),
-  MODEL_MODERATE_INPUT: z.string().default("meta-llama/llama-prompt-guard-2-86m"),
-  MODEL_MODERATE_OUTPUT: z.string().default("openai/gpt-oss-safeguard-20b"),
-  MODEL_CONSOLIDATE_MEMORY: z.string().default("llama-3.1-8b-instant"),
+  MODEL_MODERATE_INPUT: z.string().default("llama-3.1-8b-instant"),
+  MODEL_MODERATE_OUTPUT: z.string().default("llama-3.1-8b-instant"),
+  MODEL_CONSOLIDATE_MEMORY: z.string().default("llama-3.3-70b-versatile"),
 
-  MODEL_FALLBACK_GENERATE_REPLY: z.string().default("llama-3.1-8b-instant"),
+  MODEL_FALLBACK_GENERATE_REPLY: z.string().default("llama-3.3-70b-versatile"),
   MODEL_FALLBACK_MODERATE_INPUT: z.string().default("llama-3.3-70b-versatile"),
   MODEL_FALLBACK_MODERATE_OUTPUT: z.string().default("llama-3.3-70b-versatile"),
-  MODEL_FALLBACK_CONSOLIDATE_MEMORY: z.string().default("llama-3.3-70b-versatile"),
+  MODEL_FALLBACK_CONSOLIDATE_MEMORY: z.string().default("llama-3.1-8b-instant"),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -49,3 +49,11 @@
 - [ ] **Account deletion soft-delete (30d grace)** — `DELETE /api/account` now soft-deletes (anonymizes PII, toggles `status` to `"deleted"`). Show a confirmation: "Your account will be deactivated for 30 days before permanent deletion. You can reactivate by signing in." Add a **Reactivate Account** flow (re-enables account if within 30-day window; client calls `PATCH /api/account/reactivate`).
 - [ ] **Reactivate Account endpoint** — frontend needs to call `PATCH /api/account/reactivate` to restore a soft-deleted account. The endpoint sets `status = "active"`, `deletedAt = null`, and clears the tombstoned email.
 - [ ] **Premium staleness refresh** — call `GET /api/payments/entitlements` on app foreground to reconcile `isPremium` staleness (fires DB expiry check server-side). Response envelope: `{ success: true, data: { isPremium: boolean } }`.
+- [ ] **Voice calls (new)** — backend added Cartesia TTS service + voice metering. Frontend needs:
+  - Integrate `livekit-client` SDK into Expo app
+  - Add voice call UI (call button, in-call controls, end call)
+  - Connect to LiveKit server for real-time audio
+  - Voice time remaining display (daily limit: 10min free / 60min premium)
+  - `CARTESIA_API_KEY` / `LIVEKIT_API_KEY` / `LIVEKIT_HOST` env vars added to server; client needs `LIVEKIT_HOST` only
+  - New shared constants: `VOICE_DAILY_LIMIT_SECONDS` (600), `VOICE_CALL_MAX_DURATION_SECONDS` (900), `DEFAULT_CARTESIA_VOICE_ID`
+  - New `voice_usage` table tracks STT/TTS duration per user per day (server-enforced metering)
