@@ -155,6 +155,11 @@ export const UpdateProfileSchema = z.object({
   tosAcceptedVersion: z.string().min(1).optional(),
 });
 
+export const UpdateMemorySchema = z.object({
+  content: z.string().min(1).max(500).optional(),
+  category: z.enum(MEMORY_CATEGORY).optional(),
+});
+
 export const ReportMessageSchema = z.object({
   reason: z.string().min(1).max(500),
   detail: z.string().max(2000).optional(),

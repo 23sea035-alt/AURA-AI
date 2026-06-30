@@ -8,6 +8,7 @@ import webhooksRouter from "./webhooks.js";
 import notificationsRouter from "./notifications.js";
 import complianceRouter from "./compliance.js";
 import voiceRouter from "./voice.js";
+import memoriesRouter from "./memories.js";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(webhooksRouter);
 router.use(notificationsRouter);
 router.use(complianceRouter);
 router.use(voiceRouter);
+router.use(memoriesRouter);
 
 export default router;

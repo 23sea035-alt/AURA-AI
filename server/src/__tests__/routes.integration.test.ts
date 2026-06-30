@@ -64,6 +64,14 @@ function selectResolving(rows: unknown[]) {
   };
 }
 
+function updateResolving(rows: unknown[]) {
+  return { set: () => ({ where: () => ({ returning: () => Promise.resolve(rows) }) }) };
+}
+
+function deleteResolving(rows: unknown[]) {
+  return { where: () => ({ returning: () => Promise.resolve(rows) }) };
+}
+
 let app: Express;
 
 beforeAll(async () => {
@@ -133,5 +141,58 @@ describe("HTTP integration (router + middleware + envelope)", () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  // ── Memory management (Memory screen) ──
+  it("GET /api/companions/:id/memories → 401 without auth", async () => {
+    const res = await request(app).get("/api/companions/comp-1/memories");
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /api/companions/:id/memories → 404 when the companion isn't the caller's", async () => {
+    mockSelect.mockReturnValueOnce(selectResolving([])); // ownership check finds nothing
+    const res = await request(app).get("/api/companions/comp-1/memories").set("x-test-user-id", TEST_USER_ID);
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/companions/:id/memories → 200 list (sendSuccess envelope)", async () => {
+    mockSelect
+      .mockReturnValueOnce(selectResolving([{ id: "comp-1" }])) // ownership ok
+      .mockReturnValueOnce(selectResolving([{ id: "m1", content: "likes tea", category: "preference" }]));
+    const res = await request(app).get("/api/companions/comp-1/memories").set("x-test-user-id", TEST_USER_ID);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(Array.isArray(res.body.data)).toBe(true);
+  });
+
+  it("PATCH /api/memories/:id → 400 on an invalid category (Zod validation)", async () => {
+    const res = await request(app).patch("/api/memories/m1").set("x-test-user-id", TEST_USER_ID).send({ category: "nonsense" });
+    expect(res.status).toBe(400);
+  });
+
+  it("PATCH /api/memories/:id → 404 when the memory isn't the caller's (scoped update matches nothing)", async () => {
+    mockUpdate.mockReturnValue(updateResolving([]));
+    const res = await request(app).patch("/api/memories/m1").set("x-test-user-id", TEST_USER_ID).send({ content: "updated" });
+    expect(res.status).toBe(404);
+  });
+
+  it("PATCH /api/memories/:id → 200 on success", async () => {
+    mockUpdate.mockReturnValue(updateResolving([{ id: "m1", content: "updated", category: "preference" }]));
+    const res = await request(app).patch("/api/memories/m1").set("x-test-user-id", TEST_USER_ID).send({ content: "updated" });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+  });
+
+  it("DELETE /api/memories/:id → 404 when the memory isn't the caller's (scoped delete matches nothing)", async () => {
+    mockDelete.mockReturnValue(deleteResolving([]));
+    const res = await request(app).delete("/api/memories/m1").set("x-test-user-id", TEST_USER_ID);
+    expect(res.status).toBe(404);
+  });
+
+  it("DELETE /api/memories/:id → 200 on success", async () => {
+    mockDelete.mockReturnValue(deleteResolving([{ id: "m1" }]));
+    const res = await request(app).delete("/api/memories/m1").set("x-test-user-id", TEST_USER_ID);
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
   });
 });
