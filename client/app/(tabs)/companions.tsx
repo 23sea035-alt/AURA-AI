@@ -26,7 +26,7 @@ function voiceFor(name: string): string {
 export default function CompanionsScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { companions, user } = useApp();
+  const { companions, user, primaryCompanionId, setPrimaryCompanion } = useApp();
   const isPremium = !!user?.isPremium;
 
   return (
@@ -82,7 +82,25 @@ export default function CompanionsScreen() {
                     {locked ? COMPANIONS.lockedCompanion : c.lastMessage ?? ''}
                   </Text>
                 </View>
-                {locked ? <Ionicons name="lock-closed" size={16} color={colors.textTertiary} /> : null}
+                {locked ? (
+                  <Ionicons name="lock-closed" size={16} color={colors.textTertiary} />
+                ) : c.id === primaryCompanionId ? (
+                  <View style={[styles.homeChip, { backgroundColor: colors.accentTint }]}>
+                    <Ionicons name="location" size={11} color={colors.accent} />
+                    <Text style={[styles.homeChipText, { color: colors.accent }]}>HOME</Text>
+                  </View>
+                ) : (
+                  <PressableScale
+                    haptic="light"
+                    hitSlop={8}
+                    onPress={() => setPrimaryCompanion(c.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Make ${c.name} your Home companion`}
+                    style={styles.pinBtn}
+                  >
+                    <Ionicons name="location-outline" size={17} color={colors.textTertiary} />
+                  </PressableScale>
+                )}
               </PressableScale>
             </Animated.View>
           );
@@ -136,4 +154,14 @@ const styles = StyleSheet.create({
   time: { fontFamily: FONTS.body.regular, fontSize: 12 },
   voice: { fontFamily: FONTS.body.regular, fontSize: 14 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14 },
+  homeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACE.sm,
+    paddingVertical: 4,
+  },
+  homeChipText: { fontFamily: FONTS.body.semibold, fontSize: 10.5, letterSpacing: 0.4 },
+  pinBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

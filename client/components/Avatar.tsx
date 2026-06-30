@@ -16,7 +16,9 @@ export function avatarFor(id: string): ImageSourcePropType | undefined {
   return AVATARS[id?.toLowerCase?.()];
 }
 
-export function Avatar({ id, name, size = 56 }: { id: string; name: string; size?: number }) {
+// `color` overrides the initials-fallback background (the user's chosen monogram tone). Portrait
+// avatars (known personas) ignore it.
+export function Avatar({ id, name, size = 56, color }: { id: string; name: string; size?: number; color?: string }) {
   const { colors } = useTheme();
   const src = avatarFor(id);
   if (src) {
@@ -26,10 +28,11 @@ export function Avatar({ id, name, size = 56 }: { id: string; name: string; size
     <View
       style={[
         styles.fallback,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: colors.avatar },
+        { width: size, height: size, borderRadius: size / 2, backgroundColor: color ?? colors.avatar },
       ]}
     >
-      <Text style={[styles.initial, { color: colors.avatarText, fontSize: size * 0.4 }]}>
+      {/* a light cream initial reads on every monogram tone */}
+      <Text style={[styles.initial, { color: color ? '#FFFCF6' : colors.avatarText, fontSize: size * 0.4 }]}>
         {name?.[0]?.toUpperCase() ?? '?'}
       </Text>
     </View>

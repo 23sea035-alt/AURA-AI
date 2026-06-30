@@ -47,6 +47,8 @@ export interface UserProfile {
   isPremium?: boolean;
   bio?: string;
   avatarUri?: string;
+  /** Chosen monogram tone for the initials avatar. Backed by users.avatarColor once the API lands. */
+  avatarColor?: string;
 }
 
 export interface SafetyState {
@@ -57,6 +59,8 @@ export interface SafetyState {
 interface AppContextType {
   user: UserProfile | null;
   companions: Companion[];
+  /** The companion shown on Home. Backed by users.primaryCompanionId once the API lands. */
+  primaryCompanionId: string;
   isAuthenticated: boolean;
   isLoading: boolean;
   messages: Record<string, Message[]>;
@@ -66,6 +70,7 @@ interface AppContextType {
   register: (name: string, email: string, password: string, birthYear: number) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<UserProfile>) => void;
+  setPrimaryCompanion: (id: string) => void;
   addCompanion: (companion: Omit<Companion, 'id'>) => void;
   getMessagesForCompanion: (companionId: string) => Message[];
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
@@ -159,6 +164,7 @@ function toUserProfile(u: ApiUser): UserProfile {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [companions, setCompanions] = useState<Companion[]>(DEFAULT_COMPANIONS);
+  const [primaryCompanionId, setPrimaryCompanionId] = useState('aurora');
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [apiError, setApiError] = useState<string | null>(null);
@@ -172,16 +178,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bootstrap = async () => {
     try {
       // Try AsyncStorage first for fast startup
-      const [storedUser, storedMessages, storedCompanions, token] = await Promise.all([
+      const [storedUser, storedMessages, storedCompanions, storedPrimary, token] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('messages'),
         AsyncStorage.getItem('companions'),
+        AsyncStorage.getItem('primaryCompanionId'),
         AsyncStorage.getItem('authToken'),
       ]);
 
       if (storedUser) setUser(JSON.parse(storedUser));
       if (storedMessages) setMessages(JSON.parse(storedMessages));
       if (storedCompanions) setCompanions(JSON.parse(storedCompanions));
+      if (storedPrimary) setPrimaryCompanionId(storedPrimary);
 
       // If we have a token, refresh from API in the background
       if (token) {
@@ -407,11 +415,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return data.url;
   }, []);
 
+  const setPrimaryCompanion = useCallback((id: string) => {
+    setPrimaryCompanionId(id);
+    AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
+  }, []);
+
   return (
     <AppContext.Provider value={{
-      user, companions, isAuthenticated: !!user, isLoading,
+      user, companions, primaryCompanionId, isAuthenticated: !!user, isLoading,
       messages, apiError, safetyState,
-      login, register, logout, updateUser,
+      login, register, logout, updateUser, setPrimaryCompanion,
       addCompanion, getMessagesForCompanion, addMessage,
       sendMessageToAPI, loadMessagesFromAPI, clearApiError,
       setBreakReminder, dismissDisclosure, startCheckout,
