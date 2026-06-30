@@ -5,6 +5,7 @@ import { logger } from "../../lib/logger.js";
 import { extractKeywords } from "./keywords.js";
 import { isCrisisContent } from "../moderation/deterministic.js";
 import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
+import { refreshRemember } from "./remember.js";
 
 interface ConsolidationDecision {
   action: "ADD" | "UPDATE" | "NONE";
@@ -104,6 +105,17 @@ export async function consolidateMemory(jobId: string): Promise<void> {
       .where(eq(memoryJobsTable.id, jobId));
 
     logger.info({ jobId, decisions: decisions.length }, "Memory consolidated");
+
+    // Refresh the Home "remembers" card cache when something durable changed. Best-effort: the job is
+    // already 'processed', so a question-gen hiccup must never re-queue or fail it.
+    const changed = decisions.some(d => d.action === "ADD" || d.action === "UPDATE");
+    if (changed) {
+      try {
+        await refreshRemember(job.userId, job.companionId);
+      } catch (rememberErr) {
+        logger.warn({ err: rememberErr, jobId, companionId: job.companionId }, "Remember refresh failed (non-fatal)");
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown";
     const attempts = (job.attempts ?? 0) + 1;
