@@ -117,6 +117,12 @@ Each rewrite drops its `theme.ts` import. Copy comes from `client/constants/cont
 - Theme-aware `StatusBar` (currently hardcoded `style="light"` in `_layout.tsx`).
 - Reduce-motion QA pass; deferred consistency nits.
 
+### Follow-ups (verification owed)
+- **voice-call device test** — `app/voice-call.tsx` was migrated off the deprecated `expo-av`
+  to `expo-audio` (record loop via `useAudioRecorder`, TTS via `createAudioPlayer`). Typecheck-
+  verified only; the record → STT → reply → TTS → auto-re-record loop needs a real-device mic
+  + the backend on `:8080` to confirm end-to-end (sim has no usable mic).
+
 ## Key references
 - Tokens: `client/constants/design.ts`, `client/constants/motion.ts`
 - Theme hook: `client/hooks/useTheme.ts`
