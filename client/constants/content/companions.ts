@@ -6,6 +6,17 @@ export const COMPANIONS = {
   lockedCreate: 'Create your own companion · Premium', // free upsell row → Paywall
   lockedCompanion: 'Included with Premium', // non-default companion on free: locked, never deleted
   // roster card: avatar + name + PERSONAS[x].voice + last-message preview (demo) + time-ago (demo)
+
+  // Swipe actions (left-swipe reveals Pin/Unpin, right-swipe reveals Archive) + long-press
+  // action sheet (Edit/Pin/Archive) — same three actions, two entry points.
+  swipe: { pin: 'Pin', unpin: 'Unpin', archive: 'Archive' },
+  actionSheet: { edit: 'Edit companion' },
+  archiveGuard: "You need at least one companion — unarchive one before removing this.",
+  undoArchived: '{Companion} archived', // paired with an Undo action, ~4-5s dwell
+  undoAction: 'Undo',
+
+  // Archived section: collapsed row at the bottom of the roster, expands in place.
+  archivedSection: { label: 'Archived', empty: 'No archived companions', restore: 'Restore' },
 } as const;
 
 export const CREATE = {

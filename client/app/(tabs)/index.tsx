@@ -30,7 +30,8 @@ export default function HomeScreen() {
   const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const { user, companions, primaryCompanionId } = useApp();
-  const companion = companions.find((c) => c.id === primaryCompanionId) ?? companions[0];
+  const active = companions.filter((c) => !c.archivedAt);
+  const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
   const firstName = user?.name?.trim().split(' ')[0] || 'there';
   const greeting = greetingFor(new Date().getHours());
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

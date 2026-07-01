@@ -21,6 +21,8 @@ export interface Companion {
   lastMessage?: string;
   lastActive?: string;
   messageCount?: number;
+  /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
+  archivedAt?: string | null;
 }
 
 export interface Message {
@@ -73,6 +75,8 @@ interface AppContextType {
   updateUser: (updates: Partial<UserProfile>) => void;
   setPrimaryCompanion: (id: string) => void;
   addCompanion: (companion: Omit<Companion, 'id'>) => void;
+  archiveCompanion: (id: string) => void;
+  restoreCompanion: (id: string) => void;
   getMessagesForCompanion: (companionId: string) => Message[];
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
   sendMessageToAPI: (companionId: string, content: string, sessionStartedAt?: string) => Promise<Message | null>;
@@ -421,6 +425,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
   }, []);
 
+  // Soft-delete: hidden from the roster, but messages/memory stay keyed by companion id and
+  // restoreCompanion brings it right back. Archiving the Home companion clears the pin rather
+  // than leaving Home pointed at a companion that's no longer in the active roster.
+  const archiveCompanion = useCallback((id: string) => {
+    setCompanions(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, archivedAt: new Date().toISOString() } : c));
+      AsyncStorage.setItem('companions', JSON.stringify(updated));
+      return updated;
+    });
+    if (primaryCompanionId === id) {
+      setPrimaryCompanionId('');
+      AsyncStorage.setItem('primaryCompanionId', '').catch(() => {});
+    }
+  }, [primaryCompanionId]);
+
+  const restoreCompanion = useCallback((id: string) => {
+    setCompanions(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, archivedAt: null } : c));
+      AsyncStorage.setItem('companions', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
   // DEV_FORCE_PREMIUM mock applies here — the one place every screen's `user.isPremium` read
   // resolves from, so no per-screen wiring is needed to preview premium-gated UI.
   const exposedUser = useMemo(
@@ -433,7 +460,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       user: exposedUser, companions, primaryCompanionId, isAuthenticated: !!user, isLoading,
       messages, apiError, safetyState,
       login, register, logout, updateUser, setPrimaryCompanion,
-      addCompanion, getMessagesForCompanion, addMessage,
+      addCompanion, archiveCompanion, restoreCompanion, getMessagesForCompanion, addMessage,
       sendMessageToAPI, loadMessagesFromAPI, clearApiError,
       setBreakReminder, dismissDisclosure, startCheckout,
     }}>
