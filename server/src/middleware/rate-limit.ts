@@ -117,30 +117,6 @@ export const wsVoiceLimiter = makeWsLimiter(5, PER_MINUTE_WINDOW_MS);
 const webhookOrNoopSkipper = (req: Request): boolean =>
   req.path.startsWith("/webhooks") || req.path.startsWith("/payments/webhook");
 
-export const voiceTokenLimiter = rateLimit({
-  windowMs: PER_MINUTE_WINDOW_MS,
-  max: 20,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator,
-  skip: webhookOrNoopSkipper,
-  handler: (_req, res) => {
-    res.status(429).json({ error: "Too many voice token requests — please slow down.", code: "VOICE_RATE_LIMITED" });
-  },
-});
-
-export const voiceTtsLimiter = rateLimit({
-  windowMs: PER_MINUTE_WINDOW_MS,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  keyGenerator,
-  skip: webhookOrNoopSkipper,
-  handler: (_req, res) => {
-    res.status(429).json({ error: "Too many TTS requests — please slow down.", code: "TTS_RATE_LIMITED" });
-  },
-});
-
 const GLOBAL_ABUSE_WINDOW_MS = 60 * 1000;
 const GLOBAL_ABUSE_MAX = 300;
 

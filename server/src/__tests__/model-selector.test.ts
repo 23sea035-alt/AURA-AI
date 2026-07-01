@@ -1,177 +1,165 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-const mockCreate = vi.fn();
-vi.mock("openai", () => ({
-  default: vi.fn(() => ({
-    chat: { completions: { create: mockCreate } },
+const mockGenerateReply = vi.fn();
+
+vi.mock("../services/llm/groq.js", () => ({
+  createGroqProvider: vi.fn(() => ({
+    generateReply: mockGenerateReply,
   })),
 }));
 
-vi.mock("@aura/shared", () => ({
-  GENERATION_TEMPERATURE: 1.0,
-  GENERATION_MAX_TOKENS: 1024,
+vi.mock("../lib/logger.js", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-const mockGetEnv = vi.fn();
-vi.mock("../config/env.js", () => ({
-  getEnv: mockGetEnv,
-}));
+import {
+  getModelForTask,
+  getFallbackForTask,
+  createTaskSpecificProvider,
+  setModelOverride,
+  resetModelOverrides,
+} from "../services/llm/model-selector.js";
 
 describe("model-selector", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockGetEnv.mockReturnValue({
-      OPENROUTER_API_KEY: "",
-      ANTHROPIC_API_KEY: "",
-      GROQ_API_KEY: "",
-      NVIDIA_API_KEY: "nv-default",
-    });
+    mockGenerateReply.mockReset();
+    delete process.env.MODEL_GENERATE_REPLY;
+    delete process.env.MODEL_MODERATE_INPUT;
+    delete process.env.MODEL_MODERATE_OUTPUT;
+    delete process.env.MODEL_CONSOLIDATE_MEMORY;
+    delete process.env.MODEL_FALLBACK_GENERATE_REPLY;
+    delete process.env.MODEL_FALLBACK_MODERATE_INPUT;
+    delete process.env.MODEL_FALLBACK_MODERATE_OUTPUT;
+    delete process.env.MODEL_FALLBACK_CONSOLIDATE_MEMORY;
+    resetModelOverrides();
   });
 
   describe("getModelForTask", () => {
-    it("returns default model for generate-reply", async () => {
-      const { getModelForTask } = await import("../services/llm/model-selector.js");
-      const model = getModelForTask("generate-reply");
-      expect(model).toBe("llama-3.3-70b-versatile");
+    it("returns default for generate-reply", () => {
+      expect(getModelForTask("generate-reply")).toBe("llama-3.3-70b-versatile");
     });
 
-    it("returns override when set", async () => {
-      const { getModelForTask, setModelOverride, resetModelOverrides } = await import("../services/llm/model-selector.js");
-      setModelOverride("generate-reply", "custom-model");
-      const model = getModelForTask("generate-reply");
-      expect(model).toBe("custom-model");
-      resetModelOverrides();
+    it("returns default for moderate-input", () => {
+      expect(getModelForTask("moderate-input")).toBe(
+        "meta-llama/llama-prompt-guard-2-86m",
+      );
     });
 
-    it("returns different defaults for different tasks", async () => {
-      const { getModelForTask } = await import("../services/llm/model-selector.js");
-      expect(getModelForTask("moderate-input")).toContain("prompt-guard");
-      expect(getModelForTask("moderate-output")).toContain("safeguard");
-      expect(getModelForTask("consolidate-memory")).toContain("8b");
+    it("returns default for moderate-output", () => {
+      expect(getModelForTask("moderate-output")).toBe(
+        "openai/gpt-oss-safeguard-20b",
+      );
+    });
+
+    it("returns default for consolidate-memory", () => {
+      expect(getModelForTask("consolidate-memory")).toBe(
+        "llama-3.1-8b-instant",
+      );
+    });
+
+    it("respects MODEL_GENERATE_REPLY env var", () => {
+      process.env.MODEL_GENERATE_REPLY = "env-model";
+      expect(getModelForTask("generate-reply")).toBe("env-model");
+    });
+
+    it("override takes precedence over env var", () => {
+      process.env.MODEL_GENERATE_REPLY = "env-model";
+      setModelOverride("generate-reply", "override-model");
+      expect(getModelForTask("generate-reply")).toBe("override-model");
     });
   });
 
   describe("getFallbackForTask", () => {
-    it("returns fallback model for each task", async () => {
-      const { getFallbackForTask } = await import("../services/llm/model-selector.js");
-      expect(getFallbackForTask("generate-reply")).toBe("llama-3.1-8b-instant");
-      expect(getFallbackForTask("consolidate-memory")).toBe("llama-3.3-70b-versatile");
+    it("returns default fallback for generate-reply", () => {
+      expect(getFallbackForTask("generate-reply")).toBe(
+        "llama-3.1-8b-instant",
+      );
+    });
+
+    it("returns default fallback for moderate-input", () => {
+      expect(getFallbackForTask("moderate-input")).toBe(
+        "llama-3.3-70b-versatile",
+      );
+    });
+
+    it("returns default fallback for moderate-output", () => {
+      expect(getFallbackForTask("moderate-output")).toBe(
+        "llama-3.3-70b-versatile",
+      );
+    });
+
+    it("returns default fallback for consolidate-memory", () => {
+      expect(getFallbackForTask("consolidate-memory")).toBe(
+        "llama-3.3-70b-versatile",
+      );
+    });
+
+    it("respects env var MODEL_FALLBACK_GENERATE_REPLY", () => {
+      process.env.MODEL_FALLBACK_GENERATE_REPLY = "fallback-model";
+      expect(getFallbackForTask("generate-reply")).toBe("fallback-model");
     });
   });
 
   describe("setModelOverride / resetModelOverrides", () => {
-    it("resetModelOverrides clears overrides", async () => {
-      const { getModelForTask, setModelOverride, resetModelOverrides } = await import("../services/llm/model-selector.js");
-      setModelOverride("generate-reply", "temp");
+    it("overrides model for a task", () => {
+      setModelOverride("generate-reply", "my-model");
+      expect(getModelForTask("generate-reply")).toBe("my-model");
+    });
+
+    it("resetModelOverrides clears all overrides", () => {
+      setModelOverride("generate-reply", "my-model");
+      setModelOverride("moderate-input", "other-model");
       resetModelOverrides();
       expect(getModelForTask("generate-reply")).toBe("llama-3.3-70b-versatile");
+      expect(getModelForTask("moderate-input")).toBe(
+        "meta-llama/llama-prompt-guard-2-86m",
+      );
     });
   });
 
   describe("createTaskSpecificProvider", () => {
-    it("uses NVIDIA when no other API keys are set", async () => {
-      mockCreate.mockResolvedValue({ choices: [{ message: { content: " nvidia " } }] });
-
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
-      const result = await provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
-      });
-
-      expect(result).toBe("nvidia");
+    it("returns a provider with generateReply method", () => {
+      const provider = createTaskSpecificProvider(
+        "generate-reply",
+        "test-key",
+      );
+      expect(provider).toHaveProperty("generateReply");
+      expect(typeof provider.generateReply).toBe("function");
     });
 
-    it("falls back to fallback model when primary fails", async () => {
-      mockCreate
-        .mockRejectedValueOnce(new Error("Primary failed"))
-        .mockResolvedValueOnce({ choices: [{ message: { content: " fallback " } }] });
+    it("tries primary then fallback on failure", async () => {
+      mockGenerateReply
+        .mockRejectedValueOnce(new Error("primary failed"))
+        .mockResolvedValueOnce("fallback response");
 
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
+      const provider = createTaskSpecificProvider(
+        "generate-reply",
+        "test-key",
+      );
       const result = await provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
+        systemPrompt: "test",
+        messages: [{ role: "user", content: "hi" }],
       });
 
-      expect(result).toBe("fallback");
+      expect(result).toBe("fallback response");
+      expect(mockGenerateReply).toHaveBeenCalledTimes(2);
     });
 
     it("throws when both primary and fallback fail", async () => {
-      mockCreate
-        .mockRejectedValueOnce(new Error("Primary down"))
-        .mockRejectedValueOnce(new Error("Fallback down"));
+      mockGenerateReply
+        .mockRejectedValueOnce(new Error("primary failed"))
+        .mockRejectedValueOnce(new Error("fallback failed"));
 
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
-      await expect(provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
-      })).rejects.toThrow("Fallback down");
-    });
-
-    it("uses Groq when GROQ_API_KEY is set", async () => {
-      mockGetEnv.mockReturnValue({
-        OPENROUTER_API_KEY: "",
-        ANTHROPIC_API_KEY: "",
-        GROQ_API_KEY: "gsk-groq",
-        NVIDIA_API_KEY: "nv-default",
-      });
-      mockCreate.mockResolvedValue({ choices: [{ message: { content: " groq reply " } }] });
-
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
-      const result = await provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
-      });
-
-      expect(result).toBe("groq reply");
-    });
-
-    it("uses Anthropic when ANTHROPIC_API_KEY is set", async () => {
-      const mockFetch = vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ content: [{ type: "text", text: "claude reply" }] }),
-        text: async () => "",
-      });
-      vi.stubGlobal("fetch", mockFetch);
-
-      mockGetEnv.mockReturnValue({
-        OPENROUTER_API_KEY: "",
-        ANTHROPIC_API_KEY: "sk-ant",
-        GROQ_API_KEY: "",
-        NVIDIA_API_KEY: "",
-      });
-
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
-      const result = await provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
-      });
-
-      expect(result).toBe("claude reply");
-      vi.unstubAllGlobals();
-    });
-
-    it("uses OpenRouter when OPENROUTER_API_KEY is set", async () => {
-      mockGetEnv.mockReturnValue({
-        OPENROUTER_API_KEY: "or-key",
-        ANTHROPIC_API_KEY: "",
-        GROQ_API_KEY: "",
-        NVIDIA_API_KEY: "",
-      });
-      mockCreate.mockResolvedValue({ choices: [{ message: { content: " openrouter " } }] });
-
-      const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-      const provider = createTaskSpecificProvider("generate-reply");
-      const result = await provider.generateReply({
-        systemPrompt: "",
-        messages: [{ role: "user", content: "Hi" }],
-      });
-
-      expect(result).toBe("openrouter");
+      const provider = createTaskSpecificProvider(
+        "generate-reply",
+        "test-key",
+      );
+      await expect(
+        provider.generateReply({
+          systemPrompt: "test",
+          messages: [{ role: "user", content: "hi" }],
+        }),
+      ).rejects.toThrow("fallback failed");
     });
   });
 });

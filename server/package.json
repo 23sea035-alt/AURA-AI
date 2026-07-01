@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm run build && node --env-file=.env --enable-source-maps ./dist/index.mjs",
+    "dev": "pnpm run build && node --env-file=../.env --enable-source-maps ./dist/index.mjs",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -16,11 +16,6 @@
   "dependencies": {
     "@aura/shared": "workspace:*",
     "@clerk/backend": "^1.30.0",
-    "@livekit/agents": "1.4.11",
-    "@livekit/agents-plugin-cartesia": "1.4.11",
-    "@livekit/agents-plugin-deepgram": "1.4.11",
-    "@livekit/agents-plugin-silero": "1.4.11",
-    "@livekit/rtc-node": "0.13.29",
     "@sentry/node": "^9.21.0",
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
@@ -28,7 +23,6 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",
     "helmet": "^8.2.0",
-    "livekit-server-sdk": "^2.15.5",
     "openai": "^6.42.0",
     "p-queue": "^8.0.1",
     "pg": "^8.20.0",
@@ -40,7 +34,6 @@
   },
   "devDependencies": {
     "@electric-sql/pglite": "^0.5.3",
-    "@livekit/protocol": "^1.48.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
@@ -54,8 +47,5 @@
     "supertest": "^7.1.4",
     "thread-stream": "3.1.0",
     "tsx": "catalog:"
-  },
-  "peerDependencies": {
-    "@livekit/protocol": "^1.48.0"
   }
 }

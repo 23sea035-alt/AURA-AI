@@ -105,11 +105,6 @@ async function buildAll() {
       "puppeteer-core",
       "svix",
       "electron",
-      // Voice stack: native/heavy LiveKit Agents runtime — never bundle, resolve at runtime.
-      "@livekit/agents",
-      "@livekit/agents-plugin-*",
-      "@livekit/rtc-node",
-      "@livekit/*",
     ],
     sourcemap: "linked",
     plugins: [

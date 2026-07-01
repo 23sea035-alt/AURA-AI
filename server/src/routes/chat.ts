@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AuthRequest } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { chatPerMinuteLimiter, chatDailyHardCap } from "../middleware/rate-limit.js";
 import { validate } from "../middleware/validate.js";

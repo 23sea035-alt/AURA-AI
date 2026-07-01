@@ -1,10 +1,7 @@
 import type { LLMProvider } from "./index.js";
+import { getLLMProvider } from "./index.js";
 import { logger } from "../../lib/logger.js";
-import { createNvidiaProvider } from "./nvidia.js";
-import { createAnthropicProvider } from "./anthropic.js";
-import { createOpenRouterProvider } from "./openrouter.js";
 import { createGroqProvider } from "./groq.js";
-import { getEnv } from "../../config/env.js";
 
 export type TaskType =
   | "generate-reply"
@@ -49,34 +46,12 @@ export function getFallbackForTask(task: TaskType): string {
   return fallbackModelForTask(task);
 }
 
-export function createTaskSpecificProvider(task: TaskType, _apiKey?: string, model?: string): LLMProvider {
+export function createTaskSpecificProvider(task: TaskType, apiKey: string, model?: string): LLMProvider {
   const primaryModel = model ?? getModelForTask(task);
   const fallbackModel = getFallbackForTask(task);
 
-  const env = getEnv();
-  const useOpenRouter = !!env.OPENROUTER_API_KEY;
-  const useAnthropic = !useOpenRouter && !!env.ANTHROPIC_API_KEY;
-  const useGroq = !useOpenRouter && !useAnthropic && !!env.GROQ_API_KEY;
-
-  let apiKey: string;
-  let createProvider: (key: string, model: string) => LLMProvider;
-
-  if (useOpenRouter) {
-    apiKey = env.OPENROUTER_API_KEY!;
-    createProvider = createOpenRouterProvider;
-  } else if (useAnthropic) {
-    apiKey = env.ANTHROPIC_API_KEY!;
-    createProvider = createAnthropicProvider;
-  } else if (useGroq) {
-    apiKey = env.GROQ_API_KEY!;
-    createProvider = createGroqProvider;
-  } else {
-    apiKey = _apiKey ?? env.NVIDIA_API_KEY;
-    createProvider = createNvidiaProvider;
-  }
-
-  const primary = createProvider(apiKey, primaryModel);
-  const fallback = createProvider(apiKey, fallbackModel);
+  const primary = createGroqProvider(apiKey, primaryModel);
+  const fallback = createGroqProvider(apiKey, fallbackModel);
 
   return {
     async generateReply(params) {

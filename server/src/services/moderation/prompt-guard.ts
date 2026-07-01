@@ -11,7 +11,7 @@ export interface PromptGuardResult {
   error?: string;
 }
 
-const ESCALATE_THRESHOLD = 0.7;
+const ESCALATE_THRESHOLD = 0.5;
 const BLOCK_THRESHOLD = 0.9;
 
 const PROMPT_GUARD_MODEL = "meta-llama/llama-prompt-guard-2-86m";

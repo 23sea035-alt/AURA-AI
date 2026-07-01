@@ -3,10 +3,6 @@ import { and, eq, desc } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
 import { extractKeywords, jaccardSimilarity } from "./memory/keywords.js";
 import { MEMORY_RECENCY_HALFLIFE_DAYS, MEMORY_RELEVANCE_FLOOR, MEMORY_SCORE_WEIGHTS } from "@aura/shared";
-import type { NodePgDatabase } from "drizzle-orm/node-postgres";
-import type { PgTransaction } from "drizzle-orm/pg-core";
-
-type TxOrDb = NodePgDatabase<typeof schema> | PgTransaction<any, typeof schema, any>;
 
 const FACT_PATTERNS = [
   { regex: /I (?:am|feel|like|love|hate|enjoy|prefer|want|need|have|don't like|can't stand)\s+(.+?)(?:\.|,|!|\?|$)/i, category: "preference" },

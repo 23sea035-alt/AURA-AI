@@ -25,6 +25,7 @@ const { TokenVerificationError, TokenVerificationErrorReason } = vi.hoisted(() =
       TokenInvalidSignature: "token-invalid-signature",
       TokenInvalid: "token-invalid",
       TokenNotActiveYet: "token-not-active-yet",
+      TokenVerificationFailed: "token-verification-failed",
     },
   };
 });

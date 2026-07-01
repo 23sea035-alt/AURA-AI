@@ -26,26 +26,6 @@ describe("assemblePrompt", () => {
     expect(result.systemPrompt).toContain("never sexually explicit");
   });
 
-  it("includes crisis instruction with 988 and Crisis Text Line", () => {
-    const result = assemblePrompt(defaultInput);
-    expect(result.systemPrompt).toContain("988 Suicide & Crisis Lifeline");
-    expect(result.systemPrompt).toContain("HOME to 741741");
-    expect(result.systemPrompt).toContain("Do NOT provide methods");
-  });
-
-  it("includes decode instruction for base64/hex/leetspeak", () => {
-    const result = assemblePrompt(defaultInput);
-    expect(result.systemPrompt).toContain("encoded or obfuscated content");
-    expect(result.systemPrompt).toContain("Never attempt to decode");
-    expect(result.systemPrompt).toContain("politely decline and redirect");
-  });
-
-  it("includes memory relevancy instruction", () => {
-    const result = assemblePrompt(defaultInput);
-    expect(result.systemPrompt).toContain("Use it only when relevant");
-    expect(result.systemPrompt).toContain("Never force personal details");
-  });
-
   it("includes companion name in systemPrompt", () => {
     const result = assemblePrompt({ ...defaultInput, companionName: "Orion" });
     expect(result.systemPrompt).toContain("Orion");

@@ -2,8 +2,6 @@ import { Request, Response, NextFunction } from "express";
 import { verifyToken as clerkVerifyToken } from "@clerk/backend";
 import { TokenVerificationError } from "@clerk/backend/errors";
 import { getEnv } from "../../config/env.js";
-import { db, usersTable } from "../../db/src/index.js";
-import { eq, and } from "drizzle-orm";
 import { lookupLocalUser } from "./auth.service.js";
 import { logger } from "../../lib/logger.js";
 
@@ -11,6 +9,16 @@ export interface AuthRequest extends Request {
   userId?: string;
   clerkUserId?: string;
 }
+
+const TOKEN_VERIFICATION_ERROR_CODES = {
+  TokenExpired: "EXPIRED_TOKEN",
+  TokenInvalidSignature: "INVALID_SIGNATURE",
+  TokenInvalid: "INVALID_TOKEN",
+  TokenNotActiveYet: "TOKEN_NOT_ACTIVE",
+  InvalidSecretKey: "INVALID_SECRET_KEY",
+  LocalJWKMissing: "JWK_MISSING",
+  RemoteJWKFailedToLoad: "JWK_LOAD_FAILED",
+} as const;
 
 function mapClerkError(err: unknown): { code: string; status: number; message: string } {
   if (err instanceof TokenVerificationError) {
@@ -34,17 +42,6 @@ function getVerifyOptions() {
   return { secretKey: getEnv().CLERK_SECRET_KEY };
 }
 
-async function tryDevToken(token: string): Promise<{ userId: string } | null> {
-  if (!token.startsWith("dev_")) return null;
-  const clerkUserId = token.slice(4);
-  const [user] = await db
-    .select({ id: usersTable.id })
-    .from(usersTable)
-    .where(and(eq(usersTable.clerkUserId, clerkUserId), eq(usersTable.status, "active")))
-    .limit(1);
-  return user ? { userId: user.id } : null;
-}
-
 export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
@@ -54,15 +51,6 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 
   try {
     const token = header.slice(7);
-
-    const devUser = await tryDevToken(token);
-    if (devUser) {
-      req.userId = devUser.userId;
-      req.clerkUserId = token.slice(4);
-      next();
-      return;
-    }
-
     const jwtPayload = await clerkVerifyToken(token, getVerifyOptions());
 
     if (!jwtPayload.sub) {

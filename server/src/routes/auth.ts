@@ -1,4 +1,3 @@
-import { randomUUID } from "node:crypto";
 import { Router } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, usersTable, companionsTable } from "../db/src/index.js";
@@ -6,8 +5,6 @@ import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { UpdateProfileSchema } from "@aura/shared";
 import { logger } from "../lib/logger.js";
-import { sendSuccess } from "../lib/response.js";
-import { authBruteForceLimiter } from "../middleware/rate-limit.js";
 
 const EIGHTEEN_YEARS_MS = 18 * 365.25 * 24 * 60 * 60 * 1000;
 const AGE_GUARD_ERROR = { error: "Age verification required. Complete onboarding before using this endpoint." };
@@ -31,112 +28,6 @@ const DEFAULT_COMPANIONS = [
   { personaKey: "orion", name: "Orion", traits: { warmth: "reserved", energy: "balanced", verbosity: "concise" }, lastMessage: "Let's tackle your goals today.", isDefault: true },
   { personaKey: "lyra", name: "Lyra", traits: { warmth: "affectionate", energy: "playful", verbosity: "expansive" }, lastMessage: "What story shall we write today?", isDefault: true },
 ];
-
-// POST /api/auth/register — dev-mode registration
-router.post("/auth/register", authBruteForceLimiter, async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    if (!name || !email) {
-      res.status(400).json({ error: "name and email are required" });
-      return;
-    }
-
-    const clerkUserId = randomUUID();
-
-    const [existing] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email.toLowerCase()))
-      .limit(1);
-
-    if (existing) {
-      res.status(409).json({ error: "Email already registered" });
-      return;
-    }
-
-    const [user] = await db
-      .insert(usersTable)
-      .values({
-        clerkUserId,
-        email: email.toLowerCase(),
-        firstName: name,
-        ageVerified: true,
-        isMinor: false,
-        onboardingDone: true,
-        aiDisclosureAccepted: true,
-      })
-      .returning();
-
-    for (const comp of DEFAULT_COMPANIONS) {
-      await db.insert(companionsTable).values({
-        userId: user.id,
-        personaKey: comp.personaKey,
-        name: comp.name,
-        traits: comp.traits,
-        isDefault: comp.isDefault,
-        lastMessage: comp.lastMessage,
-        messageCount: 0,
-      });
-    }
-
-    logger.info({ userId: user.id }, "Dev user registered");
-    sendSuccess(res, {
-      token: `dev_${clerkUserId}`,
-      user: {
-        id: user.id,
-        name: user.firstName ?? name,
-        email: user.email,
-        isPremium: user.isPremium,
-        isMinor: user.isMinor,
-        ageVerified: user.ageVerified,
-        onboardingDone: user.onboardingDone,
-        aiDisclosureAccepted: user.aiDisclosureAccepted,
-      },
-    }, 201);
-  } catch (err) {
-    logger.error({ err }, "Dev register failed");
-    res.status(500).json({ error: "Registration failed" });
-  }
-});
-
-// POST /api/auth/login — dev-mode login
-router.post("/auth/login", authBruteForceLimiter, async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      res.status(400).json({ error: "email is required" });
-      return;
-    }
-
-    const [user] = await db
-      .select()
-      .from(usersTable)
-      .where(eq(usersTable.email, email.toLowerCase()))
-      .limit(1);
-
-    if (!user) {
-      res.status(404).json({ error: "User not found" });
-      return;
-    }
-
-    sendSuccess(res, {
-      token: `dev_${user.clerkUserId}`,
-      user: {
-        id: user.id,
-        name: user.firstName ?? "User",
-        email: user.email,
-        isPremium: user.isPremium,
-        isMinor: user.isMinor,
-        ageVerified: user.ageVerified,
-        onboardingDone: user.onboardingDone,
-        aiDisclosureAccepted: user.aiDisclosureAccepted,
-      },
-    });
-  } catch (err) {
-    logger.error({ err }, "Dev login failed");
-    res.status(500).json({ error: "Login failed" });
-  }
-});
 
 // POST /api/auth/seed-companions — seed default companions for newly registered users
 router.post("/auth/seed-companions", requireAuth, async (req: AuthRequest, res) => {
@@ -175,10 +66,12 @@ router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {
   try {
     const [user] = await db.select().from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
     if (!user) { res.status(404).json({ error: "User not found" }); return; }
-    sendSuccess(res, {
+    res.json({
       id: user.id,
-      name: user.firstName ?? "User",
+      firstName: user.firstName,
+      lastName: user.lastName,
       email: user.email,
+      dateOfBirth: user.dateOfBirth,
       isPremium: user.isPremium,
       isMinor: user.isMinor,
       ageVerified: user.ageVerified,
@@ -234,9 +127,9 @@ router.put("/auth/me", requireAuth, validate(UpdateProfileSchema), async (req: A
     if (Object.keys(updates).length === 0) { res.status(400).json({ error: "Nothing to update" }); return; }
 
     const [user] = await db.update(usersTable).set(updates).where(eq(usersTable.id, req.userId!)).returning();
-    sendSuccess(res, {
-      id: user.id, name: user.firstName ?? "User", email: user.email,
-      isPremium: user.isPremium, isMinor: user.isMinor,
+    res.json({
+      id: user.id, firstName: user.firstName, lastName: user.lastName, email: user.email,
+      dateOfBirth: user.dateOfBirth, isPremium: user.isPremium, isMinor: user.isMinor,
       ageVerified: user.ageVerified, onboardingDone: user.onboardingDone,
       aiDisclosureAccepted: user.aiDisclosureAccepted,
       avatarColor: user.avatarColor, primaryCompanionId: user.primaryCompanionId,
