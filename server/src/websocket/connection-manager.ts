@@ -2,7 +2,7 @@ import type { WebSocket } from "ws";
 
 // Tracks live WS connections keyed by userId → companionId → WebSocket.
 // One connection per (user, companion) pair; opening a new one terminates the old.
-class ConnectionManager {
+export class ConnectionManager {
   private readonly connections = new Map<string, Map<string, WebSocket>>();
 
   add(userId: string, companionId: string, ws: WebSocket): void {

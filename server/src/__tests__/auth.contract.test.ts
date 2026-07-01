@@ -9,11 +9,40 @@ process.env.BANNED_IDENTITY_PEPPER = "test-pepper";
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const { TokenVerificationError, TokenVerificationErrorReason } = vi.hoisted(() => {
+  class TVE extends Error {
+    reason: string;
+    constructor(opts: { message: string; reason: string }) {
+      super(opts.message);
+      this.name = "TokenVerificationError";
+      this.reason = opts.reason;
+    }
+  }
+  return {
+    TokenVerificationError: TVE,
+    TokenVerificationErrorReason: {
+      TokenExpired: "token-expired",
+      TokenInvalidSignature: "token-invalid-signature",
+      TokenInvalid: "token-invalid",
+      TokenNotActiveYet: "token-not-active-yet",
+      TokenVerificationFailed: "token-verification-failed",
+    },
+  };
+});
+
 const mockVerifyToken = vi.fn();
 const mockLookupLocalUser = vi.fn();
 
 vi.mock("@clerk/backend", () => ({
   verifyToken: mockVerifyToken,
+}));
+
+vi.mock("@clerk/backend/errors", () => ({
+  TokenVerificationError,
+  TokenVerificationErrorReason,
+  TokenVerificationErrorCode: {},
+  TokenVerificationErrorAction: {},
+  SignJWTError: class extends Error {},
 }));
 
 vi.mock("../services/auth/auth.service.js", () => ({
@@ -45,7 +74,6 @@ describe("requireAuth ΓÇö contract", () => {
   });
 
   it("returns 401 EXPIRED_TOKEN when token is expired", async () => {
-    const { TokenVerificationError, TokenVerificationErrorReason } = await import("@clerk/backend/errors");
     const err = new TokenVerificationError({
       message: "Token has expired",
       reason: TokenVerificationErrorReason.TokenExpired,
@@ -63,7 +91,6 @@ describe("requireAuth ΓÇö contract", () => {
   });
 
   it("returns 401 INVALID_SIGNATURE when token signature is invalid", async () => {
-    const { TokenVerificationError, TokenVerificationErrorReason } = await import("@clerk/backend/errors");
     const err = new TokenVerificationError({
       message: "Signature mismatch",
       reason: TokenVerificationErrorReason.TokenInvalidSignature,
@@ -175,7 +202,6 @@ describe("requireAuth ΓÇö contract", () => {
   });
 
   it("returns 401 TOKEN_VERIFICATION_FAILED for generic Clerk error", async () => {
-    const { TokenVerificationError, TokenVerificationErrorReason } = await import("@clerk/backend/errors");
     const err = new TokenVerificationError({
       message: "Something went wrong",
       reason: TokenVerificationErrorReason.TokenVerificationFailed,

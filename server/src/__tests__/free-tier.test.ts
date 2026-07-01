@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FREE_DAILY_LIMIT } from "@aura/shared";
 
-const mockSelectChain = vi.fn();
 const mockDb = {
   select: vi.fn(() => ({
     from: vi.fn(() => ({
-      where: vi.fn().mockResolvedValue([{ count: 0 }]),
+      where: vi.fn(() => ({
+        for: vi.fn().mockResolvedValue([{ count: 0 }]),
+      })),
     })),
   })),
 };
@@ -20,12 +21,18 @@ describe("checkFreeTierLimit", () => {
     vi.clearAllMocks();
   });
 
-  it("allows when count is below limit", async () => {
+  function mockForResult(count: number) {
     mockDb.select.mockImplementation(() => ({
       from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([{ count: 5 }]),
+        where: vi.fn(() => ({
+          for: vi.fn().mockResolvedValue([{ count }]),
+        })),
       })),
     }));
+  }
+
+  it("allows when count is below limit", async () => {
+    mockForResult(5);
     const { checkFreeTierLimit } = await import("../services/chat/free-tier.js");
     const result = await checkFreeTierLimit("user-1");
     expect(result.allowed).toBe(true);
@@ -34,22 +41,14 @@ describe("checkFreeTierLimit", () => {
   });
 
   it("blocks when count equals limit", async () => {
-    mockDb.select.mockImplementation(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([{ count: FREE_DAILY_LIMIT }]),
-      })),
-    }));
+    mockForResult(FREE_DAILY_LIMIT);
     const { checkFreeTierLimit } = await import("../services/chat/free-tier.js");
     const result = await checkFreeTierLimit("user-1");
     expect(result.allowed).toBe(false);
   });
 
   it("blocks when count exceeds limit", async () => {
-    mockDb.select.mockImplementation(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([{ count: FREE_DAILY_LIMIT + 5 }]),
-      })),
-    }));
+    mockForResult(FREE_DAILY_LIMIT + 5);
     const { checkFreeTierLimit } = await import("../services/chat/free-tier.js");
     const result = await checkFreeTierLimit("user-1");
     expect(result.allowed).toBe(false);
@@ -57,11 +56,7 @@ describe("checkFreeTierLimit", () => {
   });
 
   it("handles zero messages", async () => {
-    mockDb.select.mockImplementation(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue([{ count: 0 }]),
-      })),
-    }));
+    mockForResult(0);
     const { checkFreeTierLimit } = await import("../services/chat/free-tier.js");
     const result = await checkFreeTierLimit("user-1");
     expect(result.allowed).toBe(true);

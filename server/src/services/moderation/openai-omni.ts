@@ -1,3 +1,4 @@
+import OpenAI from "openai";
 import { MODERATION_INPUT_THRESHOLDS, MODERATION_OUTPUT_THRESHOLDS } from "@aura/shared";
 
 // Hard timeout for the omni-moderation call (ms). Keeps a slow/hung OpenAI request from
@@ -21,10 +22,9 @@ function scoreModeration(
 ): Promise<OmniResult> {
   return (async () => {
     try {
-      const { default: OpenAI } = await import("openai");
       const apiKey = process.env["OPENAI_API_KEY"];
-      if (!apiKey) {
-        return { flagged: true, categories: [], error: "OPENAI_API_KEY not set" };
+      if (!apiKey || !apiKey.startsWith("sk-") || apiKey.length < 20 || apiKey === "sk-your-openai-api-key") {
+        return { flagged: true, categories: [], error: "OPENAI_API_KEY not set or invalid" };
       }
       // Bound the request: omni moderation runs on the chat hot path, so a hung call must not
       // pin a connection indefinitely (the SDK default timeout is ~10 min). Fail-closed on timeout.

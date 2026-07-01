@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
-import { db, subscriptionsTable, usersTable } from "../db/src/index.js";
+import { db, usersTable } from "../db/src/index.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError } from "../lib/response.js";

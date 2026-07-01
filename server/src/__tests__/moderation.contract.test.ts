@@ -1,4 +1,4 @@
-process.env.OPENAI_API_KEY = "sk-test-fake";
+process.env.OPENAI_API_KEY = "sk-test-fake-but-long-enough-for-the-check-123";
 
 import { describe, it, expect, vi } from "vitest";
 import { MODERATION_INPUT_THRESHOLDS, MODERATION_OUTPUT_THRESHOLDS } from "@aura/shared";

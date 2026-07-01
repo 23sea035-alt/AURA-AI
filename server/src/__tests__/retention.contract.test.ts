@@ -31,6 +31,7 @@ vi.mock("../db/src/index.js", () => ({
 describe("Retention purge — contract", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDeleteResult.rowCount = 0;
   });
 
   describe("enforceSafetyEventRetention", () => {
@@ -72,6 +73,18 @@ describe("Retention purge — contract", () => {
     });
   });
 
+  function resetDbMocks(): void {
+    mockDb.delete = vi.fn(() => ({ where: vi.fn().mockResolvedValue(mockDeleteResult) }));
+    mockDb.select = vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn().mockResolvedValue([]),
+        })),
+      })),
+    }));
+    mockDb.update = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 0 }) })) }));
+  }
+
   describe("deleteWhere guards", () => {
     it("propagates errors from the underlying query", async () => {
       mockDb.select.mockImplementation(() => ({
@@ -100,4 +113,100 @@ describe("Retention purge — contract", () => {
       expect(result).toBe(0);
     });
   });
+
+  describe("validateCutoff", () => {
+    it("throws on NaN cutoff", async () => {
+      const { enforceSafetyEventRetention } = await import("../services/retention.js");
+      const realDateNow = Date.now.bind(globalThis);
+      Date.now = vi.fn(() => NaN);
+      await expect(enforceSafetyEventRetention()).rejects.toThrow("invalid cutoff date");
+      Date.now = realDateNow;
+    });
+  });
+
+  describe("enforceBannedIdentitiesRetention", () => {
+    it("deletes expired banned identities", async () => {
+      const { enforceBannedIdentitiesRetention } = await import("../services/retention.js");
+      mockDeleteResult.rowCount = 3;
+      const result = await enforceBannedIdentitiesRetention();
+      expect(mockDb.delete).toHaveBeenCalledTimes(1);
+      expect(result).toBe(3);
+    });
+
+    it("dryRun does not delete", async () => {
+      const mockSelect = vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn().mockResolvedValue([]),
+          })),
+        })),
+      }));
+      mockDb.select.mockImplementation(mockSelect);
+
+      const { enforceBannedIdentitiesRetention } = await import("../services/retention.js");
+      await enforceBannedIdentitiesRetention({ dryRun: true });
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("enforceGraceExpiry", () => {
+    function graceSelectMock(returnValue: any) {
+      return vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue(returnValue),
+        })),
+      })) as any;
+    }
+
+    it("dryRun returns 0 when no expired users", async () => {
+      mockDb.select = graceSelectMock([]);
+
+      const { enforceGraceExpiry } = await import("../services/retention.js");
+      const result = await enforceGraceExpiry({ dryRun: true });
+      expect(result).toBe(0);
+    });
+
+    it("dryRun returns count when expired users exist", async () => {
+      mockDb.select = graceSelectMock([{ id: "user-1" }, { id: "user-2" }]);
+
+      const { enforceGraceExpiry } = await import("../services/retention.js");
+      const result = await enforceGraceExpiry({ dryRun: true });
+      expect(result).toBe(2);
+    });
+
+    it("hard-purges expired users", async () => {
+      mockDb.select = graceSelectMock([{ id: "user-1" }]);
+      mockDb.transaction = vi.fn(async (cb: any) => {
+        const tx = {
+          delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 1 }) })),
+          execute: vi.fn(),
+        };
+        await cb(tx);
+      });
+
+      const { enforceGraceExpiry } = await import("../services/retention.js");
+      const result = await enforceGraceExpiry();
+      expect(result).toBe(1);
+      expect(mockDb.transaction).toHaveBeenCalled();
+    });
+  });
+
+  describe("reconcilePremiumStaleness", () => {
+    it("expires stale premium subscriptions", async () => {
+      const mockSelect = vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn().mockResolvedValue([
+            { id: "sub-1", userId: "u-1" },
+          ]),
+        })),
+      }));
+      mockDb.select.mockImplementation(mockSelect);
+
+      const { reconcilePremiumStaleness } = await import("../services/retention.js");
+      const result = await reconcilePremiumStaleness();
+      expect(result).toBe(1);
+      expect(mockDb.update).toHaveBeenCalled();
+    });
+  });
+
 });

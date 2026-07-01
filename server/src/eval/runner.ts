@@ -1,10 +1,35 @@
 import { readdir, readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createModerator } from "../services/moderation/index.js";
-import type { ModerationAction } from "../services/moderation/index.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+async function loadEnv(): Promise<void> {
+  const envPath = resolve(__dirname, "../../.env");
+  try {
+    const content = await readFile(envPath, "utf-8");
+    for (const line of content.split("\n")) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const eqIdx = trimmed.indexOf("=");
+      if (eqIdx === -1) continue;
+      const key = trimmed.slice(0, eqIdx).trim();
+      let val = trimmed.slice(eqIdx + 1).trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!process.env[key]) process.env[key] = val;
+    }
+  } catch {
+    console.warn(`WARN: Could not load ${envPath} — env vars must be set in shell`);
+  }
+}
+
+import { createModerator } from "../services/moderation/index.js";
+import type { ModerationAction } from "../services/moderation/index.js";
+import { setLLMProvider } from "../services/llm/index.js";
+import { createGroqProvider } from "../services/llm/groq.js";
+
 const CASES_DIR = resolve(__dirname, "../../eval/cases/moderation");
 const REPORTS_DIR = resolve(__dirname, "../../eval/reports");
 
@@ -89,6 +114,20 @@ function recall(tp: number, fn: number): number {
 }
 
 async function main(): Promise<void> {
+  await loadEnv();
+
+  // Initialize LLM provider — prefer Groq for guard models
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    // Clear competing providers so model-selector routes to Groq
+    delete process.env.OPENROUTER_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    setLLMProvider(createGroqProvider(groqKey));
+    console.log("Groq LLM provider initialized for eval");
+  } else {
+    console.warn("WARN: GROQ_API_KEY not set — guard model calls will fail");
+  }
+
   const cases = await loadCases();
   console.log(`Loaded ${cases.length} moderation cases`);
 
@@ -96,7 +135,8 @@ async function main(): Promise<void> {
   const results: EvalResult[] = [];
 
   for (const c of cases) {
-    const isOutputSide = c.draftReply !== undefined;
+    const draft = c.draftReply;
+    const isOutputSide = draft !== undefined;
     const verdict = isOutputSide
       ? await moderator.screenOutput(c.draftReply!)
       : await moderator.screenInput(c.input, { userId: "eval", isMinor: false });

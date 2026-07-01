@@ -8,6 +8,32 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-01 — cherry-picked verified fixes from `test-results`
+
+The coworker's `test-results` branch had diverged with real, independently-verified work mixed in with corrupted/dead content from an unrelated merge issue on that branch. Ported only the verified-good parts:
+
+**Bug fixes** (previously tracked as deferred audit items M7/M8/M11/M12/L5):
+- `free-tier.ts` — `.for("update")` row-lock on the daily counter select, closing the free-tier race
+- `revenuecat.ts` — stale-check + mutation wrapped in a transaction with a CAS `WHERE` guard, closing a webhook replay race
+- `safeguard.ts` / `moderation-engine.ts` — added a `route` field to `SafeguardVerdict`, threaded through each escalation call site for observability
+- `notifications.ts` — `DELETE /notifications/register` now Zod-validates the token instead of a raw type assertion
+- Deleted dead `services/moderation/break-reminder.ts` (unused; distinct from the still-active `services/chat/break-reminder.ts`)
+
+**Moderation threshold tuning** — met the coworker's eval-driven proposal halfway rather than taking his exact values:
+- `MODERATION_INPUT_THRESHOLDS["self-harm"]` / `["self-harm/intent"]`: 0.3 → **0.25** (he proposed 0.20)
+- `MODERATION_OUTPUT_THRESHOLDS["sexual"]`: 0.8 → **0.75** (he proposed 0.70)
+- Did **not** port his `L1_PROMPT_GUARD.ESCALATE` change (0.5 → 0.7) or two `DEFAULT_CARTESIA_*` constants — both confirmed unused anywhere in production code.
+
+**`groq.ts`** — per-model max-token sizing (guard/classifier models get a smaller cap than generation calls), configurable `MODEL_GROQ` env override, 30s timeout (was 5s). Fixed a bug in the ported version where the new `chatMessages` array and `maxTokensForModel()` were built but never actually wired into the API call — now both are used, and the non-guard cap reads from `GENERATION_MAX_TOKENS` instead of a second hardcoded magic number.
+
+**CI lint fix** — `eslint-plugin-react-hooks` installed and registered in root `eslint.config.js`; `pnpm lint` now 0 errors.
+
+**Tests** — ported ~18 new/updated test files covering the above plus general coverage gaps (`chat-session.test.ts`, `auth.service.test.ts`, `persistence.test.ts`, `text-adapter.test.ts`, `safety-logging.test.ts`, `remember.contract.test.ts`, `connection-manager.test.ts`, `interruption.test.ts`, `turn-queue.test.ts`, `voice-session.test.ts`, and others). One test file (`rate-limit.contract.test.ts`) had its env setup reverted from a leftover `NVIDIA_API_KEY` back to `GROQ_API_KEY` before porting. 494/496 passing — the 2 failures are pre-existing, environment-specific (`PgRateLimitStore` needs a real local Postgres connection that isn't available in this sandbox; confirmed unrelated to any of this).
+
+**Explicitly not ported:** anything touching the old LiveKit voice stack, NVIDIA/Anthropic/OpenRouter LLM providers, or the generation-eval verdict (which used NVIDIA, not Groq — see `test-results`' own changelog for the full account).
+
+---
+
 ## 2026-06-30 — branch: `backend`
 
 ### Memory APIs

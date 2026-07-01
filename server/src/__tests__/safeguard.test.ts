@@ -29,6 +29,7 @@ describe("adjudicate", () => {
       action: "allow",
       reason: "Safeguard cleared",
       confidence: "high",
+      route: "adjudicate",
     });
   });
 
@@ -46,6 +47,7 @@ describe("adjudicate", () => {
       action: "block",
       reason: "Safeguard: SX-1",
       confidence: "high",
+      route: "adjudicate",
     });
   });
 
@@ -63,6 +65,7 @@ describe("adjudicate", () => {
       action: "block",
       reason: "Safeguard: flagged",
       confidence: "low",
+      route: "adjudicate",
     });
   });
 
@@ -85,6 +88,7 @@ describe("adjudicate", () => {
       action: "crisis",
       reason: "Safeguard: self-harm distress detected — routing to crisis",
       confidence: "med",
+      route: "adjudicate",
     });
   });
 
@@ -126,6 +130,7 @@ describe("adjudicate", () => {
       action: "block",
       reason: "Safeguard: unparseable_failclosed",
       confidence: "low",
+      route: "adjudicate",
     });
   });
 
@@ -144,6 +149,7 @@ describe("adjudicate", () => {
       action: "block",
       reason: "Safeguard error: API timeout",
       confidence: "high",
+      route: "adjudicate",
     });
   });
 
@@ -181,6 +187,7 @@ describe("runOutputFallback", () => {
       action: "allow",
       reason: "Output safeguard cleared",
       confidence: "high",
+      route: "output_fallback",
     });
   });
 
@@ -198,6 +205,7 @@ describe("runOutputFallback", () => {
       action: "block",
       reason: "Output safeguard: VI-1",
       confidence: "high",
+      route: "output_fallback",
     });
   });
 
@@ -221,6 +229,7 @@ describe("runOutputFallback", () => {
       action: "block",
       reason: "Output safeguard error: rate limited",
       confidence: "high",
+      route: "output_fallback",
     });
   });
 });

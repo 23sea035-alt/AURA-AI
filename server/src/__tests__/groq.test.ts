@@ -1,93 +1,79 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockCreate = vi.fn();
-
 vi.mock("openai", () => ({
   default: vi.fn(() => ({
-    chat: {
-      completions: {
-        create: mockCreate,
-      },
-    },
+    chat: { completions: { create: mockCreate } },
   })),
 }));
 
-import { createGroqProvider } from "../services/llm/groq.js";
+vi.mock("@aura/shared", () => ({
+  GENERATION_TEMPERATURE: 1.0,
+  GENERATION_MAX_TOKENS: 1024,
+}));
 
 describe("createGroqProvider", () => {
   beforeEach(() => {
-    mockCreate.mockReset();
+    vi.clearAllMocks();
   });
 
-  it("returns an LLMProvider with generateReply method", () => {
-    const provider = createGroqProvider("test-key");
-    expect(provider).toHaveProperty("generateReply");
-    expect(typeof provider.generateReply).toBe("function");
-  });
-
-  it("generateReply returns trimmed content from API", async () => {
+  it("returns generated text on success", async () => {
     mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "  Hello world  " } }],
+      choices: [{ message: { content: " Groq response " } }],
     });
-    const provider = createGroqProvider("test-key");
+
+    const { createGroqProvider } = await import("../services/llm/groq.js");
+    const provider = createGroqProvider("gsk-test");
     const result = await provider.generateReply({
-      systemPrompt: "test",
-      messages: [{ role: "user", content: "hi" }],
+      systemPrompt: "Be concise",
+      messages: [{ role: "user", content: "Hello" }],
     });
-    expect(result).toBe("Hello world");
+
+    expect(result).toBe("Groq response");
   });
 
-  it("throws on empty model response", async () => {
+  it("throws on empty response", async () => {
     mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "   " } }],
+      choices: [{ message: { content: "" } }],
     });
-    const provider = createGroqProvider("test-key");
-    await expect(
-      provider.generateReply({
-        systemPrompt: "test",
-        messages: [{ role: "user", content: "hi" }],
-      }),
-    ).rejects.toThrow("Empty model response");
+
+    const { createGroqProvider } = await import("../services/llm/groq.js");
+    const provider = createGroqProvider("gsk-test");
+    await expect(provider.generateReply({
+      systemPrompt: "Be concise",
+      messages: [{ role: "user", content: "Hi" }],
+    })).rejects.toThrow("Empty model response");
   });
 
-  it("throws on null/undefined choices", async () => {
+  it("throws when content is null", async () => {
     mockCreate.mockResolvedValue({
-      choices: [],
+      choices: [{ message: { content: null } }],
     });
-    const provider = createGroqProvider("test-key");
-    await expect(
-      provider.generateReply({
-        systemPrompt: "test",
-        messages: [{ role: "user", content: "hi" }],
-      }),
-    ).rejects.toThrow("Empty model response");
+
+    const { createGroqProvider } = await import("../services/llm/groq.js");
+    const provider = createGroqProvider("gsk-test");
+    await expect(provider.generateReply({
+      systemPrompt: "",
+      messages: [{ role: "user", content: "Hi" }],
+    })).rejects.toThrow("Empty model response");
   });
 
-  it("uses default model when none specified", async () => {
+  it("uses MODEL_GROQ env var when no model provided", async () => {
+    vi.stubEnv("MODEL_GROQ", "mixtral-8x7b-32768");
     mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "ok" } }],
+      choices: [{ message: { content: "OK" } }],
     });
-    const provider = createGroqProvider("test-key");
+
+    const { createGroqProvider } = await import("../services/llm/groq.js");
+    const provider = createGroqProvider("gsk-test");
     await provider.generateReply({
-      systemPrompt: "test",
-      messages: [{ role: "user", content: "hi" }],
+      systemPrompt: "",
+      messages: [{ role: "user", content: "Hi" }],
     });
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "llama-3.1-8b-instant" }),
-    );
-  });
 
-  it("uses custom model when specified", async () => {
-    mockCreate.mockResolvedValue({
-      choices: [{ message: { content: "ok" } }],
-    });
-    const provider = createGroqProvider("test-key", "custom-model");
-    await provider.generateReply({
-      systemPrompt: "test",
-      messages: [{ role: "user", content: "hi" }],
-    });
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({ model: "custom-model" }),
-    );
+    expect(mockCreate).toHaveBeenCalledWith(expect.objectContaining({
+      model: "mixtral-8x7b-32768",
+    }));
+    vi.unstubAllEnvs();
   });
 });
