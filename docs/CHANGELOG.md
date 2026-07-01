@@ -129,3 +129,35 @@ Four duplicate logic blocks extracted into shared utilities:
 
 - **342/342 passing** (up from 304 post-audit; +38 from remember, memory management, voice-metering, profile, and other coverage added across the backend branch)
 - `model-selector.test.ts` updated: `generate-reply` default assertion updated to `llama-3.3-70b-versatile`
+
+### 2026-07-01 — Task 5: Coverage to 80%
+
+**New test files (77 tests across 12 files):**
+
+| Test file | Tests | Covers |
+|-----------|-------|--------|
+| `chat-session.test.ts` | 25 | `chat-session.ts` (240 LOC, ~31 branches — largest gap) |
+| `auth.service.test.ts` | 12 | `auth/auth.service.ts` — lookup, upsert, delete, checkBan, autoSuspend |
+| `safety-logging.test.ts` | 3 | `chat/safety-logging.ts` — success, null defaults, error path |
+| `persistence.test.ts` | 3 | `chat/persistence.ts` — transaction, truncation, msgCount omit |
+| `text-adapter.test.ts` | 5 | `chat/text-adapter.ts` — onToken, onAbort, onComplete w/ nulls |
+| `anthropic.test.ts` | 4 | `llm/anthropic.ts` — fetch calls, API error, empty content |
+| `nvidia.test.ts` | 3 | `llm/nvidia.ts` — OpenAI SDK calls, null content, system prompt |
+| `openrouter.test.ts` | 2 | `llm/openrouter.ts` — success path, null content |
+| `groq.test.ts` | 4 | `llm/groq.ts` — success, empty throw, null throw, env MODEL_GROQ |
+| `model-selector.test.ts` | 11 | `llm/model-selector.ts` — defaults, overrides, 4 provider routes, fallback |
+| `llm-index.test.ts` | 2 | `llm/index.ts` — singleton get/set |
+| `remember.contract.test.ts` | 3 | remember endpoint + companions FK (Task 4, committed separately) |
+
+**Coverage results** (excl. PG-auth dependent test files):
+- Lines: **87.02%** ✅ (threshold 80%)
+- Branches: **83.9%** ✅ (threshold 60%)
+- Functions: **90.1%** ✅ (threshold 70%)
+- Statements: **87.02%** ✅ (threshold 80%)
+
+**Key fixes:**
+- `enqueueMemoryJob` mock in `chat-session.test.ts`: added `.mockResolvedValue(undefined)` to prevent `undefined.catch()` crash
+- `auth.service.test.ts`: corrected mock path from `../../db/` to `../db/` (relative path mismatch); added `crypto.ts` mock for `hashIdentifier`; made `.where()` mock chains thenable
+- `persistence.test.ts`: fixed `.set()` vs `.where()` mock chain order so `.mockResolvedValue` goes on the terminal mock
+
+**Pre-existing failures unchanged** (20 env-specific): PG auth in `payments.contract`, `auth.contract`, `rate-limit.contract`, `pg-rate-limit-store.contract`, `routes.integration`; Clerk type mismatch in `auth.contract`.
