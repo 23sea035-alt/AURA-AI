@@ -14,11 +14,6 @@ async function buildAll() {
   const distDir = path.resolve(artifactDir, "dist");
   await rm(distDir, { recursive: true, force: true });
 
-  const migrationsSrc = path.resolve(artifactDir, "src/db/migrations");
-  const migrationsDst = path.resolve(distDir, "db/migrations");
-  await cp(migrationsSrc, migrationsDst, { recursive: true });
-  console.log(`  db/migrations/        copied`);
-
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
     platform: "node",

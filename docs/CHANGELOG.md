@@ -8,6 +8,23 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-01 — branch: `test-results`
+
+### Task 1: Voice ID selection
+
+**Inworld voice IDs created via Voice Design API** (`mighty-star-7691` account)
+- Aurora: `mighty-star-7691__design-voice-d78d4cc1` — warm/gentle female voice with `BALANCED` delivery
+- Orion: `mighty-star-7691__design-voice-0d92f43e` — direct/grounded male voice with `STABLE` delivery
+- Lyra: `mighty-star-7691__design-voice-67ddedcb` — bright/expressive female voice with `CREATIVE` delivery
+
+**Env files updated:**
+- `.env` and `server/.env`: added `INWORLD_API_KEY`, `INWORLD_VOICE_ID_AURORA/ORION/LYRA`; removed deprecated Cartesia/Deeogram/LiveKit entries
+- `.env.example`: updated voice section with Inworld TTS 2 entries
+
+**Fix:** Removed duplicate migration copy in `server/build.mjs` that caused a redeclaration error (`const migrationsSrc` declared twice).
+
+---
+
 ## 2026-06-30 — branch: `backend`
 
 ### Memory APIs
