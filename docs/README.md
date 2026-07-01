@@ -9,12 +9,16 @@ App name: Aura (resolved 2026-06-24). See planning/app-name-research.md for the 
 Running the server
 # from repo root
 pnpm install
+cp server/.env.example server/.env   # fill in real values
 
 # from server/
-pnpm dev        # build + run with ../.env
+pnpm dev        # build + run with server/.env
 pnpm build      # esbuild bundle → dist/
 pnpm start      # run bundle (requires dist/ built first)
 pnpm typecheck  # tsc --noEmit
+
+Server and client have separate .env files (server/.env.example, client/.env.example) — neither shares vars with the other.
+
 Running tests & evals
 Two distinct loops — don't conflate them.
 

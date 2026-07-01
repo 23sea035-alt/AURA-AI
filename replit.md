@@ -29,7 +29,7 @@ Run & operate
 pnpm install
 
 # from server/
-pnpm dev        # build + run with ../.env
+pnpm dev        # build + run with server/.env
 pnpm build      # esbuild bundle → dist/
 pnpm typecheck  # tsc --noEmit
 
@@ -40,7 +40,9 @@ npx vitest run
 pnpm eval       # moderation pipeline (L0–L3) + confusion matrix
 pnpm eval:gen   # generation (persona × trait × scenario) + LLM judge
 Required environment variables
-Set these in .env (dev) or Render/Replit environment variables (prod). The server validates all required vars at boot and fails closed if any are missing (server/src/config/env.ts).
+Server and client each have their own .env — they don't share one, and you (backend/server) never need the client's. Copy the template and fill it in: cp server/.env.example server/.env
+
+In dev, server/.env is loaded automatically (via --env-file=.env in the npm scripts). In prod, set the same vars as Render/Replit environment variables instead. The server validates all required vars at boot and fails closed if any are missing (server/src/config/env.ts).
 
 # Database
 DATABASE_URL=<neon-postgres-connection-string>
@@ -80,6 +82,9 @@ SENTRY_DSN=
 LOG_LEVEL=info
 NODE_ENV=development
 PORT=8080
+
+The client (Expo app, not yours) has its own separate client/.env.example — a single optional EXPO_PUBLIC_DOMAIN var, unrelated to anything above.
+
 After each task
 pnpm build && pnpm typecheck && npx vitest run — all green (baseline: 342 tests).
 No console.* or hardcoded secrets in the diff.
