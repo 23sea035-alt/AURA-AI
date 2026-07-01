@@ -29,6 +29,7 @@ Four new test files (all pure logic / in-memory — no DB, Groq, or Inworld API 
 - Aurora: `mighty-star-7691__design-voice-d78d4cc1` — warm/gentle female voice with `BALANCED` delivery
 - Orion: `mighty-star-7691__design-voice-0d92f43e` — direct/grounded male voice with `STABLE` delivery
 - Lyra: `mighty-star-7691__design-voice-67ddedcb` — bright/expressive female voice with `CREATIVE` delivery
+> ⚠️ These original IDs expired. **Recreated 2026-07-01** — see Task 2 entry below for current IDs.
 
 **Env files updated:**
 - `.env` and `server/.env`: added `INWORLD_API_KEY`, `INWORLD_VOICE_ID_AURORA/ORION/LYRA`; removed deprecated Cartesia/Deeogram/LiveKit entries
@@ -176,10 +177,18 @@ All five deferred items from the production-readiness audit now fixed:
 
 - Installed `eslint-plugin-react-hooks@5.2.0` (was missing, caused CI lint failure). Registered in root `eslint.config.js`; lint now 0 errors (warnings-only).
 
+### Task 2: Voice expression tuning
+
+**Voice IDs recreated via Inworld Voice Design API** (previous IDs had expired):
+- **Aurora**: `mighty-star-7691__design-voice-905eda0d` — warm/gentle female voice with `BALANCED` delivery
+- **Orion**: `mighty-star-7691__design-voice-4ae74071` — direct/grounded male voice with `STABLE` delivery
+- **Lyra**: `mighty-star-7691__design-voice-6b6eb769` — bright/expressive female voice with `CREATIVE` delivery
+
+All 12 TTS test samples generated in `server/tts-output/` (4 per persona: welcome, warm-response, concerned, crisis). Style tags, delivery modes, and crisis override `[calm and measured]` + `STABLE` verified working. **Voice tuning is ready for human listening evaluation** — the `.mp3` samples in `tts-output/` need a human ear to confirm persona distinctness and crisis-override calmness. If any persona sounds off, adjust the style tag wording or delivery mode in `voice-session.ts`.
+
 ### Session summary
 
 - **Test results**: 6 failed / 49 passed (down from 9/46, 31→10 individual failures). All remaining failures are pre-existing PG/DB-dependent contract tests.
-- **Task 2** (voice expression tuning): BLOCKED — requires human listening to evaluate and adjust per-persona delivery parameters.
 
 ### Task 7: Eval loop — run and validate
 

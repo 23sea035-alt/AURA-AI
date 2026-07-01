@@ -37,7 +37,7 @@ After completing each task:
 
 ---
 
-## 2. Voice expression tuning
+## ✅ 2. Voice expression tuning (2026-07-01 — voices created, samples generated, waiting on human listening)
 
 With IDs set, evaluate expression steering and adjust if needed.
 
