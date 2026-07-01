@@ -60,6 +60,15 @@ The M11 entry below says the `route` field is "populated as `req.route?.path ?? 
 
 `/coverage` was briefly un-ignored on this branch so generated coverage reports would be visible for review; re-ignored after review was complete, and the 49 report files the coworker's Task 5 commit had swept into git were untracked (kept on disk, just no longer part of the repo). `server/eval/reports/` and `server/eval/verdicts/` remain tracked — those are the actual eval results and should keep committing normally.
 
+### Moderation thresholds reconciled with `backend`
+
+Jason's real bug fixes (M7/M8/M11/M12/L5) and test coverage from this branch were cherry-picked onto `backend`/`main` separately. As part of that, the moderation thresholds this branch had proposed were reconciled to a single agreed-on value rather than left to diverge:
+
+- `MODERATION_INPUT_THRESHOLDS["self-harm"]` / `["self-harm/intent"]`: 0.20 → **0.25**
+- `MODERATION_OUTPUT_THRESHOLDS["sexual"]`: 0.70 → **0.75**
+
+These now match `backend`. The dead `L1_PROMPT_GUARD.ESCALATE` change (0.5 → 0.7 here) and the unused `DEFAULT_CARTESIA_*` constants were **not** reconciled — both remain as-is on this branch and were never ported to `backend` (confirmed unused in production code either way).
+
 ---
 
 ## 2026-07-01 — branch: `test-results` (original task work)

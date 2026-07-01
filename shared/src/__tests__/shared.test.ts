@@ -181,7 +181,7 @@ describe("Moderation config", () => {
 
   it("MODERATION_INPUT_THRESHOLDS has expected values", () => {
     expect(MODERATION_INPUT_THRESHOLDS["sexual/minors"]).toBe(0.1);
-    expect(MODERATION_INPUT_THRESHOLDS["self-harm"]).toBe(0.2);
+    expect(MODERATION_INPUT_THRESHOLDS["self-harm"]).toBe(0.25);
     expect(MODERATION_INPUT_THRESHOLDS["sexual"]).toBe(0.95);
     expect(MODERATION_INPUT_THRESHOLDS["violence"]).toBe(0.5);
     expect(MODERATION_INPUT_THRESHOLDS["hate"]).toBe(0.5);
@@ -190,7 +190,7 @@ describe("Moderation config", () => {
   it("MODERATION_OUTPUT_THRESHOLDS has expected values", () => {
     expect(MODERATION_OUTPUT_THRESHOLDS["sexual/minors"]).toBe(0.05);
     expect(MODERATION_OUTPUT_THRESHOLDS["self-harm"]).toBe(0.15);
-    expect(MODERATION_OUTPUT_THRESHOLDS["sexual"]).toBe(0.7);
+    expect(MODERATION_OUTPUT_THRESHOLDS["sexual"]).toBe(0.75);
     expect(MODERATION_OUTPUT_THRESHOLDS["violence"]).toBe(0.35);
   });
 

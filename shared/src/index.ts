@@ -87,8 +87,8 @@ export const L1_PROMPT_GUARD = { ESCALATE: 0.7, BLOCK: 0.9 } as const;
 
 export const MODERATION_INPUT_THRESHOLDS: Record<string, number> = {
   "sexual/minors": 0.1,
-  "self-harm": 0.20,
-  "self-harm/intent": 0.20,
+  "self-harm": 0.25,
+  "self-harm/intent": 0.25,
   "self-harm/instructions": 0.3,
   "sexual": 0.95,
   "violence": 0.5,
@@ -106,7 +106,7 @@ export const MODERATION_OUTPUT_THRESHOLDS: Record<string, number> = {
   "self-harm": 0.15,
   "self-harm/intent": 0.15,
   "self-harm/instructions": 0.4,
-  "sexual": 0.70,
+  "sexual": 0.75,
   "violence": 0.35,
   "violence/graphic": 0.35,
   "hate": 0.35,
