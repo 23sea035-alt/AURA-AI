@@ -25,7 +25,7 @@ After completing each task:
    | Orion | `[direct and grounded]` | STABLE | Clear, measured, no-nonsense |
    | Lyra | `[bright and expressive]` | CREATIVE | Energetic, playful, expressive |
 
-3. Copy each voice ID and add to `.env` and Render environment variables:
+3. Copy each voice ID and add to `server/.env` and Render environment variables:
    ```
    INWORLD_VOICE_ID_AURORA=<id>
    INWORLD_VOICE_ID_ORION=<id>
