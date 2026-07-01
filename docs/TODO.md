@@ -11,168 +11,52 @@ After completing each task:
 
 ---
 
-## 1. Voice ID selection — Inworld portal
+## 0. Pull before you do anything else
 
-**This task blocks tasks 2 and 3.** The voice pipeline is fully built. The only missing pieces are the three voice IDs — one per companion persona — which you create in the Inworld TTS portal.
+**Run `git pull origin test-results` before touching any code.** Your last commit predates a merge-corruption cleanup — a prior reconciliation merge had silently resurrected old, pre-Inworld code (the LiveKit voice stack, NVIDIA/Anthropic/OpenRouter LLM providers, a broken `memory.ts`, and a `config/env.ts` that required `NVIDIA_API_KEY` instead of `GROQ_API_KEY`). All of that is now fixed on `origin/test-results`. If you don't pull first, you'll keep building on top of the corrupted state. See [`CHANGELOG.md`](CHANGELOG.md) for the full record of what was removed/restored.
 
-**Steps:**
-1. Go to the Inworld TTS portal → Voice → Create Voice.
-2. Create **three voices**, one per persona, using the character feel as your casting guide:
-
-   | Persona | Style tag | Delivery mode | Character feel |
-   |---|---|---|---|
-   | Aurora | `[warm and gentle]` | BALANCED | Warm, calm, emotionally present |
-   | Orion | `[direct and grounded]` | STABLE | Clear, measured, no-nonsense |
-   | Lyra | `[bright and expressive]` | CREATIVE | Energetic, playful, expressive |
-
-3. Copy each voice ID and add to `.env` and Render environment variables:
-   ```
-   INWORLD_VOICE_ID_AURORA=<id>
-   INWORLD_VOICE_ID_ORION=<id>
-   INWORLD_VOICE_ID_LYRA=<id>
-   ```
-4. Start the server and open a voice session with each persona. Verify audio is produced and sounds roughly in-character. Check server logs for TTS errors.
-
-**Acceptance:** voice IDs set; each persona produces audio matching its character feel; no TTS errors in logs.
+**After pulling, run `pnpm install`** — the LiveKit dependency tree (110+ packages) was removed from `server/package.json`.
 
 ---
 
-## ✅ 2. Voice expression tuning (2026-07-01 — voices created, samples generated, waiting on human listening)
+## 1. Voice expression tuning — send the audio samples
 
-With IDs set, evaluate expression steering and adjust if needed.
+Tasks 1, 3, 4, 5, 6, and 8 are done and verified — see [`CHANGELOG.md`](CHANGELOG.md) for the full record. This is the one item still open from that batch.
 
-**What to check:**
+Your `server/tts-output/*.mp3` samples (persona × welcome/warm-response/concerned/crisis) are gitignored and never reach the repo — Jason needs to actually hear them to sign off on Task 2. **Send the 12 files directly** (Slack/email/drive link — whatever's easiest).
 
-- **Style tags** — defined per-persona in `server/src/services/voice/voice-session.ts` (`PERSONA_STYLE_TAG`). If a voice does not respond well to `[warm and gentle]` / `[direct and grounded]` / `[bright and expressive]`, adjust the wording — Inworld's steering is sensitive to phrasing.
-- **Delivery modes** — `PERSONA_DELIVERY_MODE` in the same file. `STABLE` = predictable/consistent; `BALANCED` = natural variation; `CREATIVE` = wider expressive range. Swap modes if a persona sounds off.
-- **Crisis override** — crisis replies always use `[calm and measured]` + `STABLE` regardless of persona (`voice-session.ts:synthesizeReply`). Verify this sounds noticeably calmer than normal speech.
-- **Filler clips** — short ambient phrases pre-generated at session open (e.g. "Mm, yes...", "Go on..."). These are defined in `@aura/shared` as `VOICE_FILLER_TEXTS`. Check they sound natural and appropriately paced for each persona.
-
-**Acceptance:** the three personas are clearly distinct; crisis override is audibly calmer; filler clips don't sound jarring or out of character.
+**Acceptance:** Jason confirms the three personas are clearly distinct and the crisis override is audibly calmer than normal speech. If a persona sounds off, adjust the style tag wording or delivery mode in `server/src/services/voice/voice-session.ts` (`PERSONA_STYLE_TAG` / `PERSONA_DELIVERY_MODE`) and regenerate.
 
 ---
 
-## 3. Unit tests for the new WebSocket + voice code
+## 2. Re-run the generation eval on Groq (Task 7 correction)
 
-These files shipped with zero tests. Write one test file per section below. All four are pure logic or in-memory — **no real DB, Groq, or Inworld API needed**.
+**The moderation half of Task 7 is done and stands as-is** — it was already genuinely Groq-based (`runner.ts` hardcodes `createGroqProvider` directly). Nothing to redo there.
 
-Test files go in `server/src/__tests__/`.
+**The generation half needs a fresh run.** The signed verdict's "GO on generation" was produced by `runner-generation.ts` calling **NVIDIA** — for both generating the candidate replies *and* judging them — not Groq. This happened because your `NVIDIA_API_KEY` env var was available and `runner-generation.ts`'s entry-gate fetched it first, ahead of whatever the model-selector would otherwise have picked. That verdict doesn't tell us anything trustworthy about the actual production pipeline (Groq's `llama-3.3-70b-versatile`), so it needs to be discarded and re-run.
 
-### 3a. `interruption.ts` — `classifyInterruption()` (pure function, zero deps)
+After pulling (task 0 above), the fix is already in place: `runner-generation.ts` is now Groq-gated end to end, and `model-selector.ts` no longer has any NVIDIA/Anthropic/OpenRouter code path at all — there's nothing left to accidentally fall through to.
 
-| Input | Expected output |
-|---|---|
-| `""` | `"resume"` |
-| `"yes"` / `"yeah"` / `"ok"` / `"mhm"` / `"uh huh"` | `"interjection"` |
-| `"Yes!"` / `"Okay."` (with punctuation) | `"interjection"` |
-| `"YEAH"` | `"interjection"` (case-insensitive) |
-| `"tell me more"` (short, not an affirmation) | `"detour"` |
-| Sentence longer than `INTERJECTION_MAX_WORDS` words | `"detour"` (regardless of content) |
-
-### 3b. `connection-manager.ts` — in-memory registry (zero deps)
-
-- `add()` + `get()` — returns the registered socket
-- `add()` duplicate key — closes the old socket with code 4000, stores the new one
-- `remove()` existing — cleans up; safe on non-existing (no throw)
-- `isConnected()` — `true` for `readyState === 1`; `false` for any other readyState or missing entry
-- `size()` — counts total connections across all users
-- `remove()` last companion for a user — removes the outer user map entry (no memory leak)
-
-### 3c. `turn-queue.ts` — priority queue (mock p-queue or inspect calls)
-
-- Premium turn (`isPremium: true`) enqueues with priority 1
-- Free turn (`isPremium: false`) enqueues with priority 0
-- `turnQueueSize()` reflects the current pending count
-- `ttsQueueSize()` reflects TTS pending count
-
-### 3d. `voice-session.ts` — state machine transitions + filler clip cycling
-
-`onInterrupt()` state transitions (construct a VoiceSession, set initial state to IDLE):
-- `onInterrupt("")` → state ends at `RESUMING`; returns `"resume"`
-- `onInterrupt("yes")` → state ends at `ACKNOWLEDGING`; returns `"interjection"`
-- `onInterrupt("what do you think about that")` → state ends at `PROCESSING`; returns `"detour"`
-
-`nextFillerClip()`:
-- Empty `fillerClips` + defined `fallbackClip` → returns fallback
-- Non-empty clips → cycles by index modulo length across repeated calls
-
-**Acceptance:** all new tests pass; total suite ≥ 346 tests; `npx vitest run` exits 0.
-
----
-
-## 4. Remember endpoint — contract test
-
-The service layer for "remembers" is tested in `src/__tests__/remember.test.ts`. What is **not** tested is the HTTP response contract — that `GET /api/companions` actually returns the three remember fields in the response shape.
-
-Add tests to `routes.integration.test.ts` or a new `remember.contract.test.ts`:
-
-1. **No cache** — seed a companion with `rememberQuestion: null`; `GET /api/companions` response includes `rememberQuestion: null` and `rememberMemoryId: null`.
-2. **Populated cache** — seed a companion with `rememberQuestion: "How's the new job going?"` and a valid `rememberMemoryId`; `GET /api/companions` response returns those values correctly.
-3. **Delete nulls cache** — seed a companion with a `rememberMemoryId` pointing at a memory row; `DELETE /api/memories/:id` on that memory; verify the companion's `rememberMemoryId` becomes `null` (FK `ON DELETE SET NULL` — test via PGlite contract).
-
-**Acceptance:** new tests pass; the three `remember*` fields are verifiably present and correct in the response shape.
-
----
-
-## 5. Coverage to 80%
-
-Coverage is reported (v8) but not enforced. Raise line coverage for `server/src/` to ≥ 80% and add a vitest threshold so CI fails if it drops below.
-
-Coverage thresholds are **already configured** in root `vitest.config.ts` (`lines: 80, statements: 80, branches: 60, functions: 70`). The task is to get coverage there, not to configure the tool.
-
-**Steps:**
-1. Run `npx vitest run --coverage` from the repo root; open `coverage/lcov-report/index.html` to identify gaps.
-2. Fill gaps, prioritizing: `services/chat/`, `services/moderation/`, `services/voice/`, `services/payments/revenuecat.ts`, `services/memory.ts`.
-3. Re-run until `npx vitest run --coverage` exits 0 with all thresholds met.
-
-> Gaps to expect: the new WS+voice files (covered by §3), free-tier race path, RevenueCat CANCELLATION/EXPIRATION paths, voice adapter TTS failure path. Fill with unit or PGlite-backed contract tests — no real API keys needed.
-
-**Acceptance:** `npx vitest run --coverage` exits 0 with all thresholds passing; CI is green.
-
-> See [`planning/backend-fixlist-v1.md §Phase F — Coverage to 80%`](planning/backend-fixlist-v1.md) and [`testing/testing-readiness-v1.md §2`](testing/testing-readiness-v1.md) for the original tracking entry.
-
----
-
-## 6. Deferred audit items
-
-These were explicitly deferred in the 2026-06-29 remediation pass. See [audit/backend-audit-2026-06.md §9](audit/backend-audit-2026-06.md) for the full rationale. Work them in order:
-
-| ID | Task | Risk |
-|---|---|---|
-| M7 | Free-tier count race — add `FOR UPDATE` to the daily counter select in `services/chat/free-tier.ts` | Low |
-| M8 | RevenueCat webhook — atomic compare-and-swap replay safety: the stale-check SELECT in `services/payments/revenuecat.ts` (lines 83-95) runs outside any transaction, and the subsequent `onConflictDoUpdate` / `UPDATE` paths have no `WHERE lastEventTimestampMs < event_timestamp_ms` guard. Two concurrent deliveries can both pass the stale check and race. Fix: wrap the SELECT + conditional upsert in a single transaction with a CAS WHERE clause on the update. | Low |
-| M11 | Safeguard structured `route` field — `SafeguardVerdict` has no `route` / `pipeline_stage` field; log callers have no way to filter by L1/L2/L3/output stage. Add a `route` field to `SafeguardVerdict` and thread it through callers that log safety events. | Low |
-| M12 | `DELETE /notifications/register` — replace the type-assertion + manual `if (!token)` guard with a Zod schema parse at `routes/notifications.ts` | Low |
-| L5 | Delete dead `moderation/break-reminder.ts` — file still exists but is unused | Low |
-
-> **M9 and H1-full are already resolved.** Memory/history are datamarked at the generation fence (`<<MEMORY ref-only {tag}>>`, `<<HISTORY {tag}>>`) in `prompt-assembler.ts`. The full LLM + moderation pipeline runs outside any DB transaction — `turn-pipeline.ts` line 64 documents this explicitly.
-
-> **Do not touch M5, M6, or M13** without Jason — they change safety detection behavior or client API contracts.
-
-**Acceptance per item:** `pnpm build && pnpm typecheck && npx vitest run` green; CHANGELOG entry written.
-
----
-
-## ✅ 7. Eval loop — run and validated (2026-07-01)
-
-**Signed verdict:** `server/eval/verdicts/V2-FINAL-2026-07-01.md` — GO on safety (moderation), GO on generation, GO on crisis response, GO on injection resistance, GO on medical boundaries.
-
-The eval runners are built and wired. The prompts are **first drafts that have never been run against real Groq**. This is the prompt-iteration loop.
-
-**Pre-condition: verify guard models exist on your Groq account before running evals.**
+**Before running:** confirm `GROQ_API_KEY` is actually set in whatever shell/environment you run this from. You do **not** need `NVIDIA_API_KEY` at all anymore.
 
 ```bash
-curl -H "Authorization: Bearer $GROQ_API_KEY" \
-  https://api.groq.com/openai/v1/models | grep -E "prompt-guard|safeguard"
+# from server/, with GROQ_API_KEY set in the environment
+pnpm eval:gen      # generation: persona × trait × scenario cases + LLM judge
 ```
 
-Expected:
-- `meta-llama/llama-prompt-guard-2-86m` — L1 input screening
-- `openai/gpt-oss-safeguard-20b` — L2/L3 output safeguard
+Update `server/eval/verdicts/V2-FINAL-2026-07-01.md`'s generation section with the fresh results (or write a new dated verdict file), and note in `CHANGELOG.md` that the prior generation verdict was invalid and has been superseded.
 
-If either is missing or deprecated, the selector already falls back safely — pick a replacement and update `server/src/services/llm/model-selector.ts`. Options: `llama-guard-3-8b` (Meta), `wildguard` (Allen AI), or `llama-3.3-70b-versatile` as a more capable (costlier) fallback.
+**Acceptance:** `pnpm eval:gen` all dimensions PASS on a run confirmed to have used Groq (check the verdict — it should say `Judge | Groq`, not NVIDIA).
 
-> Earlier eval reports on this branch were run against an NVIDIA endpoint + a placeholder OpenAI key — those numbers do NOT reflect the Groq production pipeline. Discard them; re-run fresh.
+---
+
+## 3. (Optional, low priority) Fix the M11 CHANGELOG description
+
+Your CHANGELOG entry for M11 says the `route` field is "populated as `req.route?.path ?? \"unknown\"` in middleware." That's not what actually shipped — the real implementation threads explicit stage labels (`"L2_degraded_fallback"`, `"L2_escalated_adjudicate"`, `"L3_degraded_fallback"`) through `moderation-engine.ts`'s calls to `adjudicate()`/`runOutputFallback()`. The code itself is correct and verified; just the changelog prose doesn't match. Fix whenever convenient — not blocking.
+
+---
+
+## Eval loop reference (for future runs)
 
 ```bash
 # from server/, with GROQ_API_KEY + OPENAI_API_KEY set in the environment
@@ -188,25 +72,13 @@ pnpm eval:gen      # generation: persona × trait × scenario cases + LLM judge
 
 > **Jason owns the `safetyCritical` labels** in `eval/cases/`. Tune the prompts to the labels — never move the labels to match the prompts.
 
-**Acceptance:** `pnpm eval` exits 0; `pnpm eval:gen` all dimensions PASS; signed verdicts committed under `eval/verdicts/`.
-
-> See [`planning/backend-fixlist-v1.md §Phase E`](planning/backend-fixlist-v1.md) and [`testing/testing-readiness-v1.md §1`](testing/testing-readiness-v1.md) for the original tracking entries.
-
----
-
-## 8. CI lint fix
-
-`pnpm lint` currently fails on 5 `react-hooks/exhaustive-deps` "Definition for rule not found" errors in **client/** files. These are pre-existing and unrelated to backend work. Fix the client ESLint config (register `eslint-plugin-react-hooks` or drop the rule from the flat-config) so the full CI gate passes clean.
-
-**Acceptance:** `pnpm lint` exits 0 from the repo root; the CI workflow on `.github/workflows/ci.yml` goes green on a PR to `main`.
-
 ---
 
 ## Historical reference
 
 This file supersedes the incomplete work tracked in:
 
-- [`planning/backend-fixlist-v1.md`](planning/backend-fixlist-v1.md) — Phase E (eval loop → §7 here) and Phase F (coverage → §5 here; verdicts → §7 here). Phases A–D are complete history, do not re-do them.
-- [`testing/testing-readiness-v1.md`](testing/testing-readiness-v1.md) — §1 (eval loop → §7 here), §2 (coverage → §5 here).
+- [`planning/backend-fixlist-v1.md`](planning/backend-fixlist-v1.md) — Phase E (eval loop) and Phase F (coverage, verdicts). Phases A–D are complete history, do not re-do them.
+- [`testing/testing-readiness-v1.md`](testing/testing-readiness-v1.md) — §1 (eval loop), §2 (coverage).
 
-Both docs are kept for historical context only.
+Both docs are kept for historical context only. See [`audit/backend-audit-2026-06.md §9`](audit/backend-audit-2026-06.md) for the original deferred-items rationale (M7/M8/M11/M12/L5, all now fixed — see `CHANGELOG.md`).

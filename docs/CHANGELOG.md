@@ -8,7 +8,61 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
-## 2026-07-01 — branch: `test-results`
+## 2026-07-01 — verification + merge-corruption cleanup
+
+### Merge-corruption discovered and fixed
+
+The reconciliation merge that brought the coworker's `test-results` history onto the backend's WS+voice work (`78c45f6`) used `git merge -X theirs backend`, which doesn't reliably resolve delete/modify conflicts the way that flag implies. It silently kept the coworker's old, pre-reconciliation content for a number of files instead of the clean backend versions — even though backend had deleted or rewritten them.
+
+**Deleted (dead code resurrected by the bad merge):**
+- `services/voice/{livekit,agent,agent-service,agent-worker,tts}.ts` + 3 old test files — superseded by the Inworld TTS 2 + Groq STT WebSocket pipeline
+- `services/llm/{anthropic,nvidia,openrouter}.ts` + their tests — violates the documented Groq-only LLM-provider architecture
+- `routes/simple-chat.ts` — was double-mounted alongside the real chat router
+- `services/account/{deletion,export}.ts` — orphaned, never wired into `routes/compliance.ts`
+- `eval/runner-retrieval.ts` — orphaned, not wired to any script
+- a stray `server/db/migrations/` directory at the wrong path (real migrations live under `server/src/db/migrations/`)
+- dead `voiceTokenLimiter`/`voiceTtsLimiter` exports (tied to the removed REST voice routes)
+
+**Restored to clean backend versions:** `clerk.middleware.ts`, `routes/{auth,chat}.ts`, `config/env.ts`, `prompt-assembler.ts`, `prompt-guard.ts`, `memory.ts` (fixes a dangling `schema` type reference — a genuine typecheck error), `model-selector.ts` (drops the resurrected 4-provider branching, back to Groq-only), plus the matching test files.
+
+**Reconciled** (kept the coworker's genuine Task 6 fixes on the clean base): `rate-limit.ts` (his `globalPerMinuteLimiter` addition), `moderation-engine.ts`/`safeguard.ts` (his M11 `route`-field work).
+
+**Also fixed:** `server/package.json` (removed all `@livekit/*` deps + `peerDependencies` block, -110 packages), a live-looking NVIDIA API key that had been committed in plain text to `.env.example` since an earlier commit (scrubbed; **the key should be treated as compromised and rotated**), and a dev-script `--env-file` path bug.
+
+Verified after cleanup: typecheck clean, `pnpm build` succeeds (correctly copies migrations into `dist/`), 494/496 tests pass (the 2 failures are pre-existing, environment-specific — see below).
+
+### Independent verification of the coworker's Tasks 1, 3, 4, 5, 6, 8
+
+All confirmed correct by direct code/test verification, not just review of his own claims:
+
+- **Task 1** (voice IDs) — env-var plumbing correct; actual Inworld voice ID values not independently verifiable from code alone.
+- **Task 3** (WS/voice unit tests) — all 4 files present, 49/49 tests pass, counts match exactly (21+14+7+7).
+- **Task 4** (remember contract tests) — 3/3 pass, including a genuine PGlite-backed FK cascade test (not mocked).
+- **Task 5** (coverage) — re-verified fresh post-cleanup: **89.96% lines/statements, 82.95% branches, 94.04% functions** — all thresholds (80/60/70/80) exceeded. (His originally-reported 87.02%/83.9%/90.1% numbers were computed against code since deleted in the merge-corruption cleanup and are superseded by this fresh run.)
+- **Task 6** (M7/M8/M11/M12/L5) — all 5 confirmed functionally correct by direct code read: `.for("update")` lock (M7), transaction + CAS WHERE guard (M8), `route` field threaded through `moderation-engine.ts` (M11), Zod validation (M12), file deleted with no dangling refs (L5).
+- **Task 8** (CI lint) — confirmed: `pnpm lint` → 0 errors, 85 warnings.
+
+### Correction: Task 7's generation-eval verdict is invalid, must be re-run
+
+The moderation half of `V2-FINAL-2026-07-01.md` is genuine — `runner.ts` hardcodes `createGroqProvider` directly, bypassing the provider-selection layer entirely, so that verdict stands.
+
+The **generation half is not valid**. `runner-generation.ts` (as it existed on `test-results` at the time) generated the candidate replies *and* judged them using **NVIDIA**, not Groq — confirmed both by reading the code (`getNvidiaApiKey()` as the entry gate, `createNvidiaProvider`'s hardcoded `https://integrate.api.nvidia.com/v1` base URL) and by the verdict document's own text (`Judge | NVIDIA (via NVIDIA API)`). This traces to a regression the coworker introduced himself on 2026-06-30 (`30d942e`, `0745de8`) — three days after a clean, genuinely Groq-based run on 2026-06-27 (`fef5e05`). See [`TODO.md`](TODO.md) §2 for the required re-run — the fix (Groq-only `runner-generation.ts` and `model-selector.ts`) is already in place after the merge-corruption cleanup above.
+
+### Correction: Task 2's audio samples are unverified
+
+The CHANGELOG entry below claims "12 TTS test samples generated in `server/tts-output/`." `server/tts-output/*.mp3`/`*.wav` are gitignored by design and never reach the repo, so this can't be verified from the codebase — Jason needs the actual files sent directly. See [`TODO.md`](TODO.md) §1.
+
+### Note: Task 6's M11 description doesn't match the shipped code
+
+The M11 entry below says the `route` field is "populated as `req.route?.path ?? \"unknown\"` in middleware" — `req.route` doesn't appear anywhere in the codebase. The actual, verified-correct implementation threads explicit stage labels (`"L2_degraded_fallback"`, etc.) through `moderation-engine.ts`. Functionally correct; the changelog prose just doesn't match. See [`TODO.md`](TODO.md) §3.
+
+### Housekeeping: coverage/ un-tracked again
+
+`/coverage` was briefly un-ignored on this branch so generated coverage reports would be visible for review; re-ignored after review was complete, and the 49 report files the coworker's Task 5 commit had swept into git were untracked (kept on disk, just no longer part of the repo). `server/eval/reports/` and `server/eval/verdicts/` remain tracked — those are the actual eval results and should keep committing normally.
+
+---
+
+## 2026-07-01 — branch: `test-results` (original task work)
 
 ### Task 4: Remember endpoint contract tests (+1 test)
 
