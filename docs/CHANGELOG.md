@@ -10,6 +10,15 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ## 2026-07-01 — branch: `test-results`
 
+### Task 3: Unit tests for WebSocket + voice code (+49 tests)
+
+Four new test files (all pure logic / in-memory — no DB, Groq, or Inworld API needed):
+
+- **`interruption.test.ts`** (21 tests) — `classifyInterruption()`: empty/resume, affirmations/interjection, case/punctuation handling, detour paths, INTERJECTION_MAX_WORDS boundary
+- **`connection-manager.test.ts`** (14 tests) — `add/get`, duplicate key closes old socket (code 4000), `remove` (existing, non-existing, last-companion cleanup), `isConnected` (readyState 1 vs others), `size`
+- **`turn-queue.test.ts`** (7 tests) — premium priority 1, free priority 0, `enqueueTts`, `turnQueueSize`, `ttsQueueSize`
+- **`voice-session.test.ts`** (7 tests) — `onInterrupt` state transitions (IDLE→CLASSIFYING→RESUMING/ACKNOWLEDGING/PROCESSING), `nextFillerClip` fallback + cycling, `transitionTo`, `close`
+
 ### Task 1: Voice ID selection
 
 **Inworld voice IDs created via Voice Design API** (`mighty-star-7691` account)
