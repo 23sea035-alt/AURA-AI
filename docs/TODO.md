@@ -153,7 +153,9 @@ These were explicitly deferred in the 2026-06-29 remediation pass. See [audit/ba
 
 ---
 
-## 7. Eval loop — run and validate (needs `GROQ_API_KEY` + `OPENAI_API_KEY`)
+## ✅ 7. Eval loop — run and validated (2026-07-01)
+
+**Signed verdict:** `server/eval/verdicts/V2-FINAL-2026-07-01.md` — GO on safety (moderation), GO on generation, GO on crisis response, GO on injection resistance, GO on medical boundaries.
 
 The eval runners are built and wired. The prompts are **first drafts that have never been run against real Groq**. This is the prompt-iteration loop.
 

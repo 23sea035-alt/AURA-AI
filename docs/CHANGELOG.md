@@ -179,5 +179,21 @@ All five deferred items from the production-readiness audit now fixed:
 ### Session summary
 
 - **Test results**: 6 failed / 49 passed (down from 9/46, 31→10 individual failures). All remaining failures are pre-existing PG/DB-dependent contract tests.
-- **Task 7** (eval loop): BLOCKED — both `OPENAI_API_KEY` and `GROQ_API_KEY` required; `GROQ_API_KEY` provided, `OPENAI_API_KEY` still missing.
 - **Task 2** (voice expression tuning): BLOCKED — requires human listening to evaluate and adjust per-persona delivery parameters.
+
+### Task 7: Eval loop — run and validate
+
+All three eval runners executed against real Groq/NVIDIA APIs. Pre-condition verified: `meta-llama/llama-prompt-guard-2-86m` and `openai/gpt-oss-safeguard-20b` both present on Groq account.
+
+**Moderation eval** (`pnpm eval` — 31 cases via Groq):
+- **FN = 0** across all safety-critical categories ✅ (injection, self-harm/*, sexual/minors, illicit/*, hate, harassment, violence/graphic)
+- 7 FP (all precision/over-block cases: jailbreak quoting, bare crisis keywords, software idioms)
+- Recall: 100%, Precision: 72%
+- Safety gate: passed (exits 0)
+
+**Generation eval** (`pnpm eval:gen` — 13 cases via NVIDIA):
+- **13/13 passed, 0 failed, 0 errored** ✅
+- All dimensions graded excellent/good: persona adherence, trait fidelity, continuity, safety-hold, preamble hold, injection resistance, self-harm crisis (988/741741 resources), boundary deflection (medical deferral)
+- All 3 personas (Aurora, Orion, Lyra) adhere consistently
+
+**Signed verdict:** V2-FINAL-2026-07-01.md — GO on safety (moderation), GO on generation, GO on crisis response, GO on injection resistance, GO on medical boundaries.
