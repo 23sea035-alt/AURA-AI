@@ -11,7 +11,7 @@ Stack: pnpm monorepo — `client` (Expo RN, not yours) + `server` (Express 5 + T
 
 - **DB:** PostgreSQL on Neon + Drizzle ORM — versioned migrations (`drizzle-kit generate`), never `push` in shared/prod. Schema is squashed to a single `0000_init` baseline; add new migrations on top.
 - **LLM:** Groq — `llama-3.3-70b-versatile` (primary), `llama-3.1-8b-instant` (fallback).
-- **Moderation:** layered L0–L3 pipeline — prompt-guard (Groq) + OpenAI safeguard + LLM adjudicator. Fail-closed. See [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md).
+- **Moderation:** layered L0–L3 pipeline across **two independent, unaffiliated vendors** — L1 prompt-guard and the safeguard/adjudicator escalation both run on **Groq**; L2 input / L3 output category scoring runs on **OpenAI's `omni-moderation` API**. Groq and OpenAI are separate companies — neither key substitutes for the other, and both are required (`GROQ_API_KEY`, `OPENAI_API_KEY`). Fail-closed. See [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md).
 - **Memory:** async consolidation job (Groq) + vector retrieval. See [`docs/specs/memory-pipeline.md`](docs/specs/memory-pipeline.md).
 - **Auth:** Clerk (managed — email/password + Apple + Google; server verifies Clerk session tokens; webhook mirrors users to DB).
 - **Payments:** RevenueCat + StoreKit webhooks.

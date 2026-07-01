@@ -4,7 +4,7 @@
 
 An iOS AI-companion chat app (**18+, US-first**). Users chat 1:1 with vetted AI personas (Aurora, Orion, Lyra) that remember facts across conversations. Differentiator: safety-first, regulation-aware design. Monetized via a single **$9.99/month** premium subscription (free tier: 30 messages/day).
 
-The repo is a pnpm workspace: `client` (Expo RN) + `server` (Express 5) + `shared` (`@aura/shared` Zod DTOs + constants). Auth via Clerk, payments via RevenueCat, DB via Drizzle/Neon, push via APNs, LLM + STT via Groq, voice via Inworld TTS 2 over WebSocket.
+The repo is a pnpm workspace: `client` (Expo RN) + `server` (Express 5) + `shared` (`@aura/shared` Zod DTOs + constants). Auth via Clerk, payments via RevenueCat, DB via Drizzle/Neon, push via APNs, LLM + STT via Groq, voice via Inworld TTS 2 over WebSocket. Moderation uses **two independent, unaffiliated vendors**: Groq (prompt-guard L1 + the safeguard/adjudicator escalation) and OpenAI (`omni-moderation` for L2 input / L3 output scoring) — both API keys are required, not interchangeable. See [`specs/moderation-pipeline.md`](specs/moderation-pipeline.md).
 
 **App name: Aura** (resolved 2026-06-24). See [`planning/app-name-research.md`](planning/app-name-research.md) for the full availability audit.
 
