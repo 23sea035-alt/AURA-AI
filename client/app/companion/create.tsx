@@ -1,6 +1,7 @@
-// Companion create / customize — base persona (create) or locked header (edit) + 3x3x3 trait
-// segmented controls + editable name + a live prose voice preview + Save. Premium-gated: on free the
-// whole creator dims behind one "Unlock with Premium" door. (Look gallery is a later add.)
+// Companion create / customize — avatar + curated "Change look" gallery (mood filters, swap-not-
+// upload), base persona (create) or locked header (edit) + 3x3x3 trait segmented controls +
+// editable name + a live prose voice preview + Save. Premium-gated: on free the whole creator dims
+// behind one "Unlock with Premium" door.
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -13,11 +14,15 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/Avatar';
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
+import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
+import { LookSheet } from '@/components/companion/LookSheet';
 import { Field } from '@/components/Field';
+import { SectionLabel } from '@/components/SectionLabel';
 import { Segmented } from '@/components/Segmented';
 import { PressableScale, enterUp } from '@/components/motion';
 import { CREATE, PERSONAS, TRAITS } from '@/constants/content';
 import { FONTS, LOGO_COLORS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { DEFAULT_LOOK_ID } from '@/constants/looks';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -40,11 +45,14 @@ export default function CreateCompanionScreen() {
     verbosity: PERSONAS.Aurora.traits.verbosity,
   });
   const [name, setName] = useState('Aurora');
+  const [look, setLook] = useState(DEFAULT_LOOK_ID);
+  const [lookOpen, setLookOpen] = useState(false);
 
   const selectBase = (p: PersonaName) => {
     setBase(p);
     setTraits({ ...PERSONAS[p].traits });
     setName(p);
+    setLook(DEFAULT_LOOK_ID); // a different base starts back at Default, same as the prototype
   };
 
   const voicePreview = `${cap(traits.warmth)} · ${traits.energy} · ${traits.verbosity}. ${PERSONAS[base].voice}`;
@@ -85,61 +93,97 @@ export default function CreateCompanionScreen() {
           </Animated.Text>
 
           <View pointerEvents={locked ? 'none' : 'auto'} style={[styles.form, locked && styles.dimmed]}>
+            {/* avatar + change look — swap-not-upload curated mood filters, never a new photo */}
+            <View style={styles.avatarSection}>
+              <View style={[styles.avatarWrap, shadows.e2]}>
+                <FilteredAvatar personaId={base.toLowerCase()} lookId={look} size={96} />
+              </View>
+              <PressableScale
+                haptic="light"
+                onPress={() => setLookOpen(true)}
+                style={[styles.changeLookBtn, { backgroundColor: colors.sheet, borderColor: colors.border }, shadows.e1]}
+              >
+                <Ionicons name="color-palette-outline" size={15} color={colors.textPrimary} />
+                <Text style={[styles.changeLookText, { color: colors.textPrimary }]}>{CREATE.changeLook}</Text>
+              </PressableScale>
+            </View>
+
             {!isEdit ? (
-              <View style={styles.bases}>
-                {ORDER.map((p) => {
-                  const sel = base === p;
-                  return (
-                    <PressableScale
-                      key={p}
-                      haptic="light"
-                      onPress={() => selectBase(p)}
-                      style={[
-                        styles.baseCard,
-                        // Selected = neutral sheet fill + neutral border + check (one-accent rule: no accent here).
-                        sel
-                          ? { backgroundColor: colors.sheet, borderColor: colors.textSecondary, ...shadows.e2 }
-                          : { backgroundColor: colors.raised, borderColor: 'transparent', ...shadows.e1 },
-                      ]}
-                    >
-                      <View
+              <View style={styles.section}>
+                <SectionLabel>Start from</SectionLabel>
+                <View style={styles.bases}>
+                  {ORDER.map((p) => {
+                    const sel = base === p;
+                    return (
+                      <PressableScale
+                        key={p}
+                        haptic="light"
+                        onPress={() => selectBase(p)}
                         style={[
-                          styles.checkBadge,
+                          styles.baseCard,
+                          // Selected = neutral sheet fill + neutral border + check (one-accent rule: no accent here).
                           sel
-                            ? { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
-                            : { backgroundColor: 'transparent', borderColor: colors.border },
+                            ? { backgroundColor: colors.sheet, borderColor: colors.textSecondary, ...shadows.e2 }
+                            : { backgroundColor: colors.raised, borderColor: 'transparent', ...shadows.e1 },
                         ]}
                       >
-                        {sel ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
-                      </View>
-                      <Avatar id={p.toLowerCase()} name={p} size={44} />
-                      <Text style={[styles.baseName, { color: colors.textPrimary }]}>{p}</Text>
-                    </PressableScale>
-                  );
-                })}
+                        <View
+                          style={[
+                            styles.checkBadge,
+                            sel
+                              ? { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
+                              : { backgroundColor: 'transparent', borderColor: colors.border },
+                          ]}
+                        >
+                          {sel ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+                        </View>
+                        <Avatar id={p.toLowerCase()} name={p} size={44} />
+                        <Text style={[styles.baseName, { color: colors.textPrimary }]}>{p}</Text>
+                        <Text style={[styles.baseVoice, { color: colors.textSecondary }]} numberOfLines={2}>
+                          {PERSONAS[p].voice}
+                        </Text>
+                      </PressableScale>
+                    );
+                  })}
+                </View>
               </View>
             ) : (
-              <View style={[styles.editHeader, { backgroundColor: colors.raised }, shadows.e1]}>
-                <Avatar id={base.toLowerCase()} name={base} size={44} />
-                <Text style={[styles.baseName, { color: colors.textPrimary }]}>{base}</Text>
+              <View style={styles.section}>
+                <SectionLabel>Base persona</SectionLabel>
+                <View style={[styles.editHeader, { backgroundColor: colors.raised }, shadows.e1]}>
+                  <Avatar id={base.toLowerCase()} name={base} size={44} />
+                  <View style={styles.editHeaderText}>
+                    <Text style={[styles.baseName, { color: colors.textPrimary }]}>{base}</Text>
+                    <Text style={[styles.baseVoice, { color: colors.textSecondary }]} numberOfLines={2}>
+                      {PERSONAS[base].voice}
+                    </Text>
+                  </View>
+                </View>
               </View>
             )}
 
-            {AXES.map((axis) => (
-              <View key={axis.key} style={styles.axis}>
-                <Text style={[styles.axisLabel, { color: colors.textSecondary }]}>{axis.label}</Text>
-                <Segmented
-                  options={axis.options}
-                  value={traits[axis.key]}
-                  onChange={(v) => setTraits((t) => ({ ...t, [axis.key]: v }))}
-                  disabled={locked}
-                />
+            <View style={styles.section}>
+              <SectionLabel>Personality</SectionLabel>
+              <View style={styles.axes}>
+                {AXES.map((axis) => (
+                  <View key={axis.key} style={styles.axis}>
+                    <Text style={[styles.axisLabel, { color: colors.textSecondary }]}>{axis.label}</Text>
+                    <Segmented
+                      options={axis.options}
+                      value={traits[axis.key]}
+                      onChange={(v) => setTraits((t) => ({ ...t, [axis.key]: v }))}
+                      disabled={locked}
+                    />
+                  </View>
+                ))}
               </View>
-            ))}
+              <Text style={[styles.preview, { color: colors.textSecondary }]}>{voicePreview}</Text>
+            </View>
 
-            <Field label="Name" value={name} onChangeText={setName} autoCapitalize="words" />
-
-            <Text style={[styles.preview, { color: colors.textSecondary }]}>{voicePreview}</Text>
+            <View style={styles.section}>
+              <SectionLabel>Name</SectionLabel>
+              <Field value={name} onChangeText={setName} placeholder="Name your companion" autoCapitalize="words" />
+            </View>
           </View>
 
           {/* Footer dock — Save (the ONE accent fill) for premium; the Unlock door + explainer for free. */}
@@ -151,6 +195,15 @@ export default function CreateCompanionScreen() {
           </View>
         </ScrollView>
       </View>
+
+      <LookSheet
+        visible={lookOpen}
+        onClose={() => setLookOpen(false)}
+        personaId={base.toLowerCase()}
+        personaName={base}
+        value={look}
+        onPick={setLook}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -160,13 +213,26 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
   content: { flexGrow: 1, gap: SPACE.lg },
   title: { ...TYPE.headline },
-  form: { gap: SPACE.lg },
+  form: { gap: SPACE.xl },
   dimmed: { opacity: 0.5 },
+  section: { gap: SPACE.sm },
+  avatarSection: { alignItems: 'center', gap: SPACE.md },
+  avatarWrap: { width: 96, height: 96, borderRadius: 48 },
+  changeLookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.xs,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: SPACE.sm,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+  },
+  changeLookText: { fontFamily: FONTS.body.semibold, fontSize: 13.5 },
   bases: { flexDirection: 'row', gap: SPACE.sm },
   baseCard: {
     flex: 1,
     alignItems: 'center',
-    gap: SPACE.sm,
+    gap: SPACE.xs,
     padding: SPACE.md,
     borderRadius: RADIUS.card,
     borderWidth: 1.5,
@@ -189,7 +255,10 @@ const styles = StyleSheet.create({
     padding: SPACE.lg,
     borderRadius: RADIUS.card,
   },
+  editHeaderText: { flex: 1, gap: 2 },
   baseName: { fontFamily: FONTS.body.semibold, fontSize: 15 },
+  baseVoice: { fontFamily: FONTS.body.regular, fontSize: 12.5, lineHeight: 17 },
+  axes: { gap: SPACE.sm },
   axis: { gap: SPACE.sm },
   axisLabel: { fontFamily: FONTS.body.semibold, fontSize: 13 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 20 },
