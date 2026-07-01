@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { DEV_FORCE_PREMIUM } from '@/constants/devFlags';
 import {
   apiLogin, apiRegister, apiGetMe, apiUpdateMe,
   apiGetCompanions, apiCreateCompanion,
@@ -420,9 +421,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
   }, []);
 
+  // DEV_FORCE_PREMIUM mock applies here — the one place every screen's `user.isPremium` read
+  // resolves from, so no per-screen wiring is needed to preview premium-gated UI.
+  const exposedUser = useMemo(
+    () => (DEV_FORCE_PREMIUM && user ? { ...user, isPremium: true } : user),
+    [user],
+  );
+
   return (
     <AppContext.Provider value={{
-      user, companions, primaryCompanionId, isAuthenticated: !!user, isLoading,
+      user: exposedUser, companions, primaryCompanionId, isAuthenticated: !!user, isLoading,
       messages, apiError, safetyState,
       login, register, logout, updateUser, setPrimaryCompanion,
       addCompanion, getMessagesForCompanion, addMessage,
