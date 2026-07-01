@@ -83,7 +83,7 @@ export class ModerationEngine implements Moderator {
       l1Category = l1Result.action === "escalate" ? "injection" : undefined;
 
       if (l2Result.error) {
-        const fallback = await adjudicate(text, l1Category, [], this.getOutputGuardProvider()).catch(() => null);
+        const fallback = await adjudicate(text, l1Category, [], this.getOutputGuardProvider(), "L2_degraded_fallback").catch(() => null);
         if (!fallback || fallback.action === "block") {
           return {
             action: "block", categories: [],
@@ -133,7 +133,7 @@ export class ModerationEngine implements Moderator {
           };
         }
 
-        const safeguardVerdict = await adjudicate(text, l1Category, l2Categories, this.getOutputGuardProvider());
+        const safeguardVerdict = await adjudicate(text, l1Category, l2Categories, this.getOutputGuardProvider(), "L2_escalated_adjudicate");
         return {
           action: safeguardVerdict.action,
           categories: l2Result.categories,
@@ -161,7 +161,7 @@ export class ModerationEngine implements Moderator {
     try {
       const l3 = await runL3Output(text);
       if (l3.error) {
-        const fallback = await runOutputFallback(text, this.getOutputGuardProvider()).catch(() => null);
+        const fallback = await runOutputFallback(text, this.getOutputGuardProvider(), "L3_degraded_fallback").catch(() => null);
         if (fallback?.action === "allow") {
           return {
             action: "allow", categories: [], escalated: true,

@@ -7,11 +7,13 @@ export interface SafeguardVerdict {
   reason: string;
   confidence: "high" | "med" | "low";
   crisis?: boolean;
+  route: string;
 }
 
-export async function runOutputFallback(text: string, provider?: LLMProvider): Promise<SafeguardVerdict> {
+export async function runOutputFallback(text: string, provider?: LLMProvider, route?: string): Promise<SafeguardVerdict> {
   try {
     const llm = provider ?? getLLMProvider();
+    const routeLabel = route ?? "output_fallback";
     const policy = `# INSTRUCTIONS
 You are an output safety classifier for Aura AI, an 18+ adults-only AI companion (US).
 Evaluate the AI-GENERATED TEXT below against the CRITERIA. Return JSON:
@@ -41,11 +43,11 @@ Evaluate the AI-GENERATED TEXT below against the CRITERIA. Return JSON:
     }
 
     if (parsed.flagged) {
-      return { action: "block", reason: `Output safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low" };
+      return { action: "block", reason: `Output safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
     }
-    return { action: "allow", reason: "Output safeguard cleared", confidence: "high" };
+    return { action: "allow", reason: "Output safeguard cleared", confidence: "high", route: routeLabel };
   } catch (err) {
-    return { action: "block", reason: `Output safeguard error: ${err instanceof Error ? err.message : "unknown"}`, confidence: "high" };
+    return { action: "block", reason: `Output safeguard error: ${err instanceof Error ? err.message : "unknown"}`, confidence: "high", route: route ?? "output_fallback" };
   }
 }
 
@@ -54,6 +56,7 @@ export async function adjudicate(
   l1Category: string | undefined,
   l2Categories: string[],
   provider?: LLMProvider,
+  route?: string,
 ): Promise<SafeguardVerdict> {
   try {
     const llm = provider ?? getLLMProvider();
@@ -91,6 +94,7 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
       messages: [{ role: "user", content: `CONTENT: "${text}"\n\nL1 hint: ${l1Category ?? "none"}\nL2 categories: ${l2Categories.join(", ") || "none"}` }],
     });
 
+    const routeLabel = route ?? "adjudicate";
     let parsed: { flagged: boolean; category: string | null; confidence: string; rationale: string[]; crisis_route?: boolean };
     try {
       parsed = JSON.parse(response) as typeof parsed;
@@ -101,7 +105,7 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
     }
 
     if (parsed.flagged) {
-      return { action: "block", reason: `Safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low" };
+      return { action: "block", reason: `Safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
     }
     // If the model returned flagged=false but the category/rationale indicate
     // self-harm distress (SH-1), route to crisis (not a block).
@@ -111,10 +115,10 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
     const isHyperbolic = /\b(hyperbole|hyperbolic|idiom|idiomatic|figurative|figuratively|exaggeration|laugh|😂|😭|joking|joke)\b/.test(rationaleText);
     const mentionsDistress = /\b(crisis.route|distress|ideation|genuine.*concern|real.*distress)\b/.test(rationaleText);
     if (!isHyperbolic && (cat.includes("sh-1") || cat.includes("self-harm") || cat.includes("crisis") || mentionsDistress)) {
-      return { action: "crisis", reason: "Safeguard: self-harm distress detected — routing to crisis", confidence: parsed.confidence as "high" | "med" | "low" };
+      return { action: "crisis", reason: "Safeguard: self-harm distress detected — routing to crisis", confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
     }
-    return { action: "allow", reason: "Safeguard cleared", confidence: "high" };
+    return { action: "allow", reason: "Safeguard cleared", confidence: "high", route: routeLabel };
   } catch (err) {
-    return { action: "block", reason: `Safeguard error: ${err instanceof Error ? err.message : "unknown"}`, confidence: "high" };
+    return { action: "block", reason: `Safeguard error: ${err instanceof Error ? err.message : "unknown"}`, confidence: "high", route: route ?? "adjudicate" };
   }
 }

@@ -6,14 +6,34 @@ const WEBHOOK_SECRET = "test_whsec_abc123";
 const mockInsertOnConflict = vi.fn();
 const mockInsertValues = vi.fn(() => ({ onConflictDoUpdate: mockInsertOnConflict }));
 const mockInsert = vi.fn(() => ({ values: mockInsertValues }));
-const mockUpdateWhere = vi.fn();
+const mockUpdateWhere = vi.fn().mockResolvedValue({ rowCount: 1 });
 const mockUpdateSet = vi.fn(() => ({ where: mockUpdateWhere }));
 const mockUpdate = vi.fn(() => ({ set: mockUpdateSet }));
-const mockSelectFrom = vi.fn();
+
+const MOCK_USER_ROW = [{ id: "user-1" }];
+function makeLimitResult() {
+  // Must be thenable for .limit(1) alone AND have .for() for .limit(1).for("update")
+  return {
+    for: vi.fn().mockResolvedValue(MOCK_USER_ROW),
+    then: (resolve: (v: typeof MOCK_USER_ROW) => void) => resolve(MOCK_USER_ROW),
+    catch: (_: (e: Error) => void) => {},
+  };
+}
+const mockSelectWhere = vi.fn(() => ({ limit: vi.fn(makeLimitResult) }));
+const mockSelectFrom = vi.fn(() => ({ where: mockSelectWhere }));
 const mockSelect = vi.fn(() => ({ from: mockSelectFrom }));
 
 vi.mock("../db/src/index.js", () => ({
-  db: { select: mockSelect, insert: mockInsert, update: mockUpdate },
+  db: {
+    select: mockSelect,
+    insert: mockInsert,
+    update: mockUpdate,
+    transaction: vi.fn((cb: (tx: any) => Promise<void>) => cb({
+      select: mockSelect,
+      insert: mockInsert,
+      update: mockUpdate,
+    })),
+  },
   usersTable: { id: "id", isPremium: "is_premium" },
   subscriptionsTable: { id: "id", userId: "user_id", status: "status", store: "store", productId: "product_id", originalTransactionId: "original_transaction_id", rcAppUserId: "rc_app_user_id", periodType: "period_type", expiresAt: "expires_at", willRenew: "will_renew", updatedAt: "updated_at", createdAt: "created_at", tier: "tier" },
 }));
@@ -52,7 +72,7 @@ function makePayload(overrides?: Record<string, unknown>): string {
     environment: "PRODUCTION",
     entitlement_id: "premium",
     entitlement_ids: ["premium"],
-    app_user_id: "user-123",
+    app_user_id: "123e4567-e89b-12d3-a456-426614174000",
     aliases: [],
     store: "app_store",
     type: "subscription",

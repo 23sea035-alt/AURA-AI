@@ -161,3 +161,23 @@ Four duplicate logic blocks extracted into shared utilities:
 - `persistence.test.ts`: fixed `.set()` vs `.where()` mock chain order so `.mockResolvedValue` goes on the terminal mock
 
 **Pre-existing failures unchanged** (20 env-specific): PG auth in `payments.contract`, `auth.contract`, `rate-limit.contract`, `pg-rate-limit-store.contract`, `routes.integration`; Clerk type mismatch in `auth.contract`.
+
+### Task 6: Deferred audit items (M7, M8, M11, M12, L5)
+
+All five deferred items from the production-readiness audit now fixed:
+
+- **M7** — `free-tier.ts`: Added `.for("update")` row-lock to `dailyCounter` upsert to prevent concurrent free-tier reset races.
+- **M8** — `revenuecat.ts`: Wrapped stale-subscription check in `db.transaction()` with FOR UPDATE + `CAS WHERE` guard (update only if current data unchanged).
+- **M11** — `safeguard.ts`: Added `route` field to `SafeguardVerdict` type, threaded through all callers (`moderation-engine.ts`, `openai-omni.ts`), populated as `req.route?.path ?? "unknown"` in middleware.
+- **M12** — `notifications.ts`: Replaced raw `req.body as RegisterBody` type assertion with Zod `.parse()` via existing `validate()` middleware.
+- **L5** — `break-reminder.ts`: Deleted dead moderation module; fixed imports in `break-reminder.test.ts`, `moderation.test.ts`, `groq.test.ts`, `model-selector.test.ts`, `prompt-guard.test.ts`, `moderation-engine.ts`, `shared.test.ts`, `shared/src/index.ts`.
+
+### Task 8: CI — lint error fix
+
+- Installed `eslint-plugin-react-hooks@5.2.0` (was missing, caused CI lint failure). Registered in root `eslint.config.js`; lint now 0 errors (warnings-only).
+
+### Session summary
+
+- **Test results**: 6 failed / 49 passed (down from 9/46, 31→10 individual failures). All remaining failures are pre-existing PG/DB-dependent contract tests.
+- **Task 7** (eval loop): BLOCKED — both `OPENAI_API_KEY` and `GROQ_API_KEY` required; `GROQ_API_KEY` provided, `OPENAI_API_KEY` still missing.
+- **Task 2** (voice expression tuning): BLOCKED — requires human listening to evaluate and adjust per-persona delivery parameters.

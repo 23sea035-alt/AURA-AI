@@ -1,43 +1,30 @@
-# Aura AI — Backend / Server (Replit Workspace)
+Aura AI — Backend / Server (Replit Workspace)
+Start here: docs/README.md → docs/CHANGELOG.md → docs/TODO.md. Work docs/TODO.md top-to-bottom, one task at a time. Do not rebuild from scratch.
 
-> **Start here:** [`docs/README.md`](docs/README.md) → [`docs/CHANGELOG.md`](docs/CHANGELOG.md) → [`docs/TODO.md`](docs/TODO.md).
-> Work `docs/TODO.md` top-to-bottom, one task at a time. Do not rebuild from scratch.
+What this is
+Aura AI — an iOS AI-companion chat app (18+, US-first). This workspace owns the backend / server only. The iOS client (Expo RN) is owned separately and cannot be built or tested on Replit.
 
-## What this is
+Stack: pnpm monorepo — client (Expo RN, not yours) + server (Express 5 + TypeScript) + shared (@aura/shared Zod DTOs + constants — the client/server contract).
 
-Aura AI — an iOS AI-companion chat app (18+, US-first). This workspace owns the **backend / server only.** The iOS client (Expo RN) is owned separately and cannot be built or tested on Replit.
+DB: PostgreSQL on Neon + Drizzle ORM — versioned migrations (drizzle-kit generate), never push in shared/prod. Schema is squashed to a single 0000_init baseline; add new migrations on top.
+LLM: Groq — llama-3.3-70b-versatile (primary), llama-3.1-8b-instant (fallback).
+Moderation: layered L0–L3 pipeline — prompt-guard (Groq) + OpenAI safeguard + LLM adjudicator. Fail-closed. See docs/specs/moderation-pipeline.md.
+Memory: async consolidation job (Groq) + vector retrieval. See docs/specs/memory-pipeline.md.
+Auth: Clerk (managed — email/password + Apple + Google; server verifies Clerk session tokens; webhook mirrors users to DB).
+Payments: RevenueCat + StoreKit webhooks.
+Push: APNs (skipped automatically when a live WebSocket connection is open).
+Voice (optional): Inworld TTS 2 over WebSocket for text-to-speech; Groq Whisper (whisper-large-v3-turbo) for speech-to-text. Voice features degrade gracefully when INWORLD_* env vars are unset.
+Hosting: Render (or Replit always-on Reserved VM — required for reliable RevenueCat webhook delivery).
+Branch and push rules
+You are on test-results. At the start of each session:
 
-Stack: pnpm monorepo — `client` (Expo RN, not yours) + `server` (Express 5 + TypeScript) + `shared` (`@aura/shared` Zod DTOs + constants — the client/server contract).
-
-- **DB:** PostgreSQL on Neon + Drizzle ORM — versioned migrations (`drizzle-kit generate`), never `push` in shared/prod. Schema is squashed to a single `0000_init` baseline; add new migrations on top.
-- **LLM:** Groq — `llama-3.3-70b-versatile` (primary), `llama-3.1-8b-instant` (fallback).
-- **Moderation:** layered L0–L3 pipeline — prompt-guard (Groq) + OpenAI safeguard + LLM adjudicator. Fail-closed. See [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md).
-- **Memory:** async consolidation job (Groq) + vector retrieval. See [`docs/specs/memory-pipeline.md`](docs/specs/memory-pipeline.md).
-- **Auth:** Clerk (managed — email/password + Apple + Google; server verifies Clerk session tokens; webhook mirrors users to DB).
-- **Payments:** RevenueCat + StoreKit webhooks.
-- **Push:** APNs (skipped automatically when a live WebSocket connection is open).
-- **Voice (optional):** Inworld TTS 2 over WebSocket for text-to-speech; Groq Whisper (`whisper-large-v3-turbo`) for speech-to-text. Voice features degrade gracefully when `INWORLD_*` env vars are unset.
-- **Hosting:** Render (or Replit always-on Reserved VM — required for reliable RevenueCat webhook delivery).
-
-## Branch and push rules
-
-You are on **`test-results`**. At the start of each session:
-
-```bash
 git pull origin test-results
-```
-
 After each task, push here only:
 
-```bash
 git push origin test-results
-```
+Do NOT push to main or backend.
 
-Do NOT push to `main` or `backend`.
-
-## Run & operate
-
-```bash
+Run & operate
 # from repo root
 pnpm install
 
@@ -52,14 +39,9 @@ npx vitest run
 # evals — needs GROQ_API_KEY set; NOT part of CI
 pnpm eval       # moderation pipeline (L0–L3) + confusion matrix
 pnpm eval:gen   # generation (persona × trait × scenario) + LLM judge
-```
+Required environment variables
+Set these in .env (dev) or Render/Replit environment variables (prod). The server validates all required vars at boot and fails closed if any are missing (server/src/config/env.ts).
 
-## Required environment variables
-
-Set these in `.env` (dev) or Render/Replit environment variables (prod).
-The server validates all required vars at boot and fails closed if any are missing (`server/src/config/env.ts`).
-
-```
 # Database
 DATABASE_URL=<neon-postgres-connection-string>
 
@@ -98,40 +80,32 @@ SENTRY_DSN=
 LOG_LEVEL=info
 NODE_ENV=development
 PORT=8080
-```
-
-## After each task
-
-1. `pnpm build && pnpm typecheck && npx vitest run` — all green (baseline: **342 tests**).
-2. No `console.*` or hardcoded secrets in the diff.
-3. Commit with a `feat:` / `fix:` / `test:` / `chore:` prefix.
-4. Add a CHANGELOG entry in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
-5. Push to `origin/test-results`.
-
-## Critical rules
-
-- **Follow `docs/`** — architecture, schema, and decisions are deliberate. Don't relitigate without a real reason.
-- **No hardcoded secrets** — Zod-validate env at boot; fail-closed.
-- **Versioned migrations only** — `drizzle-kit generate` → review → runtime `migrate()`. Never `push` in shared/prod.
-- **Do not build the frontend.** Append client-affecting contract changes to [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) under "Backend-driven items."
-- **Legal-review items** (retention numbers, `safety_events.flagged_content` retain-vs-scrub, jurisdictions, policy wording) are NOT to be guessed — leave defaults + flags for counsel.
-- **Jason owns `safetyCritical` eval labels** — tune moderation prompts to the labels, never the reverse.
-
-## The docs
-
-| What | Doc |
-|---|---|
-| What Aura is + how to run | [`docs/README.md`](docs/README.md) |
-| What has shipped | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) |
-| Your task list | [`docs/TODO.md`](docs/TODO.md) |
-| Architecture + decisions (D1–D12) | [`docs/specs/v1-architecture.md`](docs/specs/v1-architecture.md) |
-| DB schema + `@aura/shared` catalog | [`docs/specs/v1-schema.md`](docs/specs/v1-schema.md) |
-| Moderation pipeline (L0–L3) | [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md) |
-| Memory pipeline | [`docs/specs/memory-pipeline.md`](docs/specs/memory-pipeline.md) |
-| Generation pipeline | [`docs/specs/generation-pipeline.md`](docs/specs/generation-pipeline.md) |
-| Testing strategy | [`docs/testing/test-harness.md`](docs/testing/test-harness.md) |
-| Eval safety rubric | [`docs/testing/eval-safety-rubric.md`](docs/testing/eval-safety-rubric.md) |
-| Production-readiness audit (2026-06-29) | [`docs/audit/backend-audit-2026-06.md`](docs/audit/backend-audit-2026-06.md) |
-| Frontend items (client owner only) | [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) |
-| Post-launch roadmap | [`docs/planning/post-v1.0-roadmap.md`](docs/planning/post-v1.0-roadmap.md) |
-| Compliance drafts (do not publish without counsel) | [`docs/compliance/`](docs/compliance/) |
+After each task
+pnpm build && pnpm typecheck && npx vitest run — all green (baseline: 342 tests).
+No console.* or hardcoded secrets in the diff.
+Commit with a feat: / fix: / test: / chore: prefix.
+Add a CHANGELOG entry in docs/CHANGELOG.md.
+Push to origin/test-results.
+Critical rules
+Follow docs/ — architecture, schema, and decisions are deliberate. Don't relitigate without a real reason.
+No hardcoded secrets — Zod-validate env at boot; fail-closed.
+Versioned migrations only — drizzle-kit generate → review → runtime migrate(). Never push in shared/prod.
+Do not build the frontend. Append client-affecting contract changes to docs/planning/frontend-todo.md under "Backend-driven items."
+Legal-review items (retention numbers, safety_events.flagged_content retain-vs-scrub, jurisdictions, policy wording) are NOT to be guessed — leave defaults + flags for counsel.
+Jason owns safetyCritical eval labels — tune moderation prompts to the labels, never the reverse.
+The docs
+What	Doc
+What Aura is + how to run	docs/README.md
+What has shipped	docs/CHANGELOG.md
+Your task list	docs/TODO.md
+Architecture + decisions (D1–D12)	docs/specs/v1-architecture.md
+DB schema + @aura/shared catalog	docs/specs/v1-schema.md
+Moderation pipeline (L0–L3)	docs/specs/moderation-pipeline.md
+Memory pipeline	docs/specs/memory-pipeline.md
+Generation pipeline	docs/specs/generation-pipeline.md
+Testing strategy	docs/testing/test-harness.md
+Eval safety rubric	docs/testing/eval-safety-rubric.md
+Production-readiness audit (2026-06-29)	docs/audit/backend-audit-2026-06.md
+Frontend items (client owner only)	docs/planning/frontend-todo.md
+Post-launch roadmap	docs/planning/post-v1.0-roadmap.md
+Compliance drafts (do not publish without counsel)	docs/compliance/

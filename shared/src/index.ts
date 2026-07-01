@@ -193,12 +193,6 @@ export const HealthCheckResponse = z.object({
 });
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponse>;
 
-// ── Voice limits (Inworld TTS 2 + Groq STT over WebSocket) ──────────────
-export const VOICE_DAILY_LIMIT_SECONDS = 600;
-export const VOICE_DAILY_LIMIT_SECONDS_PREMIUM = 3600;
-export const VOICE_CALL_MAX_DURATION_SECONDS = 900;
-export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3600;
-
 // ── Chat session / queue constants ───────────────────────────────────────
 export const TURN_QUEUE_CONCURRENCY = 8;
 export const TURN_QUEUE_MAX_FREE_WAIT_MS = 8_000;

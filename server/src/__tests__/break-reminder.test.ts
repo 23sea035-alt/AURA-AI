@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { shouldShowBreakReminder } from "../services/moderation/break-reminder.js";
+import { shouldShowBreakReminder } from "../services/chat/break-reminder.js";
 
 describe("shouldShowBreakReminder", () => {
   it("returns remind=false for adult just starting", () => {

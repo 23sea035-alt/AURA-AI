@@ -4,6 +4,7 @@ import { createNvidiaProvider } from "./nvidia.js";
 import { createAnthropicProvider } from "./anthropic.js";
 import { createOpenRouterProvider } from "./openrouter.js";
 import { createGroqProvider } from "./groq.js";
+import { getEnv } from "../../config/env.js";
 
 export type TaskType =
   | "generate-reply"

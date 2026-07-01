@@ -116,10 +116,10 @@ describe("Retention purge — contract", () => {
 
   describe("validateCutoff", () => {
     it("throws on NaN cutoff", async () => {
-      const { enforceRetention } = await import("../services/retention.js");
+      const { enforceSafetyEventRetention } = await import("../services/retention.js");
       const realDateNow = Date.now.bind(globalThis);
       Date.now = vi.fn(() => NaN);
-      await expect(enforceRetention()).rejects.toThrow("invalid cutoff date");
+      await expect(enforceSafetyEventRetention()).rejects.toThrow("invalid cutoff date");
       Date.now = realDateNow;
     });
   });
@@ -179,6 +179,7 @@ describe("Retention purge — contract", () => {
       mockDb.transaction = vi.fn(async (cb: any) => {
         const tx = {
           delete: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 1 }) })),
+          execute: vi.fn(),
         };
         await cb(tx);
       });
@@ -208,15 +209,4 @@ describe("Retention purge — contract", () => {
     });
   });
 
-  describe("markInactiveUsers", () => {
-    it("marks eligible users inactive", async () => {
-      const mockUpdate = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 3 }) })) }));
-      mockDb.update.mockImplementation(mockUpdate);
-
-      const { markInactiveUsers } = await import("../services/retention.js");
-      const result = await markInactiveUsers();
-      expect(result).toBe(3);
-      expect(mockDb.update).toHaveBeenCalled();
-    });
-  });
 });

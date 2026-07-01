@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { runL0 } from "../services/moderation/deterministic.js";
 import { buildCrisisResponse, SAFE_FALLBACK_REPLY, CRISIS_RESOURCES } from "../services/moderation/crisis.js";
-import { shouldShowBreakReminder } from "../services/moderation/break-reminder.js";
+import { shouldShowBreakReminder } from "../services/chat/break-reminder.js";
 
 // L0 deterministic pre-filter
 describe("L0 - deterministic pre-filter", () => {

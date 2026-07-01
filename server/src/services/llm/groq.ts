@@ -23,7 +23,7 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
       ];
 
       const completion = await client.chat.completions.create({
-        model,
+        model: resolvedModel,
         messages: [
           { role: "system", content: systemPrompt },
           ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),

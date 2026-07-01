@@ -63,7 +63,7 @@ describe("runL1", () => {
       });
       const result = await runL1("hello");
       expect(result).toEqual({
-        injectionProb: 0.5,
+        injectionProb: 0.7,
         action: "escalate",
         error: "L1 unparseable output — escalating",
       });

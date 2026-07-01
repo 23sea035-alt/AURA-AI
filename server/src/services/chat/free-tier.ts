@@ -19,7 +19,8 @@ export async function checkFreeTierLimit(userId: string): Promise<FreeTierResult
       eq(messagesTable.userId, userId),
       eq(messagesTable.role, "user"),
       gte(messagesTable.createdAt, today),
-    ));
+    ))
+    .for("update");
   const count = result?.count ?? 0;
   return { allowed: count < FREE_DAILY_LIMIT, used: count, limit: FREE_DAILY_LIMIT };
 }

@@ -1,5 +1,5 @@
 import { db, usersTable, subscriptionsTable } from "../../db/src/index.js";
-import { eq } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { getEnv } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 import { createHmac, timingSafeEqual } from "crypto";
@@ -79,91 +79,106 @@ export async function handleRevenueCatWebhook(
     return { received: true };
   }
 
-  // Reject stale / out-of-order / replayed events — RevenueCat does not guarantee ordering.
-  const [existingSub] = await db
-    .select({ lastEventTimestampMs: subscriptionsTable.lastEventTimestampMs })
-    .from(subscriptionsTable)
-    .where(eq(subscriptionsTable.userId, userId))
-    .limit(1);
-  if (
-    typeof event_timestamp_ms === "number" &&
-    existingSub?.lastEventTimestampMs != null &&
-    event_timestamp_ms <= existingSub.lastEventTimestampMs
-  ) {
-    logger.warn({ event, userId }, "RevenueCat stale/out-of-order event — ignoring");
-    return { received: true };
-  }
+  // Wrap stale-check + mutation in a transaction with FOR UPDATE + CAS WHERE to prevent race.
+  await db.transaction(async (tx) => {
+    const [existingSub] = await tx
+      .select({ lastEventTimestampMs: subscriptionsTable.lastEventTimestampMs })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, userId))
+      .limit(1)
+      .for("update");
 
-  switch (event) {
-    case "INITIAL_PURCHASE":
-    case "RENEWAL":
-    case "PURCHASE": {
-      const expiresAt = expiration_at_ms ? new Date(expiration_at_ms) : null;
-      await db.insert(subscriptionsTable).values({
-        userId,
-        tier: "premium",
-        status: "active",
-        store,
-        productId: product_id,
-        originalTransactionId: original_transaction_id,
-        rcAppUserId: app_user_id,
-        periodType: period_type,
-        expiresAt,
-        willRenew: expiresAt ? expiresAt > new Date() : true,
-        lastEventTimestampMs: event_timestamp_ms,
-      }).onConflictDoUpdate({
-        target: subscriptionsTable.userId,
-        set: {
+    if (
+      typeof event_timestamp_ms === "number" &&
+      existingSub?.lastEventTimestampMs != null &&
+      event_timestamp_ms <= existingSub.lastEventTimestampMs
+    ) {
+      logger.warn({ event, userId }, "RevenueCat stale/out-of-order event — ignoring");
+      return;
+    }
+
+    switch (event) {
+      case "INITIAL_PURCHASE":
+      case "RENEWAL":
+      case "PURCHASE": {
+        const expiresAt = expiration_at_ms ? new Date(expiration_at_ms) : null;
+        await tx.insert(subscriptionsTable).values({
+          userId,
+          tier: "premium",
           status: "active",
+          store,
           productId: product_id,
           originalTransactionId: original_transaction_id,
+          rcAppUserId: app_user_id,
           periodType: period_type,
           expiresAt,
           willRenew: expiresAt ? expiresAt > new Date() : true,
           lastEventTimestampMs: event_timestamp_ms,
-          updatedAt: new Date(),
-        },
-      });
+        }).onConflictDoUpdate({
+          target: subscriptionsTable.userId,
+          set: {
+            status: "active",
+            productId: product_id,
+            originalTransactionId: original_transaction_id,
+            periodType: period_type,
+            expiresAt,
+            willRenew: expiresAt ? expiresAt > new Date() : true,
+            lastEventTimestampMs: event_timestamp_ms,
+            updatedAt: new Date(),
+          },
+        });
 
-      await db.update(usersTable)
-        .set({ isPremium: true })
-        .where(eq(usersTable.id, userId));
-      break;
+        await tx.update(usersTable)
+          .set({ isPremium: true })
+          .where(eq(usersTable.id, userId));
+        break;
+      }
+
+      case "CANCELLATION":
+      case "EXPIRATION": {
+        const subResult = await tx.update(subscriptionsTable)
+          .set({ status: "expired", willRenew: false, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
+          .where(and(
+            eq(subscriptionsTable.userId, userId),
+            sql`${subscriptionsTable.lastEventTimestampMs} < ${event_timestamp_ms}`,
+          ));
+        if (subResult?.rowCount ?? 0 > 0) {
+          await tx.update(usersTable)
+            .set({ isPremium: false })
+            .where(eq(usersTable.id, userId));
+        }
+        break;
+      }
+
+      case "UNCANCELLATION": {
+        const uncancelResult = await tx.update(subscriptionsTable)
+          .set({ status: "active", willRenew: true, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
+          .where(and(
+            eq(subscriptionsTable.userId, userId),
+            sql`${subscriptionsTable.lastEventTimestampMs} < ${event_timestamp_ms}`,
+          ));
+        if (uncancelResult?.rowCount ?? 0 > 0) {
+          await tx.update(usersTable)
+            .set({ isPremium: true })
+            .where(eq(usersTable.id, userId));
+        }
+        break;
+      }
+
+      case "BILLING_ISSUE": {
+        await tx.update(subscriptionsTable)
+          .set({ status: "billing_retry", lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
+          .where(and(
+            eq(subscriptionsTable.userId, userId),
+            sql`${subscriptionsTable.lastEventTimestampMs} < ${event_timestamp_ms}`,
+          ));
+        break;
+      }
+
+      default:
+        logger.debug({ event }, "RevenueCat webhook — unhandled event");
     }
-
-    case "CANCELLATION":
-    case "EXPIRATION": {
-      await db.update(subscriptionsTable)
-        .set({ status: "expired", willRenew: false, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
-        .where(eq(subscriptionsTable.userId, userId));
-
-      await db.update(usersTable)
-        .set({ isPremium: false })
-        .where(eq(usersTable.id, userId));
-      break;
-    }
-
-    case "UNCANCELLATION": {
-      await db.update(subscriptionsTable)
-        .set({ status: "active", willRenew: true, lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
-        .where(eq(subscriptionsTable.userId, userId));
-
-      await db.update(usersTable)
-        .set({ isPremium: true })
-        .where(eq(usersTable.id, userId));
-      break;
-    }
-
-    case "BILLING_ISSUE": {
-      await db.update(subscriptionsTable)
-        .set({ status: "billing_retry", lastEventTimestampMs: event_timestamp_ms, updatedAt: new Date() })
-        .where(eq(subscriptionsTable.userId, userId));
-      break;
-    }
-
-    default:
-      logger.debug({ event }, "RevenueCat webhook — unhandled event");
-  }
+  });
 
   return { received: true };
 }

@@ -34,13 +34,13 @@ router.post("/notifications/register", requireAuth, validate(RegisterTokenSchema
   }
 });
 
-router.delete("/notifications/register", requireAuth, async (req: AuthRequest, res) => {
+const DeleteTokenSchema = z.object({
+  token: z.string().min(1),
+});
+
+router.delete("/notifications/register", requireAuth, validate(DeleteTokenSchema), async (req: AuthRequest, res) => {
   try {
-    const { token } = req.body as { token?: string };
-    if (!token) {
-      sendError(res, "token is required", 400);
-      return;
-    }
+    const { token } = req.body as z.infer<typeof DeleteTokenSchema>;
 
     await db.delete(deviceTokensTable)
       .where(and(eq(deviceTokensTable.token, token), eq(deviceTokensTable.userId, req.userId!)));

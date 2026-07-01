@@ -1,3 +1,4 @@
+import OpenAI from "openai";
 import { MODERATION_INPUT_THRESHOLDS, MODERATION_OUTPUT_THRESHOLDS } from "@aura/shared";
 
 // Hard timeout for the omni-moderation call (ms). Keeps a slow/hung OpenAI request from
