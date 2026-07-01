@@ -10,21 +10,21 @@ import { impact, ImpactFeedbackStyle } from '@/utils/haptics';
 
 import { COMPANION_BUBBLE, USER_BUBBLE, WarmBubble } from './WarmBubble';
 
-type Props = { dark: boolean; playKey: number; active: boolean; reduceMotion: boolean };
+type Props = { dark: boolean; reduceMotion: boolean };
 
-export function ChatArt({ dark, playKey, active, reduceMotion }: Props) {
-  // soft completion haptic as YOUR reply lands (the exchange completing)
+export function ChatArt({ dark, reduceMotion }: Props) {
+  // soft completion haptic as YOUR reply lands (the exchange completing). The carousel screen only
+  // ever mounts the current slide, so mount IS "just became active" — no active/playKey gate.
   useEffect(() => {
-    if (!active) return;
     const t = setTimeout(() => impact(ImpactFeedbackStyle.Light), reduceMotion ? 80 : 1500);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, playKey]);
+  }, []);
 
   return (
     <View style={styles.stage}>
       <WarmBubble
-        id={`them-${playKey}`}
+        id="them"
         preset={COMPANION_BUBBLE}
         dark={dark}
         left={28}
@@ -32,12 +32,10 @@ export function ChatArt({ dark, playKey, active, reduceMotion }: Props) {
         rotateDeg={-1.4}
         lineWidths={[80, 52]}
         delayMs={150}
-        playKey={playKey}
-        active={active}
         reduceMotion={reduceMotion}
       />
       <WarmBubble
-        id={`you-${playKey}`}
+        id="you"
         preset={USER_BUBBLE}
         dark={dark}
         left={162}
@@ -45,8 +43,6 @@ export function ChatArt({ dark, playKey, active, reduceMotion }: Props) {
         rotateDeg={1.6}
         lineWidths={[58]}
         delayMs={550}
-        playKey={playKey}
-        active={active}
         reduceMotion={reduceMotion}
       />
     </View>

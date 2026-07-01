@@ -1,20 +1,25 @@
 // Post-auth intro carousel — a short 3-screen narrative (stories idiom: segmented progress,
 // swipe/tap to advance). NEVER auto-advances (the user owns the pace). Skip + Continue.
 // Replaces the cosmic "Meet Your AI Companion" intro.
+//
+// Only the CURRENT slide is ever mounted (ported from ../Amibroke's story carousel, which does the
+// same) — there's no ScrollView carrying all three slides side by side. An earlier version tried
+// to keep a real, physically-swipeable ScrollView and synchronize each slide's own entrance
+// animation with the live scroll position, so a slide already sitting fully-formed off-screen
+// wouldn't flash into view and then visibly reset+replay once it became "active". Every attempt at
+// that synchronization (deferring state to momentum-end, co-locating state updates, then driving
+// entrance timing off a continuously-updating onScroll) fixed one failure mode and surfaced
+// another, and the continuous onScroll listener made the drag itself feel laggy. Mounting only the
+// current slide sidesteps the whole class of bugs: a slide's entrance effect runs once, on mount,
+// and there's no prior "already fully rendered" frame for it to flash. The tradeoff is losing a
+// real finger-tracked horizontal drag — advancing is tap-zones (unchanged) plus a swipe gesture
+// that commits to next/prev on release rather than following the finger live.
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  useWindowDimensions,
-  type NativeSyntheticEvent,
-  type NativeScrollEvent,
-} from 'react-native';
-import Animated, { useReducedMotion } from 'react-native-reanimated';
+import React, { useState } from 'react';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
@@ -26,48 +31,39 @@ import { ONBOARDING } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
+const SWIPE_DISTANCE = 60;
+const SWIPE_VELOCITY = 700;
+
 export default function CarouselScreen() {
   const { colors, mode } = useTheme();
   const dark = mode === 'dark';
   const reduceMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const scrollRef = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
-  // Bumped each time a slide lands (including the first, on mount) so its hero art + text replay.
-  const [playKey, setPlayKey] = useState(0);
-  useEffect(() => setPlayKey((k) => k + 1), [index]);
   const copy = ONBOARDING.carousel;
   const last = copy.slides.length - 1;
 
-  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const i = Math.round(e.nativeEvent.contentOffset.x / width);
-    if (i !== index) setIndex(i);
-  };
+  const goToSlide = (i: number) => setIndex((i + copy.slides.length) % copy.slides.length);
 
   const goNext = () => {
-    if (index < last) scrollRef.current?.scrollTo({ x: (index + 1) * width, animated: true });
+    if (index < last) setIndex(index + 1);
     else router.push('/age-verification');
   };
 
-  // Tap-zone browsing (ported from ../Amibroke's story carousel): left/right halves of the slide
-  // step back/forward and loop at the ends, independent of "Continue" — which always means "leave
-  // the carousel" once you're on the last slide, not "loop around". A wrap (last -> first or
-  // first -> last) jumps instantly instead of animating, so it doesn't visually travel back
-  // through the middle slide.
-  //
-  // For an animated move, `index` (and so the progress bar + hero replay) updates via the same
-  // onMomentumScrollEnd handler a real swipe already drives — NOT synchronously here. Setting it
-  // synchronously flips the progress bar (and re-renders the outgoing slide's art as `active:
-  // false`) up to half a second before the ScrollView visually moves at all, which reads as the
-  // outgoing slide's art snapping to its resting frame while it's still sitting fully on-screen.
-  // A wrap has no animation to wait for, so it updates index immediately alongside the jump.
-  const goToSlide = (i: number) => {
-    const wrapped = (i + copy.slides.length) % copy.slides.length;
-    const isWrap = Math.abs(wrapped - index) > 1;
-    scrollRef.current?.scrollTo({ x: wrapped * width, animated: !isWrap });
-    if (isWrap) setIndex(wrapped);
-  };
+  // Swipe-to-advance: commits to the next/prev slide on release rather than tracking the finger
+  // live (see file header) — activeOffsetX so a quick tap still falls through to the tap zones.
+  const swipe = Gesture.Pan()
+    .activeOffsetX([-20, 20])
+    .failOffsetY([-20, 20])
+    .onEnd((e) => {
+      'worklet';
+      const passed = e.translationX < -SWIPE_DISTANCE || e.velocityX < -SWIPE_VELOCITY;
+      const wentBack = e.translationX > SWIPE_DISTANCE || e.velocityX > SWIPE_VELOCITY;
+      if (passed) runOnJS(goToSlide)(index + 1);
+      else if (wentBack) runOnJS(goToSlide)(index - 1);
+    });
+
+  const slide = copy.slides[index];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
@@ -79,51 +75,37 @@ export default function CarouselScreen() {
         ))}
       </View>
 
-      <ScrollView
-        ref={scrollRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={onScroll}
-        style={styles.flex}
-      >
-        {copy.slides.map((slide, i) => {
-          const active = index === i;
-          return (
-            <View key={i} style={[styles.slide, { width }]}>
-              {/* Doctrine: no accent-tinted tile — the art floats in open warm space. Fixed-height
-                  zone (= tallest art) so the headline baseline stays put across slides. */}
-              <View style={styles.illo}>
-                {i === 0 ? (
-                  <ThreadArt dark={dark} playKey={playKey} active={active} reduceMotion={reduceMotion} />
-                ) : i === 1 ? (
-                  <ChatArt dark={dark} playKey={playKey} active={active} reduceMotion={reduceMotion} />
-                ) : (
-                  <PresenceArt dark={dark} playKey={playKey} active={active} reduceMotion={reduceMotion} />
-                )}
-              </View>
-              <Animated.View key={active ? `h${i}-${playKey}` : `hs${i}`} entering={active ? enterUp(0) : undefined}>
-                <Text style={[styles.headline, { color: colors.textPrimary }]}>{slide.headline}</Text>
-              </Animated.View>
-              <Animated.View key={active ? `s${i}-${playKey}` : `ss${i}`} entering={active ? enterUp(1) : undefined}>
-                <Text style={[styles.support, { color: colors.textSecondary }]}>{slide.support}</Text>
-              </Animated.View>
-              <Pressable
-                style={[styles.tapZone, styles.tapLeft]}
-                onPress={() => goToSlide(index - 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Previous slide"
-              />
-              <Pressable
-                style={[styles.tapZone, styles.tapRight]}
-                onPress={() => goToSlide(index + 1)}
-                accessibilityRole="button"
-                accessibilityLabel="Next slide"
-              />
+      <GestureDetector gesture={swipe}>
+        <View style={styles.slide}>
+          <Animated.View key={index} entering={enterUp(0)} style={styles.slideInner}>
+            {/* Doctrine: no accent-tinted tile — the art floats in open warm space. Fixed-height
+                zone (= tallest art) so the headline baseline stays put across slides. */}
+            <View style={styles.illo}>
+              {index === 0 ? (
+                <ThreadArt dark={dark} reduceMotion={reduceMotion} />
+              ) : index === 1 ? (
+                <ChatArt dark={dark} reduceMotion={reduceMotion} />
+              ) : (
+                <PresenceArt dark={dark} reduceMotion={reduceMotion} />
+              )}
             </View>
-          );
-        })}
-      </ScrollView>
+            <Text style={[styles.headline, { color: colors.textPrimary }]}>{slide.headline}</Text>
+            <Text style={[styles.support, { color: colors.textSecondary }]}>{slide.support}</Text>
+          </Animated.View>
+          <Pressable
+            style={[styles.tapZone, styles.tapLeft]}
+            onPress={() => goToSlide(index - 1)}
+            accessibilityRole="button"
+            accessibilityLabel="Previous slide"
+          />
+          <Pressable
+            style={[styles.tapZone, styles.tapRight]}
+            onPress={() => goToSlide(index + 1)}
+            accessibilityRole="button"
+            accessibilityLabel="Next slide"
+          />
+        </View>
+      </GestureDetector>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACE.lg }]}>
         <PressableScale onPress={() => router.push('/age-verification')} haptic="light" style={styles.skip}>
@@ -139,10 +121,16 @@ export default function CarouselScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  flex: { flex: 1 },
   progress: { flexDirection: 'row', gap: SPACE.xs, paddingHorizontal: SPACE.xl, marginBottom: SPACE.md },
   segment: { flex: 1, height: 3, borderRadius: 2 },
-  slide: { position: 'relative', alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACE.xl, gap: SPACE.lg },
+  slide: { flex: 1, position: 'relative' },
+  slideInner: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: SPACE.xl,
+    gap: SPACE.lg,
+  },
   tapZone: { position: 'absolute', top: 0, bottom: 0 },
   tapLeft: { left: 0, width: '50%' },
   tapRight: { right: 0, width: '50%' },

@@ -64,39 +64,22 @@ type Props = {
   /** Widths (px) of the soft placeholder text lines inside the bubble. */
   lineWidths: number[];
   delayMs: number;
-  /** Bumped by the parent carousel each time this slide lands, to replay the settle. */
-  playKey: number;
-  active: boolean;
   reduceMotion: boolean;
 };
 
-export function WarmBubble({
-  id,
-  preset,
-  dark,
-  left,
-  top,
-  rotateDeg,
-  lineWidths,
-  delayMs,
-  playKey,
-  active,
-  reduceMotion,
-}: Props) {
+export function WarmBubble({ id, preset, dark, left, top, rotateDeg, lineWidths, delayMs, reduceMotion }: Props) {
   const stops = dark ? preset.stopsDark : preset.stopsLight;
   const lineColor = dark ? preset.lineDark : preset.lineLight;
   const flood = dark ? FLOOD_DARK : FLOOD_LIGHT;
 
-  const progress = useSharedValue(reduceMotion || !active ? 1 : 0);
+  // The carousel screen only ever mounts the current slide, so this component's own mount IS the
+  // "just became active" moment — no separate active/playKey gating needed to replay the settle.
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
   useEffect(() => {
-    if (reduceMotion || !active) {
-      progress.value = 1;
-      return;
-    }
-    progress.value = 0;
+    if (reduceMotion) return;
     progress.value = withDelay(delayMs, withTiming(1, { duration: DURATION.settle, easing: EASING.settle }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playKey, active]);
+  }, []);
 
   const style = useAnimatedStyle(() => ({
     opacity: progress.value,

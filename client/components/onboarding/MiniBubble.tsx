@@ -2,7 +2,7 @@
 // WarmBubble (one continuous silhouette, tail pulled from the body, no separate diamond nub),
 // just smaller and single-line. Ported from onboarding-app.jsx's ThreadArt `Mini` helper.
 import React, { useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withTiming } from 'react-native-reanimated';
 import Svg, { Defs, LinearGradient, Stop, Filter, FeDropShadow, Path, Rect } from 'react-native-svg';
 
@@ -26,26 +26,22 @@ type Props = {
   /** Mirrors the silhouette so the tail points the other way. */
   tailLeft: boolean;
   delayMs: number;
-  playKey: number;
-  active: boolean;
   reduceMotion: boolean;
 };
 
-export function MiniBubble({ id, dark, left, top, tailLeft, delayMs, playKey, active, reduceMotion }: Props) {
+export function MiniBubble({ id, dark, left, top, tailLeft, delayMs, reduceMotion }: Props) {
   const stops = dark ? STOPS_DARK : STOPS_LIGHT;
   const lineColor = dark ? LINE_DARK : LINE_LIGHT;
   const flood = dark ? FLOOD_DARK : FLOOD_LIGHT;
 
-  const progress = useSharedValue(reduceMotion || !active ? 1 : 0);
+  // The carousel screen only ever mounts the current slide, so this component's own mount IS the
+  // "just became active" moment — no separate active/playKey gating needed to replay the settle.
+  const progress = useSharedValue(reduceMotion ? 1 : 0);
   useEffect(() => {
-    if (reduceMotion || !active) {
-      progress.value = 1;
-      return;
-    }
-    progress.value = 0;
+    if (reduceMotion) return;
     progress.value = withDelay(delayMs, withTiming(1, { duration: DURATION.settle, easing: EASING.settle }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playKey, active]);
+  }, []);
 
   const style = useAnimatedStyle(() => ({
     opacity: progress.value,
