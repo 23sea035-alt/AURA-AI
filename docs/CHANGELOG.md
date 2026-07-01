@@ -10,6 +10,10 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ## 2026-07-01 — branch: `test-results`
 
+### Task 4: Remember endpoint contract tests (+1 test)
+
+- **`remember.contract.test.ts`** (3 tests ca. 2 HTTP + 1 PGlite FK): `GET /api/companions` returns null remember fields when not cached; returns populated fields when cached via `companionsCache`; PGlite-backed FK `ON DELETE SET NULL` test verifies that deleting a surfaced memory nulls `companions.remember_memory_id` while preserving `remember_question` and `remember_generated_at`.
+
 ### Task 3: Unit tests for WebSocket + voice code (+49 tests)
 
 Four new test files (all pure logic / in-memory — no DB, Groq, or Inworld API needed):
