@@ -1,0 +1,11 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# Environment
+.env
+
+# Eval reports — tracked on test-results so Jason can review results
+# eval/reports/
+
+# Voice TTS A/B sample audio — regenerable via test-tts-*.mjs, do not commit
+tts-output/*.wav
+tts-output/*.mp3
