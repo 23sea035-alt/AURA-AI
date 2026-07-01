@@ -1,0 +1,4 @@
+appId: com.aura.ai.companion
+---
+- tapOn:
+    point: "75%,40%"
