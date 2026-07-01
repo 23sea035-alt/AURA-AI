@@ -9,9 +9,15 @@ import {
   Text,
   StyleSheet,
   FlatList,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+// The built-in RN KeyboardAvoidingView drives its padding via LayoutAnimation, which doesn't
+// actually ease under the New Architecture here — it snaps instantly while the real system
+// keyboard keeps animating underneath, producing a visible desync ("teleport then catch up") on
+// both open and dismiss. keyboard-controller's version instead syncs via Reanimated, frame-by-frame
+// with the real native keyboard animation.
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheet from '@/components/BottomSheet';
@@ -59,6 +65,11 @@ export default function ChatScreen() {
   const [toast, setToast] = useState(false);
   // Set when the next send originated from hold-to-talk dictation; consumed (and cleared) on send.
   const [voiceDraft, setVoiceDraft] = useState<{ audioUri?: string } | null>(null);
+  // Composer's own bottom safe-area padding must ease out over the same continuous signal that
+  // drives KeyboardAvoidingView's push, rather than a discrete keyboardDidShow/Hide flip — a
+  // boolean toggle lands at a slightly different moment than the real keyboard settles, producing
+  // a visible snap independent of the (already-smooth) main translation.
+  const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
 
   // A message is reportable once it's a real assistant turn (not the local greeting or the
   // in-progress streaming placeholder).
@@ -170,6 +181,15 @@ export default function ChatScreen() {
     }, 2000);
   };
 
+  const composerWrapStyle = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(
+      keyboardProgress.value,
+      [0, 1],
+      [insets.bottom + SPACE.sm, SPACE.md],
+      Extrapolation.CLAMP,
+    ),
+  }));
+
   const limitReached = apiError?.startsWith('limitReached:');
   const data = streaming
     ? [...messages, { id: 'streaming', role: 'assistant' as const, content: streaming, createdAt: new Date().toISOString() }]
@@ -187,13 +207,13 @@ export default function ChatScreen() {
         />
       </View>
 
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 56}
-      >
+      {/* No keyboardVerticalOffset: this KAV is a plain flow sibling (not in a Modal), so it
+          already measures its own on-screen position via onLayout — a manual offset here would
+          double-count the header height on top of that measurement. */}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           ref={listRef}
+          style={styles.flex}
           data={data}
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.thread}
@@ -234,7 +254,7 @@ export default function ChatScreen() {
           </View>
         ) : null}
 
-        <View style={[styles.composerWrap, { paddingBottom: insets.bottom + SPACE.sm }]}>
+        <Animated.View style={[styles.composerWrap, composerWrapStyle]}>
           <ChatComposer
             value={input}
             onChangeText={(t) => {
@@ -245,7 +265,7 @@ export default function ChatScreen() {
             onVoiceResult={(info) => setVoiceDraft(info)}
             placeholder={CHAT.inputPlaceholder.replace('{Companion}', companion?.name ?? 'Aurora')}
           />
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
 
       <BottomSheet visible={overflowOpen} onClose={() => setOverflowOpen(false)}>
@@ -301,7 +321,11 @@ function TypingDots() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  thread: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
+  // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
+  // header-to-composer area stays interactive even when under-filled. Messages stay top-aligned
+  // (default); "anchored to the bottom" once overflowing is scrollToEnd() showing the latest
+  // message at the bottom of the frame — not a permanent bottom-justify.
+  thread: { flexGrow: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
   crisisWrap: { marginVertical: SPACE.sm },
   typing: {
     alignSelf: 'flex-start',

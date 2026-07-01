@@ -4,7 +4,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Platform } from 'react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+// See chat/[id].tsx for why: keyboard-controller's KeyboardAvoidingView syncs via Reanimated with
+// the real native keyboard animation, unlike RN's own LayoutAnimation-driven one.
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChatHeader, MessageBubble, DisclosureBanner, ChatComposer } from '@/components/chat';
@@ -31,6 +35,18 @@ export default function FirstChatScreen() {
 
   const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', text: greeting }]);
   const [draft, setDraft] = useState('');
+  // See chat/[id].tsx: composer's own safe-area padding eases out over the same continuous signal
+  // that drives KeyboardAvoidingView's push, instead of staying constant and double-padding above
+  // an already-open keyboard.
+  const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+  const composerWrapStyle = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(
+      keyboardProgress.value,
+      [0, 1],
+      [insets.bottom + SPACE.sm, SPACE.md],
+      Extrapolation.CLAMP,
+    ),
+  }));
 
   const finishOnboarding = () => {
     if (!user?.onboardingDone) updateUser({ onboardingDone: true });
@@ -55,20 +71,17 @@ export default function FirstChatScreen() {
       <View style={{ paddingTop: insets.top + SPACE.sm }}>
         <ChatHeader id={companion.toLowerCase()} name={companion} onBack={handleDone} />
       </View>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={insets.top + 56}
-      >
-        <ScrollView contentContainerStyle={styles.thread} showsVerticalScrollIndicator={false}>
+      {/* No keyboardVerticalOffset — see chat/[id].tsx for why (plain flow sibling, self-measures). */}
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.thread} showsVerticalScrollIndicator={false}>
           <DisclosureBanner text={banner} />
           {messages.map((m, i) => (
             <MessageBubble key={i} role={m.role} text={m.text} />
           ))}
         </ScrollView>
-        <View style={[styles.composerWrap, { paddingBottom: insets.bottom + SPACE.sm }]}>
+        <Animated.View style={[styles.composerWrap, composerWrapStyle]}>
           <ChatComposer value={draft} onChangeText={setDraft} onSend={handleSend} placeholder={placeholder} />
-        </View>
+        </Animated.View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -77,6 +90,8 @@ export default function FirstChatScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
-  thread: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
+  // Same fix as chat/[id].tsx: the content wrapper spans the full frame (stays interactive when
+  // under-filled) while messages stay top-aligned (default).
+  thread: { flexGrow: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
   composerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm },
 });
