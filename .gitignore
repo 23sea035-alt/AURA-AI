@@ -30,7 +30,7 @@ node_modules
 # misc
 /.sass-cache
 /connect.lock
-# /coverage — un-ignored on test-results so coworker eval/coverage output is committed
+/coverage
 /libpeerconnection.log
 npm-debug.log
 yarn-error.log
