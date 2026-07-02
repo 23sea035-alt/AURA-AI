@@ -7,7 +7,7 @@ export interface BreakReminderResult {
 }
 
 export function shouldShowBreakReminder(
-  messageCount: number,
+  turnNumber: number,
   sessionStartTime: Date,
   isMinor: boolean,
 ): BreakReminderResult {
@@ -22,10 +22,12 @@ export function shouldShowBreakReminder(
     return { remind: true, reason: `You've been chatting for ${hours} hours. Take a moment to breathe.` };
   }
 
-  if (isMinor && messageCount > 0 && messageCount % 10 === 0) {
+  // Turn-based cadence (each turn = 2 messages, so a raw message index is always odd and a
+  // per-message modulo would never land): ~every 5 turns (minor) / 10 turns (adult).
+  if (isMinor && turnNumber > 0 && turnNumber % 5 === 0) {
     return { remind: true, reason: "You've been chatting for a while — want to take a break?" };
   }
-  if (messageCount > 0 && messageCount % 20 === 0) {
+  if (turnNumber > 0 && turnNumber % 10 === 0) {
     return { remind: true, reason: "Take a moment to breathe and check in with yourself." };
   }
 

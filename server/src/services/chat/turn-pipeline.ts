@@ -194,7 +194,7 @@ async function executeTurn(
   const sessionStart = sessionStartedAt
     ? new Date(sessionStartedAt)
     : (history.length > 0 ? new Date(history[0].createdAt) : new Date());
-  const breakCheck = shouldShowBreakReminder(msgCount, sessionStart, isMinor);
+  const breakCheck = shouldShowBreakReminder(Math.ceil(msgCount / 2), sessionStart, isMinor);
 
   return {
     userMessage, aiMessage, turnId,
