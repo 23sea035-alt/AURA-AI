@@ -84,24 +84,36 @@ export default function CreateCompanionScreen() {
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <TopBar title={isEdit ? 'Edit companion' : 'New companion'} />
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 128 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View pointerEvents={locked ? 'none' : 'auto'} style={[styles.form, locked && styles.dimmed]}>
-            {/* avatar + change look — swap-not-upload curated mood filters, never a new photo */}
+            {/* avatar + name — Change look is a corner badge on the avatar (swap-not-upload curated
+                mood filters, never a new photo); the name sits right under the face so the identity
+                (look + name) reads as one unit before the personality controls below. */}
             <View style={styles.avatarSection}>
               <View style={[styles.avatarWrap, shadows.e2]}>
                 <FilteredAvatar personaId={base.toLowerCase()} lookId={look} size={96} />
+                <PressableScale
+                  haptic="light"
+                  onPress={() => setLookOpen(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={CREATE.changeLook}
+                  style={[styles.changeLookBadge, { backgroundColor: colors.sheet, borderColor: colors.bg }, shadows.e1]}
+                >
+                  <Ionicons name="color-palette-outline" size={16} color={colors.textPrimary} />
+                </PressableScale>
               </View>
-              <PressableScale
-                haptic="light"
-                onPress={() => setLookOpen(true)}
-                style={[styles.changeLookBtn, { backgroundColor: colors.sheet, borderColor: colors.border }, shadows.e1]}
-              >
-                <Ionicons name="color-palette-outline" size={15} color={colors.textPrimary} />
-                <Text style={[styles.changeLookText, { color: colors.textPrimary }]}>{CREATE.changeLook}</Text>
-              </PressableScale>
+              <View style={styles.nameField}>
+                <Field
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Name your companion"
+                  autoCapitalize="words"
+                  style={styles.nameInput}
+                />
+              </View>
             </View>
 
             {!isEdit ? (
@@ -175,21 +187,23 @@ export default function CreateCompanionScreen() {
               </View>
               <Text style={[styles.preview, { color: colors.textSecondary }]}>{voicePreview}</Text>
             </View>
-
-            <View style={styles.section}>
-              <SectionLabel>Name</SectionLabel>
-              <Field value={name} onChangeText={setName} placeholder="Name your companion" autoCapitalize="words" />
-            </View>
-          </View>
-
-          {/* Footer dock — Save (the ONE accent fill) for premium; the Unlock door + explainer for free. */}
-          <View style={styles.action}>
-            {locked ? (
-              <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
-            ) : null}
-            <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
           </View>
         </ScrollView>
+
+        {/* Floating footer dock — always in reach, not scrolled away at the bottom of the form
+            (matches persona.tsx's footer). Save is the ONE accent fill for premium; the Unlock door
+            + explainer for free. Kept outside the dimmed form so the door stays live when locked. */}
+        <View
+          style={[
+            styles.footer,
+            { paddingBottom: insets.bottom + SPACE.lg, backgroundColor: colors.bg, borderTopColor: colors.divider },
+          ]}
+        >
+          {locked ? (
+            <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
+          ) : null}
+          <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
+        </View>
       </View>
 
       <LookSheet
@@ -207,22 +221,28 @@ export default function CreateCompanionScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1 },
-  content: { flexGrow: 1, gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
+  content: { gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   form: { gap: SPACE.xl },
   dimmed: { opacity: 0.5 },
   section: { gap: SPACE.sm },
   avatarSection: { alignItems: 'center', gap: SPACE.md },
   avatarWrap: { width: 96, height: 96, borderRadius: 48 },
-  changeLookBtn: {
-    flexDirection: 'row',
+  // Corner badge on the avatar (same convention as companions.tsx's pinBadge, scaled up to a
+  // comfortable tap target) — sits tangent to the circle at ~4:30, neutral fill so it doesn't
+  // spend the one accent reserved for Save. bg-colored ring separates it from the avatar.
+  changeLookBadge: {
+    position: 'absolute',
+    bottom: -2,
+    right: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 2,
     alignItems: 'center',
-    gap: SPACE.xs,
-    paddingHorizontal: SPACE.lg,
-    paddingVertical: SPACE.sm,
-    borderRadius: RADIUS.pill,
-    borderWidth: 1,
+    justifyContent: 'center',
   },
-  changeLookText: { fontFamily: FONTS.body.semibold, fontSize: 13.5 },
+  nameField: { alignSelf: 'stretch' },
+  nameInput: { textAlign: 'center' },
   bases: { flexDirection: 'row', gap: SPACE.sm },
   baseCard: {
     flex: 1,
@@ -257,6 +277,15 @@ const styles = StyleSheet.create({
   axis: { gap: SPACE.sm },
   axisLabel: { fontFamily: FONTS.body.semibold, fontSize: 13 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 20 },
-  action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: SPACE.xl,
+    paddingTop: SPACE.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap: SPACE.sm,
+  },
   unlockExplainer: { ...TYPE.caption, textAlign: 'center' },
 });
