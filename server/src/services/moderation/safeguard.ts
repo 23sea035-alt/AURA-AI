@@ -108,14 +108,18 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
     if (parsed.flagged) {
       return { action: "block", reason: `Safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
     }
-    // If the model returned flagged=false but the category/rationale indicate
-    // self-harm distress (SH-1), route to crisis (not a block).
-    // Avoid false positives on hyperbolic/idiomatic use (e.g. "that killed me lol").
+    // If the model returned flagged=false but the category/rationale indicate self-harm distress,
+    // route to crisis (not a block). This is DELIBERATELY recall-biased: the safeguard model does
+    // not reliably set an SH-1 category or crisis_route flag for subtle distress ("empty, going
+    // through the motions"), so we also honor its explicit crisis_route flag AND distress wording in
+    // the rationale. Better to over-offer support than miss a crisis (design: recall-biased L2 self-
+    // harm). The cost — benign-but-escalated content occasionally routing to crisis — is an advisory
+    // precision FP, not a safety failure. Hyperbole/idiom ("that killed me lol") still suppresses.
     const cat = (parsed.category ?? "").toLowerCase();
     const rationaleText = (parsed.rationale ?? []).join(" ").toLowerCase();
     const isHyperbolic = /\b(hyperbole|hyperbolic|idiom|idiomatic|figurative|figuratively|exaggeration|laugh|😂|😭|joking|joke)\b/.test(rationaleText);
     const mentionsDistress = /\b(crisis.route|distress|ideation|genuine.*concern|real.*distress)\b/.test(rationaleText);
-    if (!isHyperbolic && (cat.includes("sh-1") || cat.includes("self-harm") || cat.includes("crisis") || mentionsDistress)) {
+    if (!isHyperbolic && (cat.includes("sh-1") || cat.includes("self-harm") || cat.includes("crisis") || parsed.crisis_route === true || mentionsDistress)) {
       return { action: "crisis", reason: "Safeguard: self-harm distress detected — routing to crisis", confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
     }
     return { action: "allow", reason: "Safeguard cleared", confidence: "high", route: routeLabel };
