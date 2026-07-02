@@ -457,6 +457,14 @@ Generation dominates text LLM cost; moderation is effectively free. Voice is the
 cost line (hence its hard daily/per-call caps). Subscription revenue dwarfs inference cost at any real
 conversion rate.
 
+> **Launch prerequisite — Groq must be on a paid (Developer) tier.** The **Free** tier caps
+> `llama-3.3-70b-versatile` at **12K TPM / 1,000 RPD / 100K TPD**, and that budget is shared between
+> live generation *and* async consolidation (~2 calls/turn, ~2.3K 70B tokens/turn). That works out to
+> **~42 full turns per day across all users** — enough only for local smoke-testing, not a closed beta.
+> The guard/prompt-guard models are a separate pool, so moderation isn't the bottleneck; the 70B is.
+> Upgrading is a one-click billing change in the Groq console (and unlocks Batch/Flex, which
+> consolidation could later use). This is an account action, tracked as a go-live gate, not a code change.
+
 ---
 
 ## 8. Deferred / post-v1.0
@@ -475,6 +483,19 @@ conversion rate.
 - **Feature-based multi-tier** pricing (good-better-best on voice minutes / model quality / companions /
   memory / customization) — pending real usage data.
 - US web payment **link-out** (unstable post-2025 ruling; revisit when Apple's "reasonable" rate is set).
+- **Global Groq rate coordination across instances.** The turn queue's concurrency cap
+  (`TURN_QUEUE_CONCURRENCY`) is **per-process/in-memory**, so v1 deliberately runs a **single Render
+  instance** (`render.yaml` → `plan: starter`, no autoscaling), where that one queue *is* the
+  authoritative global limiter — nothing to coordinate. The gap only appears at **2+ instances**: N
+  processes then share one per-account Groq budget with no mutual awareness, so an autoscale event can
+  collectively blow the tier limit and stampede into 429s. When that day comes, sequence it:
+  **(1)** per-instance sub-budgets — divide the account RPM/TPM by max instance count and size each
+  process's queue + a small local token-bucket to its share (zero new infra); **(2)** a managed LLM
+  gateway ([LiteLLM](https://docs.litellm.ai), self-hosted/free, or [Portkey](https://portkey.ai), SaaS)
+  for a Redis-backed global limit + **multi-key load-balancing** + retries/fallback. Key point: a shared
+  limiter only *prevents collective overrun* — it does **not** add Groq capacity; real horizontal Groq
+  throughput comes from a higher tier and/or multiple keys. **Trigger to build: the day a second instance
+  is added.** Early-warning signal already in place: the `groq.rate_limited` metric (`GET /api/admin/metrics`).
 
 ---
 
