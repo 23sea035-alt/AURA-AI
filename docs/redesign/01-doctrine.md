@@ -128,8 +128,10 @@ need the same shape, it's the same component.
   actionable** (988), paired with the companion's supportive reply. **Never** an alarm-red emergency
   screen. Design it as a hand on the shoulder.
 - **Report / flag a message** is low-friction and non-punitive in tone.
-- **Microcopy:** warm, clear, sentence case for labels/body, Title Case only for true buttons; errors
-  say what to do next. Emoji are rare, intentional accents — not filler or UI.
+- **Microcopy:** warm, clear, **sentence case throughout — including buttons/CTAs** ("Say hello",
+  "Save companion", not "Save Companion"). Warmth over platform convention: the calm, un-shouty voice
+  is part of the brand, and Apple's HIG permits either casing. Errors say what to do next. Emoji are
+  rare, intentional accents — not filler or UI.
 - **Degenerate data:** design the zero / single / very-long / error cases, not just the happy path.
 
 ## 11. Accessibility (WCAG 2.2 AA)
