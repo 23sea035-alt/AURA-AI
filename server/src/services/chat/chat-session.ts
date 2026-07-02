@@ -8,6 +8,7 @@ import { captureException } from "../../lib/observability.js";
 import { incrementMetric } from "../../lib/metrics.js";
 import { logSafetyEvent } from "./safety-logging.js";
 import { persistMessages, fetchExistingTurn, isTurnUniqueViolation } from "./persistence.js";
+import { maybeSendReplyPush } from "./reply-push.js";
 import { getLLMProvider } from "../llm/index.js";
 import { retrieveMemories, enqueueMemoryJob } from "../memory.js";
 import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js";
@@ -308,6 +309,9 @@ export class ChatSession {
       if (!outputBlocked) {
         enqueueMemoryJob(userId, companionId, trimmed, finalReply).catch((err) => logger.error({ err }, "Memory job enqueue failed"));
       }
+      // Away-delivery (D10): push only if the user has no live WS connection (e.g. the REST
+      // fallback, or a WS client that dropped mid-turn). No-op when they're live on the socket.
+      maybeSendReplyPush(userId, companionId, companion.name).catch(() => { /* best-effort */ });
 
       const sessionStart = sessionStartedAt
         ? new Date(sessionStartedAt)

@@ -29,20 +29,18 @@
   idempotent** — a replay returns the existing turn (no duplicate, no second generation). Safety-event
   logging is best-effort on a **separate connection** (loud: error log + Sentry + metric) so it can
   never roll back or suppress the user's reply — including the 988 crisis response.
-  **Update 2026-07-02: the WS path now streams (sentence-gated).** `ChatSession` streams Groq token deltas,
-  buffers them to sentence boundaries, L3-moderates each completed sentence, and forwards it via `onToken`
-  only if it clears — real streaming with no unsafe content ever transmitted (see D1). An `AbortController`
-  stops generation on an output block. The REST `turn-pipeline` remains **non-streaming** and still owns the
-  `turnId` idempotency + retry (which the WS path does not yet implement). Two live chat paths still coexist;
-  L2 on the WS path is now a blocking input gate (via `screenInput`) rather than concurrent-with-generation.
-- **Moderation — fail-closed** on the **REST turn-pipeline path** (`turn-pipeline.ts` → `ModerationEngine`,
-  verified). Crisis path fires + logs a `critical` `safety_events` row and returns 988/741741. The
-  AI-disclosure preamble says *"you are an AI, and say so plainly if asked"* (SB 243) — never the inverse.
-  **Update 2026-07-02 (fixed):** the WebSocket path (`chat-session.ts`, the one the client uses) now routes
-  through the shared `ModerationEngine` (`screenInput` + per-sentence `screenOutput`), so it is at full
-  parity with the REST path — self-harm→crisis routing, OR-escalation, flagged-user widening, fail-closed
-  L2. Output is **gated per sentence before it is sent**, closing the prior fail-open where the reply
-  reached the client before L3 ran.
+  **Update 2026-07-02: sentence-gated streaming + one engine.** `ChatSession` streams Groq token deltas,
+  buffers to sentence boundaries, L3-moderates each completed sentence, and forwards it only if it clears —
+  real streaming, no unsafe content ever transmitted (D1); an `AbortController` stops generation on a block.
+  `turnId` idempotency (replay-on-reconnect) is implemented here. The REST endpoint
+  (`POST /companions/:id/chat`) is now a **non-streaming wrapper over the same `ChatSession`** — the old
+  `turn-pipeline.ts` was retired, so there is **a single turn engine**. L2 is a blocking input gate (via
+  `screenInput`), not concurrent-with-generation.
+- **Moderation — fail-closed, one path.** Every turn (text + voice + the REST wrapper) runs through
+  `ChatSession` → the shared `ModerationEngine` (`screenInput` = L0–L2 + safeguard; per-sentence
+  `screenOutput` = L3, **gated before send**). Self-harm→crisis routing, OR-escalation, and flagged-user
+  widening all apply; the crisis path fires + logs a `critical` `safety_events` row and returns 988/741741.
+  The AI-disclosure preamble says *"you are an AI, and say so plainly if asked"* (SB 243) — never the inverse.
 - **Rate limiting — durable + shared.** All limiters use a **Postgres-backed store** (`rate_limits`
   table), so the per-minute / daily-cap / brute-force / global limits hold across restarts AND
   multiple instances. (The in-memory default store was the prior CRITICAL.)
