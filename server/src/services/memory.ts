@@ -1,8 +1,8 @@
 import { db, memoriesTable, memoryJobsTable, type DbOrTx } from "../db/src/index.js";
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { logger } from "../lib/logger.js";
-import { extractKeywords, jaccardSimilarity } from "./memory/keywords.js";
-import { MEMORY_RECENCY_HALFLIFE_DAYS, MEMORY_RELEVANCE_FLOOR, MEMORY_SCORE_WEIGHTS } from "@aura/shared";
+import { extractKeywords } from "./memory/keywords.js";
+import { scoreAndRank, type ScorableMemory } from "./memory/scorer.js";
 
 const FACT_PATTERNS = [
   { regex: /I (?:am|feel|like|love|hate|enjoy|prefer|want|need|have|don't like|can't stand)\s+(.+?)(?:\.|,|!|\?|$)/i, category: "preference" },
@@ -91,44 +91,33 @@ export async function retrieveMemories(
           eq(memoriesTable.companionId, companionId),
         )
       )
-      .orderBy(desc(memoriesTable.importance))
-      .limit(50);
+      // Safety bound only — the write path caps memories at 50 per (user, companion).
+      // Deliberately NOT ordered by importance (that importance-first cut was the retrieval
+      // blind-spot); eligibility + ranking happen in scoreAndRank below.
+      .limit(200);
 
-    const now = Date.now();
-    interface ScoredMemory { content: string; importance: number; category: string; score: number }
-    const scored: ScoredMemory[] = allMemories.map((m) => {
-      let similarity = 0;
-      if (m.keywords && m.keywords.length > 0) {
-        const memTokens = new Set(m.keywords);
-        similarity = jaccardSimilarity(queryTokens, memTokens);
-      }
-      const referenceTime = m.lastRecalledAt ?? m.createdAt;
-      const daysSinceReference = referenceTime ? (now - referenceTime.getTime()) / 86_400_000 : 0;
-      const recency = Math.pow(2, -daysSinceReference / MEMORY_RECENCY_HALFLIFE_DAYS);
-      return {
-        content: m.content,
-        importance: m.importance,
-        category: m.category,
-        score: similarity * MEMORY_SCORE_WEIGHTS.jaccard + m.importance * MEMORY_SCORE_WEIGHTS.importance + recency * MEMORY_SCORE_WEIGHTS.recency,
-      };
-    });
+    const scorable: ScorableMemory[] = allMemories.map((m) => ({
+      id: m.id,
+      content: m.content,
+      keywords: m.keywords,
+      category: m.category,
+      importance: m.importance,
+      createdAt: m.createdAt,
+      lastRecalledAt: m.lastRecalledAt,
+    }));
 
-    scored.sort((a: ScoredMemory, b: ScoredMemory) => b.score - a.score);
-    const aboveFloor = scored.filter((s) => s.score >= MEMORY_RELEVANCE_FLOOR);
-    const top = aboveFloor.slice(0, limit);
+    const top = scoreAndRank(scorable, queryTokens, Date.now(), limit);
 
     if (top.length > 0) {
-      const topContent: string[] = top.map((t: ScoredMemory) => t.content);
-      for (const m of allMemories) {
-        if (topContent.includes(m.content)) {
-          await db.update(memoriesTable)
-            .set({ lastRecalledAt: new Date() })
-            .where(eq(memoriesTable.id, m.id));
-        }
+      const recalledAt = new Date();
+      for (const t of top) {
+        await db.update(memoriesTable)
+          .set({ lastRecalledAt: recalledAt })
+          .where(eq(memoriesTable.id, t.id));
       }
     }
 
-    return top.map((t: ScoredMemory) => ({ content: t.content, importance: t.importance, category: t.category }));
+    return top.map((t) => ({ content: t.content, importance: t.importance, category: t.category }));
   } catch (err) {
     logger.error({ err }, "Failed to retrieve memories");
     return [];
