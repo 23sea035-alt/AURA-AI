@@ -19,83 +19,93 @@ logic, and memory consolidation are implemented once.
 
 ### 1.1 Interface
 
+> **As-built (2026-07-02).** This section is reconciled to the shipped `ChatSession`. The original
+> design (optimistic token streaming with L2-concurrent-with-generation and mid-stream `l2_abort`/
+> `l3_abort`) was simplified to a **blocking input gate + pre-send sentence gating** for correctness
+> — see the note under §1.2. Streaming is real (Groq token deltas), but each sentence is L3-moderated
+> *before* it is sent, so unsafe text is never transmitted.
+
 ```typescript
-// Shared across @aura/shared — must be kept in sync with client abort handler
+// AbortReason — kept in sync with the client abort handler (see chat-session.ts)
 type AbortReason =
-  | 'l0_block'
-  | 'l0_crisis'
-  | 'l1_block'
-  | 'l2_abort'
-  | 'l3_abort'
-  | 'safeguard'
-  | 'internal_error'   // Groq LLM error / timeout
-  | 'rate_limited';    // Groq TPM ceiling or per-user rate limit
+  | 'input_blocked'       // L0/L1/L2 or safeguard blocked the input (generic reason — no oracle)
+  | 'input_crisis'        // reserved; crisis is delivered as a normal reply, not an abort
+  | 'output_blocked'      // reserved; an L3 block persists the safe prefix and completes (see §1.2)
+  | 'rate_limited'        // per-user WS limiter / Groq TPM ceiling
+  | 'free_limit_reached'  // free-tier daily cap
+  | 'internal_error';     // LLM error / unexpected failure
 
 interface ChatSessionCallbacks {
-  onToken(token: string): void;
-  onSentenceComplete(sentence: string, index: number): void;
-  onAbort(reason: AbortReason, safeReply: string): void;
-  onComplete(reply: string): void;  // reply used by APNs and consolidation
-  onError(err: Error): void;
+  // Fires once per output-moderated sentence (already L3-cleared). opts.crisis marks the fixed
+  // 988 reply so the voice adapter speaks it in the calm delivery style.
+  onToken?(token: string, opts?: { crisis?: boolean }): void;
+  onComplete(result: ChatSessionResult): void;   // messages, memoriesUsed, breakReminder, aiDisclosure, crisisResources
+  onAbort(reason: AbortReason, detail?: string): void;
 }
 
 interface ChatSessionParams {
   userId: string;
   companionId: string;
-  turnId: string;
+  content: string;          // typed message, or STT transcript (voice)
   isPremium: boolean;
-  userMessage: string;
-  conversationHistory: Message[];  // last 8 messages
-  memoryBlock: string;             // pre-fetched, injected into system prompt
+  isMinor: boolean;
+  sessionStartedAt?: string;
+  providedTurnId?: string;  // client-minted; enables idempotent replay
 }
 
 class ChatSession {
-  constructor(params: ChatSessionParams, callbacks: ChatSessionCallbacks);
-  run(): Promise<void>;  // enqueues to TurnQueue internally
-  abort(): void;         // external abort (e.g. voice interrupt → detour)
+  constructor(params: ChatSessionParams);
+  run(callbacks: ChatSessionCallbacks): Promise<void>;  // caller enqueues via enqueueTurn (turn-queue)
+  abort(): void;                                         // external abort (e.g. voice interrupt → detour)
 }
+// Note: ChatSession loads history + memories internally (not passed in); the caller (WS handler /
+// REST controller) wraps run() in enqueueTurn({ isPremium }) for the priority queue.
 ```
 
 ### 1.2 Moderation sequencing
 
 ```
-L0  (sync, ~0ms)
-  └─ crisis match    → callbacks.onAbort('l0_crisis', crisisReply) + persist + log
-  └─ hard block      → callbacks.onAbort('l0_block', safeReply) + persist + log
-  └─ encoding detect → normalize input, continue
+Idempotency: providedTurnId already has a committed turn → onComplete(replay), return.
 
-L1 + L2 start concurrently:
-  [L1] Prompt Guard (~100ms) — BLOCKS generation
-  [L2] Omni moderation (~250–500ms) — continues CONCURRENT with generation
+INPUT GATE — L0 + L1 + L2 (+ safeguard) run together as a BLOCKING gate via
+ModerationEngine.screenInput (fail-closed; full L0–L2 + safeguard, self-harm→crisis,
+OR-escalation, flagged-user widening):
+  → block  → onAbort('input_blocked') + log safety_event (injection → injection_detected)
+  → crisis → deliver the fixed 988 reply (onToken{crisis} then onComplete) + log critical event
+  → allow  → continue
 
-L1 clears → generation starts (whether or not L2 has returned)
+Load companion + history + memories → assemble hardened prompt.
 
-[L2 result arrives while generation is running]
-  → unsafe → abort Groq stream → callbacks.onAbort('l2_abort', safeReply)
-  → gray-band → safeguard escalation (async, off hot path)
+GENERATION — sentence-gated streaming:
+  for each Groq token delta → buffer into sentences
+    for each COMPLETE sentence → ModerationEngine.screenOutput (L3, stricter)
+      → allow → onToken(sentence)      ← ONLY now does the text reach the client
+      → block → AbortController.abort() + withhold the sentence + mark outputBlocked
+  An unsafe sentence is NEVER transmitted (fail-closed by construction).
+  LLM error → degrade to the safe canned line (already-sent safe sentences are kept).
 
-[Generation token stream]
-  [L3] Omni output moderation, CONCURRENT with token stream (stricter thresholds)
-  → unsafe → abort → callbacks.onAbort('l3_abort', safeReply)
-
-[Stream completes cleanly]
-  → persist assistant reply to DB  ← WAIT: if L2 has not yet resolved, hold persistence
-  → if L2 resolves unsafe after stream completes: delete the persisted reply + send abort frame
-    (rare — generation of 2–4 sentences typically outlasts L2's 250–500ms; design for it anyway)
-  → callbacks.onComplete(reply)    ← fires only after L2 is confirmed safe (or timed out → allow)
-  → fire memory consolidation job (async, off-path)
-  → fire APNs if client disconnected
+PERSIST — the approved prefix (or safe fallback if the first sentence blocked); a concurrent
+same-turnId collision replays the committed turn.
+  → onComplete(result)   (memoriesUsed, breakReminder, aiDisclosure, crisisResources)
+  → enqueue memory consolidation (off-path; skipped when output was blocked)
+  → APNs if the client is disconnected
 ```
+
+> **Deviation from the original design (intentional).** The input side is a **blocking gate**
+> (not "L2 concurrent with generation, abort mid-stream") and the output side is **pre-send
+> sentence gating** (not "optimistic stream, then abort"). This is simpler and closes a fail-open
+> where a reply could reach the client before L3 ran. The cost is that L2 is on the input critical
+> path (~+250–400ms TTFT); reintroducing L2-concurrency is a future optimization.
 
 ### 1.3 Fail-closed behavior
 
 | Scenario | Action |
 |---|---|
-| L0/L1 timeout | Block turn, persist safe fallback, log error |
-| L2 timeout | Treat as `allow` (generation continues); log timeout |
-| L3 timeout | Treat as `allow` (reply delivers); log timeout |
-| Groq LLM error/timeout | `callbacks.onError()` → adapter plays fallback (text: static string; voice: pre-cached fallback clip) |
-| Inworld TTS failure | Retry sentence once; skip on 2nd fail; 3+ consecutive → `onError` |
+| L0/L1 block or error | Blocked at the input gate → `onAbort('input_blocked')`, log safety_event |
+| L2 (omni) error/timeout | Engine fails **closed** — degrades to the safeguard adjudicator, blocks if unavailable |
+| L3 (omni) error/timeout on a sentence | Fails **closed** — the sentence is withheld, `outputBlocked` set (safe prefix persisted) |
+| Groq LLM error/timeout | Degrade to the safe canned line via `onToken` (text: static string; voice: pre-cached fallback clip); the turn still persists + completes |
+| Inworld TTS failure (voice) | Voice adapter plays the next filler clip and logs; the sentence's audio is skipped |
 
 ---
 
@@ -106,30 +116,31 @@ L1 clears → generation starts (whether or not L2 has returned)
 All frames are JSON. Client → server:
 
 ```typescript
-// Initiate a turn
-{ type: "turn", turnId: string, companionId: string, message: string }
+// Initiate a turn (turnId optional — enables idempotent replay on reconnect)
+{ type: "turn", companionId: string, content: string, turnId?: string, sessionStartedAt?: string }
 
-// Reconnect: ask for latest state
-{ type: "fetch_messages", companionId: string }
-
-// Periodic re-auth — send before Clerk token expires (~every 55s on long-lived connections)
+// Periodic re-auth — send before the Clerk token expires (~every 55s on long-lived connections)
 { type: "refresh_auth", token: string }
 ```
+
+> **As-built:** reconnect recovery is a **REST re-fetch** of the message list (the server-authoritative
+> turn model, §3), not a WS `fetch_messages` frame.
 
 Server → client:
 
 ```typescript
-{ type: "token",             token: string }
-{ type: "sentence_complete", index: number }
-{ type: "complete" }
-// Moderation block, LLM error, or explicit rate limit (Groq TPM / per-user limiter):
-{ type: "abort",             code: AbortReason }
-// TurnQueue full — free user must wait (distinct from abort: no turn was started)
-{ type: "busy",              retryAfterMs: number }
-{ type: "messages",          messages: Message[] }   // response to fetch_messages
-{ type: "auth_ok" }                                  // response to refresh_auth
-{ type: "auth_expired" }                             // client must reconnect with fresh token
+{ type: "token",    token: string, companionId: string }   // one frame per output-moderated sentence
+{ type: "complete", turnId, aiMessageId, userMessageId, memoriesUsed,
+                    breakReminder, aiDisclosure, crisisResources, companionId }
+// Moderation block, LLM error, or rate limit:
+{ type: "abort",    code: AbortReason, detail?: string, companionId: string }
+{ type: "error",    code: string }                         // malformed / unknown frame
+{ type: "auth_ok" } | { type: "auth_expired" }             // response to refresh_auth
 ```
+
+> **Not implemented in v1** (from the original design): `sentence_complete` (per-sentence event —
+> `token` is already per-sentence), `busy` (TurnQueue back-pressure frame), and `messages` (WS
+> message-list fetch — done over REST instead).
 
 **Clerk token expiry:** Clerk session tokens are short-lived (~60s). For text chat, the client
 re-sends a `refresh_auth` frame every 55s. For voice calls (which can exceed 60s), the iOS client
