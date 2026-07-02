@@ -12,7 +12,7 @@ import { makeTextAdapter } from "../services/chat/text-adapter.js";
 import { makeVoiceAdapter } from "../services/voice/voice-adapter.js";
 import { VoiceSession } from "../services/voice/voice-session.js";
 import { transcribeAudio } from "../services/voice/stt.js";
-import { checkVoiceDailyLimit, recordVoiceUsage, estimateSpeechSeconds, callMaxSeconds } from "../services/voice/metering.js";
+import { checkVoiceMonthlyLimit, recordVoiceUsage, estimateSpeechSeconds, callMaxSeconds } from "../services/voice/metering.js";
 import { enqueueTurn } from "../services/chat/turn-queue.js";
 import { db, usersTable, companionsTable } from "../db/src/index.js";
 import { STT_MODEL, MAX_UTTERANCE_BYTES } from "@aura/shared";
@@ -122,8 +122,8 @@ export function registerWebSocketHandler(server: Server): void {
       voiceIsPremium = tier.isPremium;
       voiceIsMinor = tier.isMinor;
 
-      const daily = await checkVoiceDailyLimit(userId, voiceIsPremium);
-      if (!daily.allowed) { send({ type: "abort", code: "voice_limit_reached", companionId }); return; }
+      const usage = await checkVoiceMonthlyLimit(userId, voiceIsPremium);
+      if (!usage.allowed) { send({ type: "abort", code: "voice_limit_reached", companionId }); return; }
 
       // Idempotent re-start: abort any in-flight turn and close the prior session so its
       // filler buffers are freed and per-call state is re-initialized cleanly.
@@ -134,7 +134,7 @@ export function registerWebSocketHandler(server: Server): void {
       voiceSessionStartedAt = sessionStartedAt;
       voiceSession = new VoiceSession({ userId, companionId, personaKey: companion.personaKey as PersonaKey });
       await voiceSession.open(); // pre-gen filler clips; degrades gracefully if no INWORLD_VOICE_ID_*
-      send({ type: "voice_ready", companionId, remainingSeconds: daily.remainingSeconds });
+      send({ type: "voice_ready", companionId, remainingSeconds: usage.remainingSeconds });
     }
 
     // ── Voice: an inbound binary frame = one complete user utterance ──
@@ -154,8 +154,8 @@ export function registerWebSocketHandler(server: Server): void {
       }
 
       // Enforce limits BEFORE any paid STT/LLM/TTS work (server-authoritative).
-      const daily = await checkVoiceDailyLimit(userId, voiceIsPremium);
-      if (!daily.allowed || session.callSeconds >= callMaxSeconds(voiceIsPremium)) {
+      const usage = await checkVoiceMonthlyLimit(userId, voiceIsPremium);
+      if (!usage.allowed || session.callSeconds >= callMaxSeconds(voiceIsPremium)) {
         send({ type: "abort", code: "voice_limit_reached", companionId });
         return;
       }
@@ -170,7 +170,7 @@ export function registerWebSocketHandler(server: Server): void {
       }
 
       // Meter the input utterance from the transcript (server-authoritative — the client cannot
-      // under-declare a duration). Awaited so the next utterance's daily gate reflects it.
+      // under-declare a duration). Awaited so the next utterance's monthly gate reflects it.
       const sttSeconds = estimateSpeechSeconds(transcript);
       if (sttSeconds > 0) {
         session.addCallSeconds(sttSeconds);

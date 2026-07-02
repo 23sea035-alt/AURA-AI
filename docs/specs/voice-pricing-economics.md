@@ -2,8 +2,8 @@
 
 > Decision record + cost model for voice call limits and subscription pricing. Grounds the tiering in
 > real backend costs (Groq STT + Inworld TTS + Groq LLM) and 2026 competitor benchmarks. Numbers are
-> estimates pending real call-log validation; **the daily→monthly metering change described in §8 is
-> specced, not yet implemented.**
+> estimates pending real call-log validation. **The daily→monthly metering change (§8) is implemented
+> as of 2026-07-02.**
 
 ## 1. Unit cost model (per voice-minute)
 
@@ -86,10 +86,10 @@ Committing to Inworld's **$300/mo tier ($15/1M chars)** roughly **halves** per-m
 for itself and lets premium minutes stretch further at the same margin. Tracked as a scale action, not
 a v1 launch requirement.
 
-## 8. Code-change spec — daily → monthly voice metering (NOT YET IMPLEMENTED)
+## 8. Code change — daily → monthly voice metering (IMPLEMENTED 2026-07-02)
 
-**Goal:** switch the voice budget from a per-UTC-day window to a per-calendar-month (UTC) window, with
-new monthly limits. Per-call caps are unchanged.
+Switched the voice budget from a per-UTC-day window to a per-calendar-month (UTC) window, with new
+monthly limits. Per-call caps unchanged. What landed (kept as the record):
 
 **`shared/src/index.ts`** — replace the daily constants (keep per-call as-is):
 ```ts

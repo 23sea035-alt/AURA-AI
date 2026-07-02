@@ -1,7 +1,7 @@
 import { eq, and, gte, sql } from "drizzle-orm";
 import { db, voiceUsageTable } from "../../db/src/index.js";
 import {
-  VOICE_DAILY_LIMIT_SECONDS, VOICE_DAILY_LIMIT_SECONDS_PREMIUM,
+  VOICE_MONTHLY_LIMIT_SECONDS, VOICE_MONTHLY_LIMIT_SECONDS_PREMIUM,
   VOICE_CALL_MAX_DURATION_SECONDS, VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM,
 } from "@aura/shared";
 
@@ -12,9 +12,9 @@ export interface VoiceMeteringResult {
   remainingSeconds: number;
 }
 
-/** Daily voice-seconds cap for the tier (premium gets the higher bucket). */
-export function dailyLimitSeconds(isPremium: boolean): number {
-  return isPremium ? VOICE_DAILY_LIMIT_SECONDS_PREMIUM : VOICE_DAILY_LIMIT_SECONDS;
+/** Monthly voice-seconds cap for the tier (premium gets the higher bucket). */
+export function monthlyLimitSeconds(isPremium: boolean): number {
+  return isPremium ? VOICE_MONTHLY_LIMIT_SECONDS_PREMIUM : VOICE_MONTHLY_LIMIT_SECONDS;
 }
 
 /** Per-call voice-seconds ceiling for the tier. */
@@ -22,20 +22,30 @@ export function callMaxSeconds(isPremium: boolean): number {
   return isPremium ? VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM : VOICE_CALL_MAX_DURATION_SECONDS;
 }
 
-export async function checkVoiceDailyLimit(userId: string, isPremium = false): Promise<VoiceMeteringResult> {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+/** Start of the current UTC calendar month — the voice budget window (resets monthly). */
+export function currentMonthStartUTC(now: Date = new Date()): Date {
+  const d = new Date(now.getTime());
+  d.setUTCDate(1);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+// Sums a user's voice-seconds (stt + tts) since the start of the current UTC calendar month and
+// compares against the tier's monthly cap. Voice is metered monthly (text is daily) because the
+// per-minute cost is ~200× a text turn — see docs/specs/voice-pricing-economics.md.
+export async function checkVoiceMonthlyLimit(userId: string, isPremium = false): Promise<VoiceMeteringResult> {
+  const monthStart = currentMonthStartUTC();
 
   const [result] = await db
     .select({ totalSeconds: sql<number>`coalesce(sum(${voiceUsageTable.durationSeconds}), 0)` })
     .from(voiceUsageTable)
     .where(and(
       eq(voiceUsageTable.userId, userId),
-      gte(voiceUsageTable.createdAt, today),
+      gte(voiceUsageTable.createdAt, monthStart),
     ));
 
   const usedSeconds = Number(result?.totalSeconds ?? 0);
-  const limitSeconds = dailyLimitSeconds(isPremium);
+  const limitSeconds = monthlyLimitSeconds(isPremium);
   const remainingSeconds = Math.max(0, limitSeconds - usedSeconds);
 
   return { allowed: usedSeconds < limitSeconds, usedSeconds, limitSeconds, remainingSeconds };

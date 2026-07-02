@@ -31,8 +31,8 @@ vi.mock("../db/src/index.js", () => ({
 }));
 
 vi.mock("@aura/shared", () => ({
-  VOICE_DAILY_LIMIT_SECONDS: 600,
-  VOICE_DAILY_LIMIT_SECONDS_PREMIUM: 3600,
+  VOICE_MONTHLY_LIMIT_SECONDS: 1200,
+  VOICE_MONTHLY_LIMIT_SECONDS_PREMIUM: 36000,
   VOICE_CALL_MAX_DURATION_SECONDS: 900,
   VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM: 3600,
 }));
@@ -43,32 +43,46 @@ describe("Voice metering", () => {
     resultsQueue.length = 0;
   });
 
-  describe("checkVoiceDailyLimit", () => {
+  describe("checkVoiceMonthlyLimit", () => {
     it("allows when under the limit", async () => {
       resultsQueue.push([{ totalSeconds: 120 }]);
-      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
-      const result = await checkVoiceDailyLimit("user-1");
+      const { checkVoiceMonthlyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceMonthlyLimit("user-1");
       expect(result.allowed).toBe(true);
       expect(result.usedSeconds).toBe(120);
-      expect(result.remainingSeconds).toBe(480);
+      expect(result.remainingSeconds).toBe(1080);
     });
 
     it("blocks when at the limit", async () => {
-      resultsQueue.push([{ totalSeconds: 600 }]);
-      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
-      const result = await checkVoiceDailyLimit("user-1");
+      resultsQueue.push([{ totalSeconds: 1200 }]);
+      const { checkVoiceMonthlyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceMonthlyLimit("user-1");
       expect(result.allowed).toBe(false);
-      expect(result.usedSeconds).toBe(600);
+      expect(result.usedSeconds).toBe(1200);
       expect(result.remainingSeconds).toBe(0);
     });
 
     it("allows when no usage yet", async () => {
       resultsQueue.push([{ totalSeconds: 0 }]);
-      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
-      const result = await checkVoiceDailyLimit("user-1");
+      const { checkVoiceMonthlyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceMonthlyLimit("user-1");
       expect(result.allowed).toBe(true);
       expect(result.usedSeconds).toBe(0);
-      expect(result.remainingSeconds).toBe(600);
+      expect(result.remainingSeconds).toBe(1200);
+    });
+  });
+
+  describe("currentMonthStartUTC", () => {
+    it("returns the first of the month at UTC midnight (monthly reset window)", async () => {
+      const { currentMonthStartUTC } = await import("../services/voice/metering.js");
+      expect(currentMonthStartUTC(new Date("2026-07-15T13:45:30Z")).toISOString())
+        .toBe("2026-07-01T00:00:00.000Z");
+    });
+
+    it("normalizes the last instant of a month to that month's start", async () => {
+      const { currentMonthStartUTC } = await import("../services/voice/metering.js");
+      expect(currentMonthStartUTC(new Date("2026-02-28T23:59:59Z")).toISOString())
+        .toBe("2026-02-01T00:00:00.000Z");
     });
   });
 
@@ -99,29 +113,29 @@ describe("Voice metering", () => {
   });
 
   describe("tier-aware limits", () => {
-    it("dailyLimitSeconds / callMaxSeconds pick the premium bucket", async () => {
-      const { dailyLimitSeconds, callMaxSeconds } = await import("../services/voice/metering.js");
-      expect(dailyLimitSeconds(false)).toBe(600);
-      expect(dailyLimitSeconds(true)).toBe(3600);
+    it("monthlyLimitSeconds / callMaxSeconds pick the premium bucket", async () => {
+      const { monthlyLimitSeconds, callMaxSeconds } = await import("../services/voice/metering.js");
+      expect(monthlyLimitSeconds(false)).toBe(1200);
+      expect(monthlyLimitSeconds(true)).toBe(36000);
       expect(callMaxSeconds(false)).toBe(900);
       expect(callMaxSeconds(true)).toBe(3600);
     });
 
-    it("premium user is allowed past the free daily cap", async () => {
-      resultsQueue.push([{ totalSeconds: 700 }]); // over free 600, under premium 3600
-      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
-      const result = await checkVoiceDailyLimit("user-1", true);
+    it("premium user is allowed past the free monthly cap", async () => {
+      resultsQueue.push([{ totalSeconds: 2000 }]); // over free 1200, under premium 36000
+      const { checkVoiceMonthlyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceMonthlyLimit("user-1", true);
       expect(result.allowed).toBe(true);
-      expect(result.limitSeconds).toBe(3600);
-      expect(result.remainingSeconds).toBe(2900);
+      expect(result.limitSeconds).toBe(36000);
+      expect(result.remainingSeconds).toBe(34000);
     });
 
     it("free user is blocked at the same usage", async () => {
-      resultsQueue.push([{ totalSeconds: 700 }]);
-      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
-      const result = await checkVoiceDailyLimit("user-1", false);
+      resultsQueue.push([{ totalSeconds: 2000 }]);
+      const { checkVoiceMonthlyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceMonthlyLimit("user-1", false);
       expect(result.allowed).toBe(false);
-      expect(result.limitSeconds).toBe(600);
+      expect(result.limitSeconds).toBe(1200);
     });
   });
 

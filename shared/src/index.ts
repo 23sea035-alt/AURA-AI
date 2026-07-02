@@ -189,10 +189,12 @@ export const HealthCheckResponse = z.object({
 export type HealthCheckResponse = z.infer<typeof HealthCheckResponse>;
 
 // ── Voice limits (Inworld TTS 2 + Groq STT over WebSocket) ──────────────
-export const VOICE_DAILY_LIMIT_SECONDS = 600;
-export const VOICE_DAILY_LIMIT_SECONDS_PREMIUM = 3600;
-export const VOICE_CALL_MAX_DURATION_SECONDS = 900;
-export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3600;
+// Voice is metered on a MONTHLY budget (unlike text's daily allowance): a voice minute costs ~200×
+// a text turn, so a monthly bucket caps the cost tail to 1× (not 30×). See docs/specs/voice-pricing-economics.md.
+export const VOICE_MONTHLY_LIMIT_SECONDS = 1_200;           // free: 20 min/month
+export const VOICE_MONTHLY_LIMIT_SECONDS_PREMIUM = 36_000;  // premium: 600 min/month (10 hr)
+export const VOICE_CALL_MAX_DURATION_SECONDS = 900;         // per call: 15 min (free)
+export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3_600; // per call: 60 min (premium)
 
 // ── Chat session / queue constants ───────────────────────────────────────
 export const TURN_QUEUE_CONCURRENCY = 8;

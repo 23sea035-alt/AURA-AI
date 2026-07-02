@@ -14,12 +14,13 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 - **Consolidation on a background priority lane** — memory consolidation's 70B call now runs through the shared turn queue *below* every live turn (`enqueueBackground` in `chat/turn-queue.ts`; wired in `memory/consolidation.ts`), so it yields the Groq budget to live replies under load. The sequential worker means at most one background call is ever queued.
 - **`groq.rate_limited` metric** — final (post-SDK-retry) Groq 429s are now counted and surfaced on `GET /api/admin/metrics` as an early-warning throttling signal (`llm/groq.ts`), for both blocking and streaming paths.
 
-**Decisions & docs (no runtime change):**
-- **Voice pricing & unit economics locked** — free **20 min/mo**, premium **600 min/mo** (monthly reset; text stays daily 30/day), Premium **$12.99/mo · $99.99/yr**. Grounded in provider costs (~$0.015/min all-in, TTS-dominated) + a 2026 competitor benchmark. The daily→monthly voice-metering code change is **specced but not yet implemented** — see [specs/voice-pricing-economics.md](specs/voice-pricing-economics.md). Product-offering docs updated (v1-architecture D13/§7, GO-LIVE RevenueCat step, paywall feature lists).
+**Decisions, docs & voice metering:**
+- **Voice pricing & unit economics locked** — free **20 min/mo**, premium **600 min/mo** (monthly reset; text stays daily 30/day), Premium **$12.99/mo · $99.99/yr**. Grounded in provider costs (~$0.015/min all-in, TTS-dominated) + a 2026 competitor benchmark. See [specs/voice-pricing-economics.md](specs/voice-pricing-economics.md). Product docs updated (v1-architecture D13/§7, GO-LIVE RevenueCat step, paywall feature lists).
+- **Voice metering: daily → monthly (code).** `VOICE_DAILY_LIMIT_SECONDS`→`VOICE_MONTHLY_LIMIT_SECONDS` (free 1200s/20min, premium 36000s/10hr) in `@aura/shared`; `checkVoiceDailyLimit`→`checkVoiceMonthlyLimit` now sums `voice_usage` since the start of the current UTC month (new testable `currentMonthStartUTC` helper); callers in `routes/voice.ts` + `websocket/handler.ts` updated; per-call caps unchanged. `GET /api/voice/limits` now returns `period: "month"`.
 - **Legal/compliance groundwork** (review-only, pending counsel) — [compliance/legal-research.md](compliance/legal-research.md) (SB 243 + multi-state chatbot laws, Apple 5.1.2(i) third-party-AI consent, tooling assessment, repo gap-map) and a Terms of Service first draft ([compliance/terms-of-service-draft.md](compliance/terms-of-service-draft.md)).
 - **Post-v1 scaling** decision recorded — single-instance v1; cross-instance Groq rate coordination deferred until a 2nd instance (v1-architecture §8).
 
-Suite: **526 passing, 2 skipped**; typecheck + lint + coverage green.
+Suite: **528 passing, 2 skipped**; typecheck + lint + coverage green.
 
 ---
 

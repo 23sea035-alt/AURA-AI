@@ -28,7 +28,7 @@ export function makeVoiceAdapter(
       enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }), { isPremium })
         .then((audio) => {
           sendBinaryFrame(ws, frameIndex++, audio);
-          // Meter synthesized speech against the per-call + daily voice budgets.
+          // Meter synthesized speech against the per-call + monthly voice budgets.
           const seconds = estimateSpeechSeconds(replyText);
           session.addCallSeconds(seconds);
           recordVoiceUsage(session.params.userId, companionId, seconds, "tts", TTS_MODEL_ID)
