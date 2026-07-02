@@ -57,6 +57,11 @@ export default function PaywallScreen() {
             </View>
           ))}
         </Animated.View>
+        {!owned ? (
+          <Animated.Text entering={enterUp(2)} style={[styles.freeBaseline, { color: colors.textTertiary }]}>
+            {PAYWALL.freeBaseline}
+          </Animated.Text>
+        ) : null}
 
         <Animated.View entering={enterUp(3)} style={styles.priceBlock}>
           {owned ? (
@@ -99,6 +104,7 @@ const styles = StyleSheet.create({
   headline: { ...TYPE.headline },
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
   valueList: { gap: SPACE.md, marginVertical: SPACE.sm },
+  freeBaseline: { ...TYPE.caption, marginTop: -SPACE.xs },
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
   valueText: { fontFamily: FONTS.body.regular, fontSize: 16, flex: 1 },
   priceBlock: { gap: SPACE.xs, marginVertical: SPACE.sm },

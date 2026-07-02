@@ -60,12 +60,14 @@ export default function ProfileScreen() {
               autoCapitalize="words"
               autoComplete="given-name"
               returnKeyType="next"
+              onBlur={() => setTouched(true)}
               error={touched && firstEmpty ? copy.errors.firstNameEmpty : undefined}
             />
             <Field
               label={copy.lastNameLabel}
               value={last}
               onChangeText={setLast}
+              placeholder="Optional"
               autoCapitalize="words"
               autoComplete="family-name"
               returnKeyType="done"

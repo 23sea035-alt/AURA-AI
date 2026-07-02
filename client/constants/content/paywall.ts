@@ -10,11 +10,13 @@ export const PAYWALL = {
     free: ['3 base companions', 'Default personalities', '30 messages/day'],
     premium: [
       'Unlimited messages',
-      'Personality tuning (3×3×3 traits)',
+      'Personality tuning: warmth, energy, and style',
       'Create extra companions',
       'Priority responses',
     ],
   },
+  // honest free baseline (quiet, not a cold matrix) — shown only in the non-owned state.
+  freeBaseline: 'Free always includes 3 base companions, their default personalities, and 30 messages a day.',
   subscribeCta: 'Subscribe',
   currentPlanCta: 'Current plan',
   manageSubscription: 'Manage subscription',

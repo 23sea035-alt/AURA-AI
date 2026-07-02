@@ -21,7 +21,6 @@ export default function YouScreen() {
   const { colors, shadows, mode, preference, setPreference } = useTheme();
   const insets = useSafeAreaInsets();
   const { user, logout } = useApp();
-  const [notif, setNotif] = useState(true);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const isPremium = !!user?.isPremium;
@@ -77,23 +76,19 @@ export default function YouScreen() {
 
         <ListGroup label="Account">
           <ListRow first label="Edit profile" onPress={() => router.push('/edit-profile')} />
+          <ListRow label="Sign-in & security" onPress={() => router.push('/sign-in-security')} />
           <ListRow
             label="Subscription"
             detail={isPremium ? 'Manage in App Store' : 'Upgrade to Premium'}
             onPress={() => router.push(isPremium ? '/subscription' : '/premium')}
           />
-          <ListRow label="Sign-in & security" onPress={() => router.push('/sign-in-security')} />
-        </ListGroup>
-
-        <ListGroup label="Notifications">
-          <ListRow first label="Aurora replied" toggle={{ value: notif, onValueChange: setNotif }} />
+          <ListRow label="Notifications" onPress={() => router.push('/notifications')} />
         </ListGroup>
 
         <ListGroup label="Privacy & Safety">
           <ListRow first label="Safety center" onPress={() => router.push('/safety')} />
           <ListRow label="Privacy policy" onPress={() => router.push('/privacy')} />
-          <ListRow label="Data export" onPress={() => router.push('/account')} />
-          <ListRow label="Delete account" onPress={() => router.push('/account')} />
+          <ListRow label="Manage your data" onPress={() => router.push('/account')} />
         </ListGroup>
 
         <ListGroup label="Support">
@@ -105,7 +100,7 @@ export default function YouScreen() {
           <Text style={[styles.signOutText, { color: colors.error }]}>Sign out</Text>
         </PressableScale>
 
-        <Text style={[styles.version, { color: colors.textTertiary }]}>Aura v1.0</Text>
+        <Text style={[styles.version, { color: colors.textTertiary }]}>Aura · version 1.0.0</Text>
       </ScrollView>
 
       <ConfirmSheet

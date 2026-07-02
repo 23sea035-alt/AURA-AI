@@ -1,6 +1,7 @@
 // Chat — the pushed conversation screen. Reuses the chat chrome built in onboarding's first
 // conversation. Preserves the existing send pipeline (WebSocket streaming -> REST -> local
 // fallback) and break-reminder / limit handling; only the UI is restyled to Warm Sanctuary.
+import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
@@ -103,13 +104,6 @@ export default function ChatScreen() {
   }, [cid]);
 
   useEffect(() => () => wsRef.current?.close(), []);
-
-  // Auto-dismiss the break reminder after 10s.
-  useEffect(() => {
-    if (!safetyState.breakReminder) return;
-    const t = setTimeout(() => setBreakReminder(null), 10000);
-    return () => clearTimeout(t);
-  }, [safetyState.breakReminder, setBreakReminder]);
 
   const scrollToEnd = () => listRef.current?.scrollToEnd({ animated: true });
 
@@ -240,13 +234,22 @@ export default function ChatScreen() {
         />
 
         {safetyState.breakReminder ? (
-          <View style={[styles.banner, { backgroundColor: colors.crisisBg }]}>
-            <Text style={[styles.bannerText, { color: colors.crisisText }]}>{safetyState.breakReminder}</Text>
+          <View style={[styles.banner, { backgroundColor: colors.accentTint }]}>
+            <Text style={[styles.bannerText, { color: colors.accent }]}>{safetyState.breakReminder}</Text>
+            <PressableScale
+              haptic="light"
+              onPress={() => setBreakReminder(null)}
+              accessibilityLabel="Dismiss reminder"
+              hitSlop={8}
+            >
+              <Ionicons name="close" size={16} color={colors.accent} />
+            </PressableScale>
           </View>
         ) : null}
 
         {limitReached ? (
           <View style={[styles.limit, { backgroundColor: colors.accentTint }]}>
+            <Text style={[styles.limitTitle, { color: colors.textPrimary }]}>{CHAT.limit.title}</Text>
             <Text style={[styles.limitText, { color: colors.textSecondary }]}>
               {CHAT.limit.notice.replace('{Companion}', companion?.name ?? 'Aurora')}
             </Text>
@@ -338,8 +341,18 @@ const styles = StyleSheet.create({
     marginVertical: SPACE.xs,
   },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
-  banner: { marginHorizontal: SPACE.lg, marginBottom: SPACE.sm, padding: SPACE.md, borderRadius: RADIUS.soft },
-  bannerText: { fontFamily: FONTS.body.regular, fontSize: 13, lineHeight: 18 },
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+    alignSelf: 'center',
+    maxWidth: '86%',
+    marginBottom: SPACE.sm,
+    paddingVertical: SPACE.sm,
+    paddingHorizontal: SPACE.md,
+    borderRadius: RADIUS.pill,
+  },
+  bannerText: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 13, lineHeight: 18 },
   limit: {
     marginHorizontal: SPACE.lg,
     marginBottom: SPACE.sm,
@@ -347,6 +360,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.soft,
     gap: SPACE.sm,
   },
+  limitTitle: { ...TYPE.title, fontSize: 18 },
   limitText: { fontFamily: FONTS.body.regular, fontSize: 13, lineHeight: 18 },
   composerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm },
   overflow: { paddingTop: SPACE.xs },

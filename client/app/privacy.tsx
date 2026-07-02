@@ -6,7 +6,7 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackChevron } from '@/components/BackChevron';
-import { PressableScale } from '@/components/motion';
+import { ListGroup, ListRow } from '@/components/ListGroup';
 import { LEGAL } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
@@ -27,7 +27,7 @@ export default function PrivacyScreen() {
         showsVerticalScrollIndicator={false}
       >
         <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Privacy</Text>
+        <Text style={[styles.title, { color: colors.textPrimary }]}>{LEGAL.title}</Text>
 
         <View style={[styles.summary, { backgroundColor: colors.raised, borderColor: colors.border }]}>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
@@ -35,21 +35,18 @@ export default function PrivacyScreen() {
           </Text>
         </View>
 
-        <Text style={[styles.sectionHead, { color: colors.textPrimary }]}>Your data</Text>
-        <Text style={[styles.body, { color: colors.textSecondary }]}>
-          We collect what you share with your companion so it can remember you across conversations, plus
-          basic account details. We do not sell your personal data. You can export or delete everything
-          anytime from Account.
-        </Text>
-        <Text style={[styles.sectionHead, { color: colors.textPrimary }]}>Retention</Text>
-        <Text style={[styles.body, { color: colors.textSecondary }]}>
-          Conversations and memories are kept while your account is active. Deleting your account removes
-          them after the grace period described in Account management.
-        </Text>
+        {LEGAL.sections.map((section) => (
+          <View key={section.title} style={styles.section}>
+            <Text style={[styles.sectionHead, { color: colors.textPrimary }]}>{section.title}</Text>
+            <Text style={[styles.body, { color: colors.textSecondary }]}>{section.body}</Text>
+          </View>
+        ))}
 
-        <PressableScale haptic="light" onPress={() => {}} style={styles.linkBtn}>
-          <Text style={[styles.link, { color: colors.accent }]}>{LEGAL.fullTerms} →</Text>
-        </PressableScale>
+        <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>{LEGAL.lastUpdated}</Text>
+
+        <ListGroup>
+          <ListRow first label={LEGAL.fullTerms} onPress={() => {}} />
+        </ListGroup>
       </ScrollView>
     </View>
   );
@@ -66,8 +63,8 @@ const styles = StyleSheet.create({
     marginBottom: SPACE.sm,
   },
   summaryText: { fontFamily: FONTS.body.medium, fontSize: 15, lineHeight: 22 },
+  section: { gap: SPACE.xs },
   sectionHead: { fontFamily: FONTS.display.semibold, fontSize: 18, marginTop: SPACE.sm },
   body: { ...TYPE.body },
-  linkBtn: { paddingVertical: SPACE.sm, marginTop: SPACE.sm },
-  link: { fontFamily: FONTS.body.semibold, fontSize: 14 },
+  lastUpdated: { ...TYPE.caption, marginTop: SPACE.xs },
 });

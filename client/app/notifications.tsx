@@ -28,14 +28,14 @@ export default function NotificationsScreen() {
       >
         <BackChevron />
         <Text style={[styles.title, { color: colors.textPrimary }]}>Notifications</Text>
-        <ListGroup>
+        <ListGroup label={ACCOUNT.notifications.group} footnote={ACCOUNT.notifications.footnote}>
           <ListRow
             first
             label={ACCOUNT.notifications.toggleLabel.replace('{Companion}', companion)}
+            sub={ACCOUNT.notifications.sub}
             toggle={{ value: on, onValueChange: setOn }}
           />
         </ListGroup>
-        <Text style={[styles.helper, { color: colors.textSecondary }]}>{ACCOUNT.notifications.helper}</Text>
       </ScrollView>
     </View>
   );
@@ -45,5 +45,4 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
   content: { gap: SPACE.md },
   title: { ...TYPE.headline, marginBottom: SPACE.xs },
-  helper: { fontFamily: FONTS.body.regular, fontSize: 13, lineHeight: 18, marginLeft: SPACE.xs },
 });

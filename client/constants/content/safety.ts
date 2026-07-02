@@ -12,7 +12,10 @@ export const CRISIS_SUPPORT = {
 } as const;
 
 export const SAFETY = {
-  moderation: '{AppName} watches for harmful content and steps in gently.',
-  disclosure: 'Your companions are AI. Supportive company, never a substitute for professional care.',
+  headline: 'How {AppName} keeps conversations safe',
+  moderationTitle: 'Gentle moderation',
+  moderation: '{AppName} watches for harmful content and steps in gently, never to judge, only to keep things safe.',
+  disclosureTitle: 'Honest about being AI',
+  disclosure: 'Your companions are AI: supportive company, never a substitute for professional care.',
   // crisis resources: see CRISIS_SUPPORT (shared verbatim with Chat's crisis state).
 } as const;

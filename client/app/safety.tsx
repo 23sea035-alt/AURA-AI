@@ -27,8 +27,17 @@ export default function SafetyScreen() {
       >
         <BackChevron />
         <Text style={[styles.title, { color: colors.textPrimary }]}>Safety center</Text>
-        <Text style={[styles.body, { color: colors.textSecondary }]}>{withAppName(SAFETY.moderation)}</Text>
-        <Text style={[styles.body, { color: colors.textSecondary }]}>{SAFETY.disclosure}</Text>
+        <Text style={[styles.headline, { color: colors.textPrimary }]}>{withAppName(SAFETY.headline)}</Text>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{SAFETY.moderationTitle}</Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>{withAppName(SAFETY.moderation)}</Text>
+        </View>
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.textPrimary }]}>{SAFETY.disclosureTitle}</Text>
+          <Text style={[styles.body, { color: colors.textSecondary }]}>{SAFETY.disclosure}</Text>
+        </View>
+
         <View style={styles.spacer} />
         <CrisisSupport companion={companion} />
       </ScrollView>
@@ -40,6 +49,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
   content: { gap: SPACE.md },
   title: { ...TYPE.headline, marginBottom: SPACE.xs },
+  headline: { ...TYPE.title, marginBottom: SPACE.xs },
+  section: { gap: SPACE.xs },
+  sectionTitle: { ...TYPE.label },
   body: { ...TYPE.body },
   spacer: { height: SPACE.sm },
 });

@@ -12,11 +12,16 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from 
 import { LevelMeter } from '@/components/chat/LevelMeter';
 import { TextField } from '@/components/TextField';
 import { PressableScale } from '@/components/motion';
+import { CHAT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE } from '@/constants/design';
 import { useDictation } from '@/hooks/useDictation';
 import { useTheme } from '@/hooks/useTheme';
 
 const CANCEL_X = -90; // slide the mic this far left (px) to cancel
+// counter stays invisible until ~80% of the cap, then turns accent-colored + bold near it —
+// see CHAT.characterLimit's own comment for the same spec.
+const COUNTER_SHOW_AT = 0.8;
+const COUNTER_ACCENT_AT = 0.94;
 
 interface ChatComposerProps {
   value: string;
@@ -30,6 +35,10 @@ interface ChatComposerProps {
 export function ChatComposer({ value, onChangeText, onSend, placeholder, onVoiceResult }: ChatComposerProps) {
   const { colors } = useTheme();
   const canSend = value.trim().length > 0;
+  const cap = CHAT.characterLimit;
+  const count = value.length;
+  const showCounter = count >= cap * COUNTER_SHOW_AT;
+  const nearCap = count >= cap * COUNTER_ACCENT_AT;
   const baseRef = useRef('');
   const willCancelRef = useRef(false);
   const [willCancel, setWillCancel] = useState(false);
@@ -109,6 +118,7 @@ export function ChatComposer({ value, onChangeText, onSend, placeholder, onVoice
           placeholder={listening ? 'Listening…' : placeholder}
           placeholderTextColor={colors.textTertiary}
           multiline
+          maxLength={cap}
           style={[styles.input, { color: colors.textPrimary }]}
         />
         {canSend ? (
@@ -137,6 +147,17 @@ export function ChatComposer({ value, onChangeText, onSend, placeholder, onVoice
           </GestureDetector>
         )}
       </View>
+      {showCounter ? (
+        <Text
+          style={[
+            styles.counter,
+            { color: nearCap ? colors.accent : colors.textTertiary },
+            nearCap && styles.counterNearCap,
+          ]}
+        >
+          {cap - count}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -168,4 +189,6 @@ const styles = StyleSheet.create({
   },
   input: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 16, paddingVertical: SPACE.sm, maxHeight: 120 },
   btn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  counter: { alignSelf: 'flex-end', fontFamily: FONTS.body.regular, fontSize: 12, marginRight: SPACE.xs },
+  counterNearCap: { fontFamily: FONTS.body.semibold },
 });

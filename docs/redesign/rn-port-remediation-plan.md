@@ -86,21 +86,21 @@ For each deviation decide **Restore / Keep / Discuss**:
 
 ## Batch 4 — Copy + structure fidelity
 
-- [ ] **You** — Notifications becomes a **row → its own screen** (not the inline toggle group); single
+- [x] **You** — Notifications becomes a **row → its own screen** (not the inline toggle group); single
   **"Manage your data"** row (not Data export + Delete account); account-group order = Edit profile ·
   Sign-in & security · Subscription · Notifications. — `client/app/(tabs)/you.tsx` · **Restore (HIGH)**
-- [ ] **Safety** — add the "How Aura keeps conversations safe" headline + the two titled sections
+- [x] **Safety** — add the "How Aura keeps conversations safe" headline + the two titled sections
   (Gentle moderation / Honest about being AI) with the fuller locked copy. — `safety.tsx` · **Restore (HIGH)**
-- [ ] **Privacy** — restore the **4-section** policy (What we collect / Why we keep it / Who can see it /
+- [x] **Privacy** — restore the **4-section** policy (What we collect / Why we keep it / Who can see it /
   Your controls) + "Last updated" + **neutral** "Read the full Terms of Service" row (no accent). — `privacy.tsx` · **Restore (HIGH)**
-- [ ] **Notifications** — "Push" group label + footnote ("No promos, no nudges"); on-row sub-line; drop
+- [x] **Notifications** — "Push" group label + footnote ("No promos, no nudges"); on-row sub-line; drop
   the 💬 emoji from the label. — `notifications.tsx` · **Restore (HIGH)**
-- [ ] **Paywall** — add the honest free-baseline line; **de-jargon** ("Personality tuning: warmth,
+- [x] **Paywall** — add the honest free-baseline line; **de-jargon** ("Personality tuning: warmth,
   energy, and style", not "3×3×3 traits"). — `premium.tsx`, `content/paywall.ts` · **Restore (MED)**
-- [ ] **Persona** — selected card uses **tonal fill + wine check** (not just border/opacity). — `persona.tsx` · **Restore (HIGH)**
-- [ ] **Chat polish** — break-reminder = dismissible accent pill (not a crisis-green banner); limit-card
+- [x] **Persona** — selected card uses **tonal fill + wine check** (not just border/opacity). — `persona.tsx` · **Restore (HIGH)**
+- [x] **Chat polish** — break-reminder = dismissible accent pill (not a crisis-green banner); limit-card
   title "That's 30 for today"; live character counter (~80%→2000). — `chat/[id].tsx` · **Restore (HIGH/MED)**
-- [ ] **Copy restorations** — 988 prominence in disclosure; welcome/onboarding/profile/memory/edit-profile
+- [x] **Copy restorations** — 988 prominence in disclosure; welcome/onboarding/profile/memory/edit-profile
   wording back to the locked strings where they carry intent. — `content/*` · **Restore/Discuss (MED)**
 
 ---

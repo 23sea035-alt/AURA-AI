@@ -74,7 +74,7 @@ export default function MemoryScreen() {
         </Animated.Text>
 
         {memories.length === 0 ? (
-          <EmptyState emoji="🪷" title="Nothing yet" body={MEMORY.empty.replace('{Companion}', companion)} />
+          <EmptyState emoji="🪷" title={MEMORY.emptyTitle} body={MEMORY.empty.replace('{Companion}', companion)} />
         ) : (
           grouped.map((g, gi) => (
             <Animated.View key={g.cat} entering={enterUp(gi + 2)}>
@@ -144,9 +144,10 @@ export default function MemoryScreen() {
       <ConfirmSheet
         visible={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
-        title="Delete this memory?"
-        message={confirmDelete?.fact}
-        confirmLabel={MEMORY.delete}
+        title={MEMORY.deleteConfirm.title}
+        message={MEMORY.deleteConfirm.body.replace('{Companion}', companion)}
+        confirmLabel={MEMORY.deleteConfirm.confirmLabel}
+        cancelLabel={MEMORY.deleteConfirm.cancelLabel}
         destructive
         onConfirm={() => {
           setMemories((ms) => ms.filter((x) => x.id !== confirmDelete?.id));

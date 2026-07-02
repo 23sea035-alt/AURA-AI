@@ -9,6 +9,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Ionicons } from '@expo/vector-icons';
+
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { PressableScale, enterUp } from '@/components/motion';
@@ -59,10 +61,9 @@ export default function PersonaScreen() {
                 onPress={() => setSelected(name)}
                 style={[
                   styles.card,
-                  { backgroundColor: colors.raised },
                   isSel
-                    ? { ...shadows.e2, borderColor: colors.accent, borderWidth: 1.5 }
-                    : { ...shadows.e1, borderColor: 'transparent', borderWidth: 1.5, opacity: 0.65 },
+                    ? { ...shadows.e2, backgroundColor: colors.accentTint, borderColor: 'transparent', borderWidth: 1.5 }
+                    : { ...shadows.e1, backgroundColor: colors.raised, borderColor: 'transparent', borderWidth: 1.5, opacity: 0.65 },
                 ]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: isSel }}
@@ -72,6 +73,11 @@ export default function PersonaScreen() {
                   <Text style={[styles.name, { color: colors.textPrimary }]}>{persona.name}</Text>
                   <Text style={[styles.voice, { color: colors.textSecondary }]}>{persona.voice}</Text>
                 </View>
+                {isSel ? (
+                  <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
+                    <Ionicons name="checkmark" size={14} color={colors.onAccent} />
+                  </View>
+                ) : null}
               </PressableScale>
             </Animated.View>
           );
@@ -108,6 +114,7 @@ const styles = StyleSheet.create({
   },
   avatar: { width: 64, height: 64, borderRadius: RADIUS.pill },
   cardText: { flex: 1, gap: 4 },
+  checkBadge: { width: 24, height: 24, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
   name: { fontFamily: FONTS.body.semibold, fontSize: 18 },
   voice: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 20 },
   premium: { ...TYPE.caption, textAlign: 'center', marginTop: SPACE.sm },
