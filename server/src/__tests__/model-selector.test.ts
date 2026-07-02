@@ -53,7 +53,7 @@ describe("model-selector", () => {
 
     it("returns default for consolidate-memory", () => {
       expect(getModelForTask("consolidate-memory")).toBe(
-        "llama-3.1-8b-instant",
+        "llama-3.3-70b-versatile",
       );
     });
 

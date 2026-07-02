@@ -12,8 +12,10 @@ function maxTokensForModel(model: string): number {
   return GUARD_MODELS.has(model) ? GUARD_MODEL_MAX_TOKENS : GENERATION_MAX_TOKENS;
 }
 
-export function createGroqProvider(apiKey: string, model?: string): LLMProvider {
+export function createGroqProvider(apiKey: string, model?: string, temperature?: number): LLMProvider {
   const resolvedModel = model ?? process.env.MODEL_GROQ ?? DEFAULT_MODEL;
+  // temperature ?? default (nullish, so an explicit 0 is honored — moderation runs at 0).
+  const resolvedTemperature = temperature ?? GENERATION_TEMPERATURE;
   const client = new OpenAI({ baseURL: GROQ_BASE_URL, apiKey, timeout: 30000 });
 
   function buildMessages({ systemPrompt, messages }: GenerateReplyParams) {
@@ -28,7 +30,7 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
       const completion = await client.chat.completions.create({
         model: resolvedModel,
         messages: buildMessages(params),
-        temperature: GENERATION_TEMPERATURE,
+        temperature: resolvedTemperature,
         max_tokens: maxTokensForModel(resolvedModel),
       });
 
@@ -45,7 +47,7 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
         {
           model: resolvedModel,
           messages: buildMessages(params),
-          temperature: GENERATION_TEMPERATURE,
+          temperature: resolvedTemperature,
           max_tokens: maxTokensForModel(resolvedModel),
           stream: true,
         },

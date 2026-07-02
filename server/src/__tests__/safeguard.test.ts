@@ -105,17 +105,37 @@ describe("adjudicate", () => {
     expect(result.action).toBe("allow");
   });
 
-  it("detects crisis via mentionsDistress keywords", async () => {
+  it("routes to crisis on the model's crisis_route flag / SH-1 category", async () => {
+    const provider = mockProvider(
+      JSON.stringify({
+        flagged: false,
+        category: "SH-1",
+        confidence: "high",
+        rationale: ["expresses genuine self-harm distress"],
+        crisis_route: true,
+      }),
+    );
+    const result = await adjudicate(
+      "I don't see the point in anything anymore",
+      undefined,
+      [],
+      provider,
+    );
+    expect(result.action).toBe("crisis");
+  });
+
+  it("routes to crisis on distress wording in the rationale (recall-biased)", async () => {
     const provider = mockProvider(
       JSON.stringify({
         flagged: false,
         category: null,
         confidence: "high",
-        rationale: ["genuine concern detected", "real distress"],
+        rationale: ["expresses real distress / genuine concern"],
+        crisis_route: false,
       }),
     );
     const result = await adjudicate(
-      "I'm really struggling",
+      "I just feel empty and worn down lately",
       undefined,
       [],
       provider,

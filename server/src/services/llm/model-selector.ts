@@ -52,8 +52,14 @@ export function createTaskSpecificProvider(task: TaskType, apiKey: string, model
   const primaryModel = model ?? getModelForTask(task);
   const fallbackModel = getFallbackForTask(task);
 
-  const primary = createGroqProvider(apiKey, primaryModel);
-  const fallback = createGroqProvider(apiKey, fallbackModel);
+  // Moderation classifications must be reproducible and auditable, so run them at temperature 0
+  // (deterministic) rather than the 0.7 generation temperature that made borderline safeguard
+  // verdicts flip run-to-run. Generation/consolidation keep the default warmth.
+  const isModeration = task === "moderate-input" || task === "moderate-output";
+  const temperature = isModeration ? 0 : undefined;
+
+  const primary = createGroqProvider(apiKey, primaryModel, temperature);
+  const fallback = createGroqProvider(apiKey, fallbackModel, temperature);
 
   return {
     async generateReply(params) {
