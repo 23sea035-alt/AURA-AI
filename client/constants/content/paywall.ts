@@ -7,9 +7,10 @@ export const PAYWALL = {
   subline: 'Unlimited time with your companion, and more ways to make them yours.',
   ownedHeadline: "You're on {AppName} Premium",
   features: {
-    free: ['3 base companions', 'Default personalities', '30 messages/day'],
+    free: ['3 base companions', 'Default personalities', '30 messages/day', '20 min of voice / month'],
     premium: [
       'Unlimited messages',
+      '10 hours of voice / month',
       'Personality tuning (3×3×3 traits)',
       'Create extra companions',
       'Priority responses',

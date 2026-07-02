@@ -262,7 +262,7 @@ Monetized via subscription (free tier with daily message cap; premium unlimited)
   (soft-delete `status` + `superseded_by` + audit/rollback + consolidation-side `DELETE` ops).
 
 ### D13 — Voice calls: Inworld TTS + Groq STT over WebSocket (always metered)
-- **Decision:** Ship realtime voice. Audio transport via **binary WebSocket frames** on the existing chat connection (see §4); **Inworld TTS 2** (`inworld-tts-2`) for TTS (migrated from Cartesia); **Groq STT** (`whisper-large-v3-turbo`, batch mode) for STT. Session lifecycle managed by REST endpoints (`GET /api/voice/limits`, `POST /api/voice/start`, `POST /api/voice/stop` — all implemented; the audio itself flows over binary WS frames, §4). Usage metered into `voice_usage`, gated by `VOICE_DAILY_LIMIT_SECONDS` / `VOICE_CALL_MAX_DURATION_SECONDS` (premium variants in `@aura/shared`).
+- **Decision:** Ship realtime voice. Audio transport via **binary WebSocket frames** on the existing chat connection (see §4); **Inworld TTS 2** (`inworld-tts-2`) for TTS (migrated from Cartesia); **Groq STT** (`whisper-large-v3-turbo`, batch mode) for STT. Session lifecycle managed by REST endpoints (`GET /api/voice/limits`, `POST /api/voice/start`, `POST /api/voice/stop` — all implemented; the audio itself flows over binary WS frames, §4). Usage metered into `voice_usage`, gated by a **monthly** voice allowance + a per-call cap (premium variants in `@aura/shared`). **v1 allowances: free 20 min/month, premium 600 min/month (10 hr); per-call 15 min free / 60 min premium.** Voice is metered monthly (text stays daily) because the per-minute cost is ~200× a text turn — see [voice-pricing-economics.md](voice-pricing-economics.md). *Implementation note: the metering window change from daily→monthly (`VOICE_DAILY_LIMIT_SECONDS` → `VOICE_MONTHLY_LIMIT_SECONDS`) is specced in that doc and pending — the code currently still enforces the daily window.*
 - **Why:** Voice is the high-value companion modality, but STT/TTS cost is asymmetric — so per D4 it is **always metered, never unlimited**. **LiveKit removed:** LiveKit (WebRTC) was the answer to streaming continuous audio from the iOS mic to the server for real-time STT. The hybrid Apple VAD architecture (Apple's native speech recognizer detects end-of-utterance on-device, then sends a complete audio chunk) eliminates the need for continuous audio streaming — discrete chunks over binary WebSocket frames are sufficient. Removing LiveKit drops 3 env secrets, the `livekit-server-sdk` dependency, and the `/api/voice/token` + `/api/voice/tts` endpoints. **TTS (Inworld over Cartesia):** Inworld TTS 2 (`inworld-tts-2`) is production-stable, sub-200ms median latency, ~2,000 min/month at $25/mo Creator plan with 40 concurrent sessions. Cartesia costs 2–3× more at equivalent scale with no retained quality advantage. **STT (Groq over Deepgram):** `whisper-large-v3-turbo` achieves ~160–350ms E2E latency for a complete utterance at ~$0.04/hr (~65× cheaper than Deepgram). Groq is already in the stack; no new vendor needed.
 - **Consequences:** Remove `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`, `LIVEKIT_URL`, `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`, `CARTESIA_VOICE_ID`. Add `INWORLD_API_KEY`, `INWORLD_VOICE_ID`. Groq STT uses the existing `GROQ_API_KEY`. Remove `livekit-server-sdk` from server dependencies. Delete `/api/voice/token` and `/api/voice/tts` endpoints; retain `/api/voice/limits`, `/api/voice/start`, `/api/voice/stop` (metering only — strip LiveKit SDK calls from their handlers). `voice_usage` purges with the user (cascade). Voice is a new cost line (§7).
 - **Safety:** a spoken turn flows through the same `ChatSession` core engine as text (the voice I/O adapter feeds the STT transcript into the shared engine), so the STT transcript (input) and the synthesized reply (output) get identical L0–L3 moderation — voice is not a moderation bypass.
@@ -449,7 +449,7 @@ wording (4 sections: Retention, Deletion, Trust & Safety, AI).
 | **RevenueCat** | Free under $2,500/mo tracked revenue, then ~1% |
 | **Apple commission** | **15%** (Small Business Program) |
 | **APNs** | Free |
-| **Voice (Inworld TTS + Groq STT; no LiveKit)** | Usage-based and **always metered** (D4/D13); Inworld Creator $25/mo covers ~2,000 min/month + 40 concurrent sessions; Groq STT ~$0.04/hr; bounded per user by `VOICE_DAILY_LIMIT_SECONDS` — the cost asymmetry is why voice is never unlimited |
+| **Voice (Inworld TTS + Groq STT; no LiveKit)** | Usage-based and **always metered** (D4/D13); ~**$0.015/min all-in on-demand** (~$0.008 at Inworld's $300/mo volume tier), TTS-dominated; bounded per user by **monthly** caps (free 20 min/mo, premium 600 min/mo) — the cost asymmetry is why voice is never unlimited. Full model: [voice-pricing-economics.md](voice-pricing-economics.md) |
 | **Render (API)** | ~**$7–25/mo** at small scale |
 | **Apple Developer** | $99/yr |
 
@@ -464,6 +464,11 @@ conversion rate.
 > The guard/prompt-guard models are a separate pool, so moderation isn't the bottleneck; the 70B is.
 > Upgrading is a one-click billing change in the Groq console (and unlocks Batch/Flex, which
 > consolidation could later use). This is an account action, tracked as a go-live gate, not a code change.
+
+> **Subscription pricing (v1): Premium at US $12.99/mo or $99.99/yr.** Apple's 15% (SBP) leaves
+> ~$11.04/mo net; a typical premium user costs ~$3–5/mo, so ~5–6 subs cover the fixed floor. Voice caps
+> (free 20 min/mo, premium 600 min/mo) keep even fully-capped heavy users near or above break-even.
+> Full margin analysis + competitor benchmark: [voice-pricing-economics.md](voice-pricing-economics.md).
 
 ---
 

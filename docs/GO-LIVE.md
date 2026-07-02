@@ -40,7 +40,9 @@ instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)
   publishable keys; create a webhook signing secret. *Consider **Pro ($25/mo)** for removing Clerk
   branding + MFA + custom session length — recommended for a polished consumer app, not required to launch.*
 - [ ] **RevenueCat — production project** (Free below $2,500/mo tracked revenue, then 1%; full feature
-  set on free). Create the webhook auth secret; configure StoreKit products.
+  set on free). Create the webhook auth secret; configure StoreKit products at the **v1 price points —
+  Premium $12.99/mo and $99.99/yr** (localized by App Store; see
+  [voice-pricing-economics.md](specs/voice-pricing-economics.md)).
 - [ ] **APNs — production key** (`.p8`), Key ID, Team ID; decide `APNS_ENVIRONMENT` (`production`).
 - [ ] **Sentry (optional but recommended)** — project DSN for error monitoring.
 
