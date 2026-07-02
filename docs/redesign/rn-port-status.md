@@ -4,6 +4,18 @@ Tracks the Expo React Native port of the web-prototyped Warm Sanctuary redesign.
 truth for what's done / pending across sessions. The design **decks are frozen** — this doc
 tracks the **code** port, not design decisions.
 
+> **Current reality (2026-07-02, after the `origin/redesign` → `backend` merge).**
+> - **All screens are visually done and polished** in both themes — *except voice-call screens, which
+>   do not exist yet* (deferred; to be built on the MacBook alongside the wired backend).
+> - **None of the UI is wired to the real backend.** The redesign was built against a stale backend, so
+>   the client API layer (`client/lib/api*` / `context/AppContext`) was intentionally left on mock/demo
+>   data. Screen state (archive/pin/search, roster, chat) currently runs off `AppContext` mocks.
+> - **Backend is now ready to wire against:** the merged trunk has the full server, incl. companion
+>   pin (`PATCH /me` → `primaryCompanionId`), archive (`POST /companions/:id/archive`|`/restore`), and
+>   permanent delete (`DELETE /companions/:id`). Companion search stays **client-side** (small roster).
+> - **Outstanding (MacBook):** (1) voice-call screens; (2) wire `AppContext`/API to the live server;
+>   (3) the Apple 5.1.2(i) third-party-AI consent screen (see `docs/compliance/apple-third-party-ai-consent.md`).
+
 ## Approach
 
 - **Reference repo:** `../Amibroke` (a landed Expo RN redesign). Lift nav-agnostic primitives
