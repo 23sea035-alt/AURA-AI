@@ -59,8 +59,12 @@ export default function HomeScreen() {
           <Text style={[styles.date, { color: colors.textTertiary }]}>{dateLabel}</Text>
         </Animated.View>
 
+        {/* Empty state is sparse (no memory card / usage) — center the presence in the room instead
+            of top-weighting it with dead space below. Populated state fills the space on its own. */}
+        {isEmpty ? <View style={styles.grow} /> : null}
+
         <Animated.View entering={enterUp(1)} style={styles.presence}>
-          <Avatar id={companion.id} name={name} size={132} />
+          <Avatar id={companion.id} name={name} size={132} colorFrom={companion.colorFrom} colorTo={companion.colorTo} />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
           <Text style={[styles.marker, { color: colors.textTertiary }]}>{CHAT.aiMarker.toUpperCase()}</Text>
           {isEmpty ? (
@@ -103,6 +107,8 @@ export default function HomeScreen() {
           ))}
         </Animated.View>
 
+        {isEmpty ? <View style={styles.grow} /> : null}
+
         {!isPremium && !isEmpty ? (
           <Animated.View entering={FadeIn.delay(340)} style={styles.usage}>
             <View style={[styles.usageDot, { backgroundColor: colors.textDisabled }]} />
@@ -125,6 +131,7 @@ const styles = StyleSheet.create({
   // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
   // header-to-navbar area stays swipeable even when under-filled.
   content: { flexGrow: 1, paddingHorizontal: SPACE.xl, alignItems: 'center' },
+  grow: { flexGrow: 1 },
   stretch: { alignSelf: 'stretch' },
   header: { alignSelf: 'stretch', gap: 4, marginBottom: SPACE.lg },
   greeting: { ...TYPE.headline },

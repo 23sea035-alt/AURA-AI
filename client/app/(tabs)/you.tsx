@@ -41,6 +41,10 @@ export default function YouScreen() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACE.xl, paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Screen title — parity with Home/Companions' display headline (and iOS large-title
+            grammar: title above the account card). */}
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>You</Text>
+
         {/* Header card */}
         <View style={[styles.header, { backgroundColor: colors.raised }, shadows.e2]}>
           <Avatar id="" name={name} size={56} />
@@ -126,6 +130,7 @@ const styles = StyleSheet.create({
   // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
   // header-to-navbar area stays swipeable even when under-filled.
   content: { flexGrow: 1, paddingHorizontal: SPACE.xl, gap: SPACE.lg },
+  screenTitle: { ...TYPE.headline, marginBottom: -SPACE.xs },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
