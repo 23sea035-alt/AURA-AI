@@ -3,6 +3,8 @@
 
 export const PAYWALL = {
   headline: 'Go deeper with {AppName} Premium',
+  // companion-led hero framing (non-owned): ties premium to the relationship, not a feature matrix.
+  heroHeadline: 'Go further with {name}',
   // proposed; the deck left the subline unspecified ("+ one supportive subline") — review.
   subline: 'Unlimited time with your companion, and more ways to make them yours.',
   ownedHeadline: "You're on {AppName} Premium",
@@ -11,11 +13,13 @@ export const PAYWALL = {
     premium: [
       'Unlimited messages',
       '10 hours of voice / month',
-      'Personality tuning (3×3×3 traits)',
+      'Personality tuning: warmth, energy, and style',
       'Create extra companions',
       'Priority responses',
     ],
   },
+  // honest free baseline (quiet, not a cold matrix) — shown only in the non-owned state.
+  freeBaseline: 'Free always includes 3 base companions, their default personalities, and 30 messages a day.',
   subscribeCta: 'Subscribe',
   currentPlanCta: 'Current plan',
   manageSubscription: 'Manage subscription',

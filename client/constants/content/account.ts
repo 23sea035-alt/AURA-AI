@@ -6,14 +6,21 @@ export const ACCOUNT = {
   you: {
     tierPill: { free: 'Free', premium: 'Premium' },
     groups: {
-      account: { header: 'Account', editProfile: 'Edit profile', subscription: 'Subscription' },
-      notifications: { header: 'Notifications', replyToggle: '{Companion} replied' },
+      // Notifications is its own screen now (room for more toggles) — a row, not an inline toggle.
+      account: {
+        header: 'Account',
+        editProfile: 'Edit profile',
+        signInSecurity: 'Sign-in & security',
+        subscription: 'Subscription',
+        notifications: 'Notifications',
+      },
+      // export + delete live together on one screen — delete is buried a level deeper, not a
+      // top-level mistap.
       privacy: {
         header: 'Privacy & Safety',
         safetyCenter: 'Safety center',
         privacyPolicy: 'Privacy policy',
-        dataExport: 'Data export',
-        deleteAccount: 'Delete account',
+        manageData: 'Manage your data',
       },
       support: { header: 'Support', help: 'Help', rate: 'Rate {AppName}' },
     },
@@ -27,7 +34,7 @@ export const ACCOUNT = {
     firstNameHelper: 'This is what your companion calls you.',
     changeAvatar: 'Change',
     save: 'Save',
-    error: "First name can't be empty",
+    error: "Enter a first name. It's what your companion calls you.",
   },
 
   accountMgmt: {
@@ -54,8 +61,11 @@ export const ACCOUNT = {
     // restore: see SYSTEM.restorePurchases
   },
 
+  // Transactional ONLY: a single push toggle. No marketing toggles, no category sprawl.
   notifications: {
-    toggleLabel: '{Companion} replied 💬',
-    helper: "Get notified when your companion replies while you're away.",
+    group: 'Push',
+    toggleLabel: '{Companion} replied',
+    sub: "Get notified when your companion replies while you're away.",
+    footnote: 'The only notification Aura sends. No promos, no nudges.',
   },
 } as const;

@@ -9,7 +9,8 @@ import { FONTS, RADIUS, SPACE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
 interface FieldProps extends TextInputProps {
-  label: string;
+  /** Omit when a SectionLabel above the field already names it (e.g. create-companion's Name field). */
+  label?: string;
   error?: string;
   /** Render a show/hide eye and manage secureTextEntry (for password fields). */
   secureToggle?: boolean;
@@ -24,7 +25,7 @@ export function Field({ label, error, secureToggle, secureTextEntry, style, onFo
 
   return (
     <View style={styles.wrap}>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text>
+      {label ? <Text style={[styles.label, { color: colors.textSecondary }]}>{label}</Text> : null}
       <View style={[styles.box, { borderColor, backgroundColor: colors.raised }]}>
         <TextField
           placeholderTextColor={colors.textSecondary}

@@ -1,9 +1,10 @@
-// Continue with Apple / Google — neutral outlined buttons with system glyphs (NOT accent-tinted),
-// per the auth spec. Apple is gated to iOS (Sign in with Apple is iOS-native; on Android it's
-// dropped). UI shell only -- real OAuth is Clerk-wired later.
+// Continue with Apple / Google — neutral outlined buttons. Apple uses the monochrome system glyph
+// (matches the button text, per Apple's HIG); Google uses its official multi-color "G" (per Google's
+// Sign-in brand guidelines). Apple is gated to iOS. UI shell only -- real OAuth is Clerk-wired later.
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
+import { GoogleG } from '@/components/GoogleG';
 import { PressableScale } from '@/components/motion';
 import { ONBOARDING } from '@/constants/content';
 import { FONTS, RADIUS, SPACE } from '@/constants/design';
@@ -33,7 +34,7 @@ export function SsoButtons({ onApple, onGoogle }: { onApple: () => void; onGoogl
         accessibilityLabel={a.ctas.google}
         style={[styles.btn, { borderColor: colors.border, backgroundColor: colors.raised }]}
       >
-        <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+        <GoogleG size={18} />
         <Text style={[styles.label, { color: colors.textPrimary }]}>{a.ctas.google}</Text>
       </PressableScale>
     </View>

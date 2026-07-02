@@ -18,4 +18,6 @@ export const SYSTEM = {
   restorePurchases: 'Restore Purchases',
   autoRenew:
     'Subscription renews automatically until canceled. Manage or cancel anytime in App Store settings.',
+  termsLink: 'Terms of Service',
+  privacyLink: 'Privacy Policy',
 } as const;

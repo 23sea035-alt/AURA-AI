@@ -1,5 +1,5 @@
-// Sign in — the trust moment. Email + password (reveal-eye) + SSO; back chevron to Welcome.
-// Restyled Warm Sanctuary form kit; UI shell over local-auth (Clerk deferred).
+// Sign in — the trust moment. SSO-first (logo → title → SSO → "or" → email/password), back
+// chevron to Welcome. Restyled Warm Sanctuary form kit; UI shell over local-auth (Clerk deferred).
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -57,6 +57,7 @@ export default function LoginScreen() {
           showsVerticalScrollIndicator={false}
         >
           <BackChevron />
+
           <Animated.Text entering={enterUp(0)} style={[styles.title, { color: colors.textPrimary }]}>
             {a.titles.signin}
           </Animated.Text>
@@ -64,7 +65,18 @@ export default function LoginScreen() {
             {a.sublines.signin}
           </Animated.Text>
 
-          <Animated.View entering={enterUp(2)} style={styles.fields}>
+          {/* SSO first — lead with the easiest path. */}
+          <Animated.View entering={enterUp(2)}>
+            <SsoButtons onApple={handleSso} onGoogle={handleSso} />
+          </Animated.View>
+
+          <Animated.View entering={enterUp(3)} style={styles.orRow}>
+            <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+            <Text style={[styles.orText, { color: colors.textTertiary }]}>or</Text>
+            <View style={[styles.orLine, { backgroundColor: colors.divider }]} />
+          </Animated.View>
+
+          <Animated.View entering={enterUp(4)} style={styles.fields}>
             <Field
               label={a.fields.emailLabel}
               value={email}
@@ -89,16 +101,15 @@ export default function LoginScreen() {
             </PressableScale>
           </Animated.View>
 
-          <Animated.View entering={enterUp(3)}>
-            <SsoButtons onApple={handleSso} onGoogle={handleSso} />
-          </Animated.View>
-
           {error ? <Text style={[styles.error, { color: colors.error }]}>{error}</Text> : null}
 
-          <Animated.View entering={enterUp(4)} style={styles.action}>
+          <Animated.View entering={enterUp(5)} style={styles.action}>
             <Button label={a.ctas.signin} onPress={handleLogin} loading={submitting} />
             <PressableScale onPress={() => router.replace('/(auth)/register')} haptic="light" style={styles.footerLink}>
-              <Text style={[styles.footerText, { color: colors.textSecondary }]}>{withAppName(a.footers.toSignup)}</Text>
+              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
+                {withAppName(a.footers.toSignup.prompt)}{' '}
+                <Text style={[styles.footerAction, { color: colors.accent }]}>{a.footers.toSignup.action}</Text>
+              </Text>
             </PressableScale>
           </Animated.View>
         </ScrollView>
@@ -112,7 +123,10 @@ const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
   content: { flexGrow: 1, gap: SPACE.md },
   title: { ...TYPE.headline },
-  subline: { ...TYPE.body, marginBottom: SPACE.sm },
+  subline: { ...TYPE.body, fontSize: 15, lineHeight: 21, marginBottom: SPACE.sm },
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  orLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  orText: { fontFamily: FONTS.body.medium, fontSize: 13 },
   fields: { gap: SPACE.lg },
   forgot: { alignSelf: 'flex-end', paddingVertical: SPACE.xs },
   link: { fontFamily: FONTS.body.semibold, fontSize: 14 },
@@ -120,4 +134,5 @@ const styles = StyleSheet.create({
   action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
   footerLink: { alignItems: 'center', paddingVertical: SPACE.sm },
   footerText: { fontFamily: FONTS.body.medium, fontSize: 14 },
+  footerAction: { fontFamily: FONTS.body.semibold, fontSize: 14 },
 });

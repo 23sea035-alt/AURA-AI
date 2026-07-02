@@ -27,6 +27,9 @@ export const DURATION = {
   slow: 600, // hero entrance, full-screen transition
   crawl: 1000, // deliberate storytelling — use sparingly
   reveal: 1500, // long, intentional payoff reveals (e.g. a memory resurfacing)
+  settle: 750, // a bubble/element easing onto its resting spot (onboarding carousel art)
+  draw: 1800, // a path drawing itself on (onboarding carousel ribbon)
+  ambient: 9000, // a slow idle loop (onboarding carousel sun/moon drift) — pair with EASING.ambient
 } as const;
 
 // ── Easing curves ───────────────────────────────────────────────────────────
@@ -37,6 +40,9 @@ export const EASING = {
   sharp: Easing.bezier(0.4, 0, 0.2, 1), // standard in/out
   bounce: Easing.bezier(0.34, 1.56, 0.64, 1), // playful overshoot
   linear: Easing.linear,
+  settle: Easing.bezier(0.16, 1, 0.3, 1), // a bubble easing onto its resting spot, pair with DURATION.settle
+  draw: Easing.bezier(0.22, 1, 0.16, 1), // a path drawing itself on, pair with DURATION.draw
+  ambient: Easing.inOut(Easing.ease), // a slow idle loop, pair with DURATION.ambient
 };
 
 // ── Travel distances · px (enter/exit translate) ────────────────────────────

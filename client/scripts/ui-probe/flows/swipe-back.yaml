@@ -1,0 +1,6 @@
+appId: com.aura.ai.companion
+---
+- swipe:
+    start: "15%,45%"
+    end: "85%,45%"
+    duration: 350

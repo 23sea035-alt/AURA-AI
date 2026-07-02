@@ -3,3 +3,4 @@ export { ChatHeader } from './ChatHeader';
 export { MessageBubble } from './MessageBubble';
 export { DisclosureBanner } from './DisclosureBanner';
 export { ChatComposer } from './ChatComposer';
+export { ReportSheet } from './ReportSheet';

@@ -159,6 +159,15 @@ export async function apiSendMessage(companionId: string, content: string, sessi
   });
 }
 
+/** Flag an assistant message (Apple Guideline 1.2 / UGC). `reason` is a chip label; `detail` is the
+ *  optional free-text note. Server records a safety_event for review. Best-effort, non-blocking. */
+export async function apiReportMessage(messageId: string, reason: string, detail?: string) {
+  return apiFetch<{ reported: boolean }>(`/messages/${messageId}/report`, {
+    method: 'POST',
+    body: JSON.stringify({ reason, detail }),
+  });
+}
+
 // ── Payments ──────────────────────────────────────────────────────────────
 
 export interface CheckoutResponse {

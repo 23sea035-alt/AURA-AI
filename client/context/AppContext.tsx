@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { DEV_FORCE_PREMIUM } from '@/constants/devFlags';
 import {
   apiLogin, apiRegister, apiGetMe, apiUpdateMe,
   apiGetCompanions, apiCreateCompanion,
@@ -20,6 +21,8 @@ export interface Companion {
   lastMessage?: string;
   lastActive?: string;
   messageCount?: number;
+  /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
+  archivedAt?: string | null;
 }
 
 export interface Message {
@@ -31,6 +34,8 @@ export interface Message {
   audioUri?: string;
   /** How the user composed the message. Absent = text. */
   inputModality?: 'text' | 'voice';
+  /** Set on an assistant turn the safety pipeline flagged as crisis — renders the inline support block. */
+  safetyFlagged?: boolean;
 }
 
 export interface UserProfile {
@@ -45,6 +50,8 @@ export interface UserProfile {
   isPremium?: boolean;
   bio?: string;
   avatarUri?: string;
+  /** Chosen monogram tone for the initials avatar. Backed by users.avatarColor once the API lands. */
+  avatarColor?: string;
 }
 
 export interface SafetyState {
@@ -55,6 +62,8 @@ export interface SafetyState {
 interface AppContextType {
   user: UserProfile | null;
   companions: Companion[];
+  /** The companion shown on Home. Backed by users.primaryCompanionId once the API lands. */
+  primaryCompanionId: string;
   isAuthenticated: boolean;
   isLoading: boolean;
   messages: Record<string, Message[]>;
@@ -64,7 +73,10 @@ interface AppContextType {
   register: (name: string, email: string, password: string, birthYear: number) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<UserProfile>) => void;
+  setPrimaryCompanion: (id: string) => void;
   addCompanion: (companion: Omit<Companion, 'id'>) => void;
+  archiveCompanion: (id: string) => void;
+  restoreCompanion: (id: string) => void;
   getMessagesForCompanion: (companionId: string) => Message[];
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
   sendMessageToAPI: (companionId: string, content: string, sessionStartedAt?: string) => Promise<Message | null>;
@@ -157,6 +169,7 @@ function toUserProfile(u: ApiUser): UserProfile {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [companions, setCompanions] = useState<Companion[]>(DEFAULT_COMPANIONS);
+  const [primaryCompanionId, setPrimaryCompanionId] = useState('aurora');
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [apiError, setApiError] = useState<string | null>(null);
@@ -170,16 +183,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const bootstrap = async () => {
     try {
       // Try AsyncStorage first for fast startup
-      const [storedUser, storedMessages, storedCompanions, token] = await Promise.all([
+      const [storedUser, storedMessages, storedCompanions, storedPrimary, token] = await Promise.all([
         AsyncStorage.getItem('user'),
         AsyncStorage.getItem('messages'),
         AsyncStorage.getItem('companions'),
+        AsyncStorage.getItem('primaryCompanionId'),
         AsyncStorage.getItem('authToken'),
       ]);
 
       if (storedUser) setUser(JSON.parse(storedUser));
       if (storedMessages) setMessages(JSON.parse(storedMessages));
       if (storedCompanions) setCompanions(JSON.parse(storedCompanions));
+      if (storedPrimary) setPrimaryCompanionId(storedPrimary);
 
       // If we have a token, refresh from API in the background
       if (token) {
@@ -348,7 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
 
     setApiError(null);
-    const aiMsg = toMessage(data.aiMessage);
+    const aiMsg: Message = { ...toMessage(data.aiMessage), safetyFlagged: data.safetyFlagged };
     setMessages(prev => {
       const updated = {
         ...prev,
@@ -405,12 +420,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return data.url;
   }, []);
 
+  const setPrimaryCompanion = useCallback((id: string) => {
+    setPrimaryCompanionId(id);
+    AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
+  }, []);
+
+  // Soft-delete: hidden from the roster, but messages/memory stay keyed by companion id and
+  // restoreCompanion brings it right back. Archiving the Home companion clears the pin rather
+  // than leaving Home pointed at a companion that's no longer in the active roster.
+  const archiveCompanion = useCallback((id: string) => {
+    setCompanions(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, archivedAt: new Date().toISOString() } : c));
+      AsyncStorage.setItem('companions', JSON.stringify(updated));
+      return updated;
+    });
+    if (primaryCompanionId === id) {
+      setPrimaryCompanionId('');
+      AsyncStorage.setItem('primaryCompanionId', '').catch(() => {});
+    }
+  }, [primaryCompanionId]);
+
+  const restoreCompanion = useCallback((id: string) => {
+    setCompanions(prev => {
+      const updated = prev.map(c => (c.id === id ? { ...c, archivedAt: null } : c));
+      AsyncStorage.setItem('companions', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // DEV_FORCE_PREMIUM mock applies here — the one place every screen's `user.isPremium` read
+  // resolves from, so no per-screen wiring is needed to preview premium-gated UI.
+  const exposedUser = useMemo(
+    () => (DEV_FORCE_PREMIUM && user ? { ...user, isPremium: true } : user),
+    [user],
+  );
+
   return (
     <AppContext.Provider value={{
-      user, companions, isAuthenticated: !!user, isLoading,
+      user: exposedUser, companions, primaryCompanionId, isAuthenticated: !!user, isLoading,
       messages, apiError, safetyState,
-      login, register, logout, updateUser,
-      addCompanion, getMessagesForCompanion, addMessage,
+      login, register, logout, updateUser, setPrimaryCompanion,
+      addCompanion, archiveCompanion, restoreCompanion, getMessagesForCompanion, addMessage,
       sendMessageToAPI, loadMessagesFromAPI, clearApiError,
       setBreakReminder, dismissDisclosure, startCheckout,
     }}>

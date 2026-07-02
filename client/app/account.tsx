@@ -7,12 +7,13 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import ConfirmSheet from '@/components/ConfirmSheet';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { PressableScale } from '@/components/motion';
 import { Toast } from '@/components/Toast';
+import { TopBar } from '@/components/TopBar';
 import { ACCOUNT } from '@/constants/content';
-import { FONTS, SPACE, TYPE } from '@/constants/design';
+import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -34,15 +35,13 @@ export default function AccountScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Manage your data" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Account</Text>
-
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.export.line}</Text>
           <ListGroup>
@@ -50,11 +49,21 @@ export default function AccountScreen() {
           </ListGroup>
         </View>
 
+        {/* Danger area — a standalone destructive button (not a chevron row, which would imply
+            navigation rather than an action); the loud destructive red still lives only inside the
+            confirm dialog, so the resting button reads as a warm-neutral card with error-tinted text. */}
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.delete.line}</Text>
-          <ListGroup>
-            <ListRow first destructive label={a.delete.cta} onPress={() => setConfirmDelete(true)} />
-          </ListGroup>
+          <PressableScale
+            haptic="medium"
+            onPress={() => setConfirmDelete(true)}
+            accessibilityRole="button"
+            accessibilityLabel={a.delete.cta}
+            style={[styles.deleteBtn, { backgroundColor: colors.raised, borderColor: colors.border }]}
+          >
+            <Text style={[styles.deleteBtnText, { color: colors.error }]}>{a.delete.cta}</Text>
+          </PressableScale>
+          <Text style={[styles.explainer, { color: colors.textTertiary }]}>{a.delete.explainer}</Text>
         </View>
       </ScrollView>
 
@@ -80,9 +89,18 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.xl },
-  title: { ...TYPE.headline, marginBottom: SPACE.sm },
+  container: { flex: 1 },
+  content: { gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   section: { gap: SPACE.sm },
   line: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
+  explainer: { ...TYPE.caption, lineHeight: 17 },
+  // Mirrors you.tsx's Sign out button — an isolated, self-evidently-tappable card, not a
+  // navigation row. Error-tinted label; the full destructive red stays inside the confirm sheet.
+  deleteBtn: {
+    alignItems: 'center',
+    borderRadius: RADIUS.soft,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: SPACE.lg,
+  },
+  deleteBtnText: { fontFamily: FONTS.body.semibold, fontSize: 16 },
 });

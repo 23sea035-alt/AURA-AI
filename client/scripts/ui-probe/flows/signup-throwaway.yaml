@@ -1,0 +1,20 @@
+appId: com.aura.ai.companion
+---
+# Signs up a fresh account and lands on the onboarding carousel — the fastest way to reach
+# any post-auth screen for verification. Each account can only pass through onboarding once,
+# so EMAIL must be unique per run (e.g. a timestamp or the bug you're checking, @example.com).
+# Usage: maestro test flows/signup-throwaway.yaml -e EMAIL=carousel-check@example.com -e PASSWORD=12345678
+- tapOn:
+    point: "50%,80%" # "Get started"
+- tapOn:
+    point: "50%,49%" # email field
+- inputText: "${EMAIL}"
+- hideKeyboard
+- tapOn:
+    point: "50%,58%" # password field
+- inputText: "${PASSWORD}"
+- hideKeyboard
+- tapOn:
+    point: "10%,65%" # age/terms checkbox
+- tapOn:
+    point: "50%,84%" # submit

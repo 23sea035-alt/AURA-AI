@@ -55,17 +55,32 @@ export default function AIDisclosureScreen() {
             <Animated.View key={card.head} entering={enterUp(i + 1)}>
               <Card variant="soft">
                 <View style={styles.cardRow}>
+                  {/* Doctrine: no accent-tinted icon tiles — non-crisis cards get a neutral bg chip +
+                      textSecondary glyph; only the crisis card keeps a (semantic) grounding-green tile. */}
                   <View
                     style={[
                       styles.glyph,
-                      { backgroundColor: isCrisis ? colors.crisisBg : colors.accentTint },
+                      { backgroundColor: isCrisis ? colors.crisisBg : colors.bg },
                     ]}
                   >
-                    <Ionicons name={CARD_ICONS[i]} size={20} color={isCrisis ? colors.crisis : colors.accent} />
+                    <Ionicons name={CARD_ICONS[i]} size={20} color={isCrisis ? colors.crisis : colors.textSecondary} />
                   </View>
                   <View style={styles.cardText}>
-                    <Text style={[styles.cardHead, { color: colors.textPrimary }]}>{card.head}</Text>
-                    <Text style={[styles.cardBody, { color: colors.textSecondary }]}>{card.body}</Text>
+                    <Text style={[styles.cardHead, { color: isCrisis ? colors.crisisText : colors.textPrimary }]}>
+                      {card.head}
+                    </Text>
+                    <Text style={[styles.cardBody, { color: isCrisis ? colors.crisisText2 : colors.textSecondary }]}>
+                      {isCrisis
+                        ? card.body.split('988').map((part, j, arr) => (
+                            <React.Fragment key={j}>
+                              {part}
+                              {j < arr.length - 1 ? (
+                                <Text style={[styles.cardBodyStrong, { color: colors.crisisText }]}>988</Text>
+                              ) : null}
+                            </React.Fragment>
+                          ))
+                        : card.body}
+                    </Text>
                   </View>
                 </View>
               </Card>
@@ -97,6 +112,7 @@ const styles = StyleSheet.create({
   cardText: { flex: 1, gap: 2 },
   cardHead: { fontFamily: FONTS.body.semibold, fontSize: 16 },
   cardBody: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
+  cardBodyStrong: { fontFamily: FONTS.body.semibold },
   consentRow: { flexDirection: 'row', gap: SPACE.sm, alignItems: 'center', marginTop: SPACE.sm },
   consentText: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 19 },
   action: { marginTop: SPACE.md },

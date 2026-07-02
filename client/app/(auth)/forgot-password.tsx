@@ -3,13 +3,15 @@
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import Animated, { FadeIn } from 'react-native-reanimated';
+import { View, Text, StyleSheet, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
+import { KeyboardFooter } from '@/components/KeyboardFooter';
 import { PressableScale, enterUp } from '@/components/motion';
 import { ONBOARDING } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
@@ -27,7 +29,7 @@ export default function ForgotPasswordScreen() {
       <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -40,33 +42,34 @@ export default function ForgotPasswordScreen() {
           </Animated.Text>
 
           {!sent ? (
-            <>
-              <Animated.View entering={enterUp(2)} style={styles.fields}>
-                <Field
-                  label={a.fields.emailLabel}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder={a.fields.emailPlaceholder}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  returnKeyType="done"
-                  onSubmitEditing={() => email.trim() && setSent(true)}
-                />
-              </Animated.View>
-              <View style={styles.action}>
-                <Button label={a.ctas.forgot} onPress={() => email.trim() && setSent(true)} disabled={!email.trim()} />
-              </View>
-            </>
-          ) : (
-            <Animated.View entering={FadeIn.duration(350)} style={styles.action}>
-              <PressableScale onPress={() => router.replace('/(auth)/login')} haptic="light" style={styles.footerLink}>
-                <Text style={[styles.footerText, { color: colors.accent }]}>Back to sign in</Text>
-              </PressableScale>
+            <Animated.View entering={enterUp(2)} style={styles.fields}>
+              <Field
+                label={a.fields.emailLabel}
+                value={email}
+                onChangeText={setEmail}
+                placeholder={a.fields.emailPlaceholder}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={() => email.trim() && setSent(true)}
+              />
             </Animated.View>
-          )}
+          ) : null}
         </ScrollView>
       </View>
+
+      {/* Floating CTA — send-code button while filling the form (rises with the keyboard); the
+          calm "back to sign in" link once the code's been sent. */}
+      <KeyboardFooter>
+        {!sent ? (
+          <Button label={a.ctas.forgot} onPress={() => email.trim() && setSent(true)} disabled={!email.trim()} />
+        ) : (
+          <PressableScale onPress={() => router.replace('/(auth)/login')} haptic="light" style={styles.footerLink}>
+            <Text style={[styles.footerText, { color: colors.accent }]}>Back to sign in</Text>
+          </PressableScale>
+        )}
+      </KeyboardFooter>
     </KeyboardAvoidingView>
   );
 }
@@ -78,7 +81,6 @@ const styles = StyleSheet.create({
   title: { ...TYPE.headline },
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
   fields: { gap: SPACE.lg },
-  action: { marginTop: 'auto', paddingTop: SPACE.xl, gap: SPACE.sm },
   footerLink: { alignItems: 'center', paddingVertical: SPACE.sm },
   footerText: { fontFamily: FONTS.body.semibold, fontSize: 15 },
 });

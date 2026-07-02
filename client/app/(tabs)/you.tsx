@@ -21,7 +21,6 @@ export default function YouScreen() {
   const { colors, shadows, mode, preference, setPreference } = useTheme();
   const insets = useSafeAreaInsets();
   const { user, logout } = useApp();
-  const [notif, setNotif] = useState(true);
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const isPremium = !!user?.isPremium;
@@ -38,9 +37,14 @@ export default function YouScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACE.xl, paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Screen title — parity with Home/Companions' display headline (and iOS large-title
+            grammar: title above the account card). */}
+        <Text style={[styles.screenTitle, { color: colors.textPrimary }]}>You</Text>
+
         {/* Header card */}
         <View style={[styles.header, { backgroundColor: colors.raised }, shadows.e2]}>
           <Avatar id="" name={name} size={56} />
@@ -77,23 +81,19 @@ export default function YouScreen() {
 
         <ListGroup label="Account">
           <ListRow first label="Edit profile" onPress={() => router.push('/edit-profile')} />
+          <ListRow label="Sign-in & security" onPress={() => router.push('/sign-in-security')} />
           <ListRow
             label="Subscription"
             detail={isPremium ? 'Manage in App Store' : 'Upgrade to Premium'}
             onPress={() => router.push(isPremium ? '/subscription' : '/premium')}
           />
-          <ListRow label="Sign-in & security" onPress={() => router.push('/sign-in-security')} />
-        </ListGroup>
-
-        <ListGroup label="Notifications">
-          <ListRow first label="Aurora replied" toggle={{ value: notif, onValueChange: setNotif }} />
+          <ListRow label="Notifications" onPress={() => router.push('/notifications')} />
         </ListGroup>
 
         <ListGroup label="Privacy & Safety">
           <ListRow first label="Safety center" onPress={() => router.push('/safety')} />
           <ListRow label="Privacy policy" onPress={() => router.push('/privacy')} />
-          <ListRow label="Data export" onPress={() => router.push('/account')} />
-          <ListRow label="Delete account" onPress={() => router.push('/account')} />
+          <ListRow label="Manage your data" onPress={() => router.push('/account')} />
         </ListGroup>
 
         <ListGroup label="Support">
@@ -105,7 +105,7 @@ export default function YouScreen() {
           <Text style={[styles.signOutText, { color: colors.error }]}>Sign out</Text>
         </PressableScale>
 
-        <Text style={[styles.version, { color: colors.textTertiary }]}>Aura v1.0</Text>
+        <Text style={[styles.version, { color: colors.textTertiary }]}>Aura · version 1.0.0</Text>
       </ScrollView>
 
       <ConfirmSheet
@@ -123,7 +123,14 @@ export default function YouScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: SPACE.xl, gap: SPACE.lg },
+  // Without flex:1, the ScrollView's own viewport sizes to its content instead of stretching to
+  // fill the screen — its touchable bounds stop short of the floating tab bar, so a scroll
+  // gesture in that gap never reaches the ScrollView at all.
+  scroll: { flex: 1 },
+  // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
+  // header-to-navbar area stays swipeable even when under-filled.
+  content: { flexGrow: 1, paddingHorizontal: SPACE.xl, gap: SPACE.lg },
+  screenTitle: { ...TYPE.headline, marginBottom: -SPACE.xs },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

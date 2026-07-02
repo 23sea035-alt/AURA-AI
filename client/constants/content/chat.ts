@@ -6,7 +6,7 @@ export const CHAT = {
   aiMarker: 'AI companion', // persistent honest header caption
   disclosureBanner:
     '{Companion} is an AI companion, here for support, not a substitute for professional care.',
-  breakReminder: "You've been chatting a while. {Companion} will be here whenever you come back. 💛",
+  breakReminder: "You've been chatting a while. {Companion} will be here whenever you come back.",
   inputPlaceholder: 'Message {Companion}…', // proposed; not specified in the deck — review
   characterLimit: 2000, // counter stays invisible until ~80%, then turns wine (not red) near the cap
 
@@ -18,6 +18,7 @@ export const CHAT = {
 
   // limit state (free only) — gentle inline upsell, no shame, no countdown.
   limit: {
+    title: "That's 30 for today",
     notice:
       "You've reached today's 30 free messages. {Companion} will be here tomorrow, or go unlimited with Premium.",
     cta: 'See Premium',
@@ -28,8 +29,10 @@ export const CHAT = {
 
   // report sheet — low-friction, non-punitive.
   report: {
-    title: 'Help us keep {AppName} safe',
+    title: 'Help us keep {AppName} safe', // wrap with withAppName()
+    body: "Tell us what felt off. This is private and won't interrupt your chat.",
     reasons: ['Inappropriate', 'Harmful', 'Not helpful', 'Other'],
+    notePlaceholder: 'Add a note (optional)',
     submit: 'Submit report',
     cancel: 'Cancel',
     confirmToast: "Thanks. We'll review this.",

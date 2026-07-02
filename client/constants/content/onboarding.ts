@@ -6,7 +6,7 @@ export const ONBOARDING = {
   welcome: {
     // the wordmark renders BRAND.appName
     headline: 'A companion who remembers you.',
-    support: "Talk through whatever's on your mind, quietly and at your own pace.",
+    support: 'Someone to talk to who carries your story forward, quietly and at your pace.',
     primaryCta: 'Get started', // rendered as "Get started →"
     secondaryCta: 'I already have an account',
     adultsNote: 'For adults 18+',
@@ -53,8 +53,9 @@ export const ONBOARDING = {
     termsNudge: 'Please agree to the Terms & Privacy Policy to continue.',
     forgotPasswordLink: 'Forgot password?',
     footers: {
-      toSignin: 'Already have an account? Sign in.',
-      toSignup: 'New to {AppName}? Create an account.', // wrap with withAppName()
+      // prompt = neutral, action = wine accent (the tappable swap)
+      toSignin: { prompt: 'Already have an account?', action: 'Sign in.' },
+      toSignup: { prompt: 'New to {AppName}?', action: 'Create an account.' }, // wrap prompt with withAppName()
     },
     helpers: {
       forgot: "We'll email you a 6-digit code to reset your password.",
@@ -95,7 +96,7 @@ export const ONBOARDING = {
     title: 'How old are you?',
     body: '{AppName} is for adults. You must be 18 or older to continue.', // wrap with withAppName()
     cta: 'Continue',
-    under18: 'You need to be 18 to use {AppName}. Thanks for stopping by.', // wrap with withAppName()
+    under18: 'You need to be 18 to use {AppName}.', // inline gate notice; wrap with withAppName()
   },
 
   disclosure: {
@@ -106,8 +107,8 @@ export const ONBOARDING = {
         body: 'Real support, not a real person, and never a substitute for professional care.',
       },
       {
-        head: 'If things ever get heavy',
-        body: "You'll always find real resources here, like the 988 Suicide & Crisis Lifeline.",
+        head: "If you're ever in crisis",
+        body: 'Aura shares real resources like 988, and you can always reach them.',
       },
       {
         head: 'Your conversations are private',
