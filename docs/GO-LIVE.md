@@ -12,6 +12,13 @@ instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)
 
 ## Gate 0 — Third-party accounts & tiers
 
+**Tier summary (production):**
+- **Mandatory paid:** Groq **Developer**, Neon **Launch**, Render **Starter** (already set in `render.yaml`).
+- **Free at launch, pay as you grow:** RevenueCat (free < $2.5K/mo tracked revenue, then 1%),
+  Clerk (free < 50K MAU — **Pro $25/mo recommended** for branding removal + MFA, not required),
+  APNs (free), OpenAI moderation (free, but the account needs a payment method on file).
+- **Voice:** Inworld is usage-based (~$25/mo Creator plan covers ~2,000 min when voice is enabled).
+
 - [ ] **Groq — upgrade to a paid (Developer) tier.** *Hard launch blocker.* The Free tier caps
   `llama-3.3-70b-versatile` at **12K TPM / 1K RPD / 100K TPD**, shared between generation and
   consolidation (~2 calls/turn) → **~42 turns/day across ALL users**. One-click billing change in the
@@ -24,11 +31,16 @@ instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)
 - [ ] **Inworld — create 3 voices** (Aurora / Orion / Lyra) in the TTS portal; copy each voice ID.
   Casting guide + style tags are in [docs/TODO.md §1–2](TODO.md). *Until these are set, voice sessions
   run but produce **no audio** (TTS skips gracefully).*
-- [ ] **Neon — provision the production database** (separate from dev). Grab the pooled connection
-  string for `DATABASE_URL`. Migrations run automatically on server boot — no manual migrate step.
-- [ ] **Clerk — production instance**; note the secret + publishable keys and create a webhook signing
-  secret.
-- [ ] **RevenueCat — production project**; create the webhook auth secret; configure StoreKit products.
+- [ ] **Neon — provision the production database on the Launch plan** (separate from dev). *Free tier
+  is unsafe for prod:* hitting any Free cap (100 CU-hrs / 0.5 GB / 5 GB egress) **suspends compute until
+  next month** — the DB goes offline mid-month. Launch is pay-as-you-go, no minimum (~$5–20/mo small
+  scale). Grab the pooled connection string for `DATABASE_URL`. Migrations run on server boot — no
+  manual migrate step.
+- [ ] **Clerk — production instance** (Free tier supports production up to 50K MAU). Note the secret +
+  publishable keys; create a webhook signing secret. *Consider **Pro ($25/mo)** for removing Clerk
+  branding + MFA + custom session length — recommended for a polished consumer app, not required to launch.*
+- [ ] **RevenueCat — production project** (Free below $2,500/mo tracked revenue, then 1%; full feature
+  set on free). Create the webhook auth secret; configure StoreKit products.
 - [ ] **APNs — production key** (`.p8`), Key ID, Team ID; decide `APNS_ENVIRONMENT` (`production`).
 - [ ] **Sentry (optional but recommended)** — project DSN for error monitoring.
 
