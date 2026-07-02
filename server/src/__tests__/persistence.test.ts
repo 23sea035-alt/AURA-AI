@@ -11,13 +11,19 @@ const mockTransaction = vi.fn(async (cb: (t: unknown) => Promise<unknown>) => {
   return await cb(tx);
 });
 
+const mockOrderBy = vi.fn();
+const mockSelectWhere = vi.fn(() => ({ orderBy: mockOrderBy }));
+const mockSelectFrom = vi.fn(() => ({ where: mockSelectWhere }));
+const mockSelect = vi.fn(() => ({ from: mockSelectFrom }));
+
 const mockDb = {
   transaction: mockTransaction,
+  select: mockSelect,
 };
 
 vi.mock("../db/src/index.js", () => ({
   db: mockDb,
-  messagesTable: {},
+  messagesTable: { userId: "user_id", companionId: "companion_id", turnId: "turn_id", createdAt: "created_at" },
   companionsTable: {},
 }));
 
@@ -69,5 +75,44 @@ describe("persistMessages", () => {
     expect(mockTxUpdateSet).toHaveBeenCalledWith(expect.not.objectContaining({
       messageCount: expect.anything(),
     }));
+  });
+});
+
+describe("fetchExistingTurn", () => {
+  it("returns null when no rows exist for the turnId", async () => {
+    mockOrderBy.mockResolvedValueOnce([]);
+    const { fetchExistingTurn } = await import("../services/chat/persistence.js");
+    expect(await fetchExistingTurn("u1", "c1", "t1")).toBeNull();
+  });
+
+  it("returns the user + assistant messages when the turn exists", async () => {
+    mockOrderBy.mockResolvedValueOnce([
+      { id: "um", role: "user" },
+      { id: "am", role: "assistant" },
+    ]);
+    const { fetchExistingTurn } = await import("../services/chat/persistence.js");
+    expect(await fetchExistingTurn("u1", "c1", "t1")).toEqual({
+      userMessage: { id: "um", role: "user" },
+      aiMessage: { id: "am", role: "assistant" },
+    });
+  });
+
+  it("returns null aiMessage when only the user message is present", async () => {
+    mockOrderBy.mockResolvedValueOnce([{ id: "um", role: "user" }]);
+    const { fetchExistingTurn } = await import("../services/chat/persistence.js");
+    expect(await fetchExistingTurn("u1", "c1", "t1")).toEqual({
+      userMessage: { id: "um", role: "user" },
+      aiMessage: null,
+    });
+  });
+});
+
+describe("isTurnUniqueViolation", () => {
+  it("detects unique / duplicate constraint errors", async () => {
+    const { isTurnUniqueViolation } = await import("../services/chat/persistence.js");
+    expect(isTurnUniqueViolation(new Error("duplicate key value violates unique constraint"))).toBe(true);
+    expect(isTurnUniqueViolation(new Error("uq_turn_id_role"))).toBe(true);
+    expect(isTurnUniqueViolation(new Error("connection reset"))).toBe(false);
+    expect(isTurnUniqueViolation("not an error")).toBe(false);
   });
 });
