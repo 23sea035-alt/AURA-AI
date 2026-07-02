@@ -3,6 +3,8 @@
 
 export const PAYWALL = {
   headline: 'Go deeper with {AppName} Premium',
+  // companion-led hero framing (non-owned): ties premium to the relationship, not a feature matrix.
+  heroHeadline: 'Go further with {name}',
   // proposed; the deck left the subline unspecified ("+ one supportive subline") — review.
   subline: 'Unlimited time with your companion, and more ways to make them yours.',
   ownedHeadline: "You're on {AppName} Premium",

@@ -1,7 +1,11 @@
-// Paywall — the conversion screen, calm not celebratory. Warm headline + a single-column value
-// list + a store-driven price (skeleton slot, NEVER hardcoded) + Subscribe + Restore + legal line.
-// owned state (premium) shows "current plan" + Manage subscription. Replaces the cosmic premium tab.
+// Paywall — the conversion screen, calm not celebratory. Companion-led: the primary companion
+// presents (an earned warm gradient wash + hero avatar) so premium reads as "more of your
+// companion," not a cold feature matrix. Presented as a real iOS modal sheet (root Stack,
+// presentation:'modal') — it covers the tab bar and has native swipe-to-dismiss, so there's no
+// hand-drawn grabber; a circular close stays for an explicit, discoverable exit. Store-driven
+// price lives in a skeleton slot, NEVER hardcoded. Owned state shows current plan + Manage.
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
@@ -9,21 +13,26 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { PressableScale, enterUp } from '@/components/motion';
 import { PAYWALL, SYSTEM, withAppName } from '@/constants/content';
-import { FONTS, SPACE, TYPE } from '@/constants/design';
+import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
 const RENEW_DATE = 'Jul 14, 2026'; // demo; the real app reads this from the store
 
 export default function PaywallScreen() {
-  const { colors, mode } = useTheme();
+  const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, updateUser } = useApp();
+  const { user, companions, primaryCompanionId, updateUser } = useApp();
   const owned = !!user?.isPremium;
+
+  const active = companions.filter((c) => !c.archivedAt);
+  const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
+  const name = companion?.name ?? '';
 
   // UI shell: real purchase is RevenueCat-wired later; here it simulates the upgrade.
   const handleSubscribe = () => {
@@ -33,52 +42,70 @@ export default function PaywallScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
 
+  const headline = owned
+    ? withAppName(PAYWALL.ownedHeadline)
+    : name
+      ? PAYWALL.heroHeadline.replace('{name}', name)
+      : withAppName(PAYWALL.headline);
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.sm }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      {/* Paywall reads as a sheet (locked design), not a pushed screen — drag handle + a circular
-          close, not a back chevron: there's nowhere "back" to conceptually go, just "close". */}
-      <View style={styles.handleWrap}>
-        <View style={[styles.handle, { backgroundColor: colors.border }]} />
-      </View>
+
+      {/* Earned warm wash behind the hero — the one gradient the doctrine budgets for a focal moment. */}
+      <LinearGradient colors={[colors.accentTint, colors.bg]} style={styles.wash} pointerEvents="none" />
+
       <PressableScale
         onPress={goBack}
         hitSlop={8}
         haptic="light"
         accessibilityRole="button"
         accessibilityLabel="Close"
-        style={[styles.closeBtn, { backgroundColor: colors.raised }]}
+        style={[styles.closeBtn, { backgroundColor: colors.raised }, shadows.e1]}
       >
         <Ionicons name="close" size={16} color={colors.textTertiary} />
       </PressableScale>
+
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.Text entering={enterUp(0)} style={[styles.headline, { color: colors.textPrimary }]}>
-          {withAppName(owned ? PAYWALL.ownedHeadline : PAYWALL.headline)}
+        {/* Companion-led hero — the primary companion presents; premium = more time with them. */}
+        {companion ? (
+          <Animated.View entering={enterUp(0)} style={styles.hero}>
+            <View style={[styles.avatarWrap, shadows.e2]}>
+              <Avatar id={companion.id} name={name} size={104} colorFrom={companion.colorFrom} colorTo={companion.colorTo} />
+            </View>
+          </Animated.View>
+        ) : null}
+
+        <Animated.Text entering={enterUp(1)} style={[styles.headline, { color: colors.textPrimary }]}>
+          {headline}
         </Animated.Text>
         {!owned ? (
-          <Animated.Text entering={enterUp(1)} style={[styles.subline, { color: colors.textSecondary }]}>
+          <Animated.Text entering={enterUp(2)} style={[styles.subline, { color: colors.textSecondary }]}>
             {PAYWALL.subline}
           </Animated.Text>
         ) : null}
 
-        <Animated.View entering={enterUp(2)} style={styles.valueList}>
-          {PAYWALL.features.premium.map((f) => (
-            <View key={f} style={styles.valueRow}>
+        {/* Value props in a soft raised card (intimate surface: tonal fill + soft shadow, no outline;
+            rows hairline-separated). Checkmarks stay neutral — the one accent is spent on Subscribe. */}
+        <Animated.View entering={enterUp(3)} style={[styles.valueCard, { backgroundColor: colors.raised }, shadows.e1]}>
+          {PAYWALL.features.premium.map((f, i) => (
+            <View
+              key={f}
+              style={[styles.valueRow, i > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.divider }]}
+            >
               <Ionicons name="checkmark" size={18} color={colors.textSecondary} />
               <Text style={[styles.valueText, { color: colors.textPrimary }]}>{f}</Text>
             </View>
           ))}
         </Animated.View>
         {!owned ? (
-          <Animated.Text entering={enterUp(2)} style={[styles.freeBaseline, { color: colors.textTertiary }]}>
-            {PAYWALL.freeBaseline}
-          </Animated.Text>
+          <Text style={[styles.freeBaseline, { color: colors.textTertiary }]}>{PAYWALL.freeBaseline}</Text>
         ) : null}
 
-        <Animated.View entering={enterUp(3)} style={styles.priceBlock}>
+        <View style={styles.priceBlock}>
           {owned ? (
             <Text style={[styles.renews, { color: colors.textSecondary }]}>
               {PAYWALL.renewsTemplate.replace('{renewDate}', RENEW_DATE)}
@@ -89,7 +116,7 @@ export default function PaywallScreen() {
               <Text style={[styles.priceNote, { color: colors.textTertiary }]}>{SYSTEM.storePriceNote}</Text>
             </>
           )}
-        </Animated.View>
+        </View>
 
         <View style={styles.action}>
           <Button
@@ -124,11 +151,12 @@ export default function PaywallScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  handleWrap: { alignItems: 'center', paddingBottom: SPACE.xs },
-  handle: { width: 38, height: 4, borderRadius: 2 },
+  wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 300 },
+  // Modal is a native page-sheet (already below the status bar), so top spacing is fixed and small —
+  // no insets.top (that would re-pad for a status bar the sheet doesn't reach, leaving dead space).
   closeBtn: {
     position: 'absolute',
-    top: SPACE.xxl,
+    top: SPACE.lg,
     right: SPACE.lg,
     width: 32,
     height: 32,
@@ -137,14 +165,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 1,
   },
-  content: { flexGrow: 1, gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.sm },
-  headline: { ...TYPE.headline },
-  subline: { ...TYPE.body, marginBottom: SPACE.sm },
-  valueList: { gap: SPACE.md, marginVertical: SPACE.sm },
-  freeBaseline: { ...TYPE.caption, marginTop: -SPACE.xs },
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md },
+  content: { flexGrow: 1, gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.xxl },
+  hero: { alignItems: 'center', marginBottom: SPACE.xs },
+  avatarWrap: { width: 104, height: 104, borderRadius: 52 },
+  headline: { ...TYPE.headline, textAlign: 'center' },
+  subline: { ...TYPE.body, textAlign: 'center', marginBottom: SPACE.sm },
+  valueCard: { borderRadius: RADIUS.card, paddingHorizontal: SPACE.lg, marginTop: SPACE.sm },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.md },
   valueText: { fontFamily: FONTS.body.regular, fontSize: 16, flex: 1 },
-  priceBlock: { gap: SPACE.xs, marginVertical: SPACE.sm },
+  freeBaseline: { ...TYPE.caption, textAlign: 'center' },
+  priceBlock: { gap: SPACE.xs, marginVertical: SPACE.sm, alignItems: 'center' },
   renews: { fontFamily: FONTS.body.regular, fontSize: 15 },
   priceNote: { ...TYPE.caption },
   action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },

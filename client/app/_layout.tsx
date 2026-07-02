@@ -50,6 +50,8 @@ function RootLayoutNav() {
         name="companion/create"
         options={{ animation: 'slide_from_bottom' }}
       />
+      {/* Paywall is a real modal sheet — covers the tab bar, native swipe-to-dismiss. */}
+      <Stack.Screen name="premium" options={{ presentation: 'modal' }} />
     </Stack>
   );
 }

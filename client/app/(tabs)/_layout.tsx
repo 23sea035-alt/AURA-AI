@@ -1,6 +1,6 @@
 // Three-tab floating navpill — Home / Companions / You (no center "+" FAB). Warm Sanctuary,
-// opaque. The cosmic chat/memory/premium/profile routes are kept reachable but off the bar
-// (href:null) until they're ported as one-offs / removed.
+// opaque. The cosmic chat/memory/profile routes are kept reachable but off the bar until they're
+// ported as one-offs / removed. The paywall is a root-level modal (app/premium.tsx), not a tab.
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
@@ -72,7 +72,6 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="premium" options={{ href: null }} />
     </Tabs>
   );
 }
