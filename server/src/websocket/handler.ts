@@ -37,6 +37,9 @@ type IncomingFrame =
 
 const wss = new WebSocketServer({ noServer: true });
 const PING_INTERVAL_MS = 30_000;
+// Validate client-supplied ids before they hit a `uuid` DB column (the REST path does this via
+// zod). A non-uuid would otherwise throw "invalid input syntax for type uuid" mid-query.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function registerWebSocketHandler(server: Server): void {
   server.on("upgrade", async (req: IncomingMessage, socket: Socket, head: Buffer) => {
@@ -249,7 +252,7 @@ export function registerWebSocketHandler(server: Server): void {
 
       if (frame.type === "voice_start") {
         const f = frame as VoiceStartFrame;
-        if (!f.companionId) { send({ type: "error", code: "INVALID_FRAME", detail: "companionId required" }); return; }
+        if (!f.companionId || !UUID_RE.test(f.companionId)) { send({ type: "error", code: "INVALID_FRAME", detail: "companionId (uuid) required" }); return; }
         await handleVoiceStart(f.companionId, f.sessionStartedAt);
         return;
       }
@@ -268,6 +271,10 @@ export function registerWebSocketHandler(server: Server): void {
         const f = frame as TurnFrame;
         if (!f.companionId || !f.content?.trim()) {
           send({ type: "error", code: "INVALID_FRAME", detail: "companionId and content required" });
+          return;
+        }
+        if (!UUID_RE.test(f.companionId) || (f.turnId !== undefined && !UUID_RE.test(f.turnId))) {
+          send({ type: "error", code: "INVALID_FRAME", detail: "companionId and turnId must be uuids" });
           return;
         }
 

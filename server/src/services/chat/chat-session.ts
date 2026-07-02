@@ -320,7 +320,7 @@ export class ChatSession {
         turnId,
         memoriesUsed: memories.length > 0,
         breakReminder: breakCheck.remind ? breakCheck.reason : undefined,
-        aiDisclosure: shouldShowAiDisclosure(msgCount) || undefined,
+        aiDisclosure: shouldShowAiDisclosure(Math.ceil(msgCount / 2)) || undefined,
       });
 
     } catch (err) {

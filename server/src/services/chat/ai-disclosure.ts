@@ -3,9 +3,10 @@
 // pipeline); this is the recurring *surfaced* notice, mirroring the break reminder.
 //
 // The server only decides *when* the notice is due; the client renders the standard disclosure
-// copy (UI copy is client-owned). `messageCount` is the running message index for the companion.
-const AI_DISCLOSURE_INTERVAL_MESSAGES = 50;
+// copy (UI copy is client-owned). Cadence is per TURN, not per message — every turn writes two
+// rows (user + assistant), so a message index is always odd and `% N` (N even) would never fire.
+const AI_DISCLOSURE_INTERVAL_TURNS = 25;
 
-export function shouldShowAiDisclosure(messageCount: number): boolean {
-  return messageCount > 0 && messageCount % AI_DISCLOSURE_INTERVAL_MESSAGES === 0;
+export function shouldShowAiDisclosure(turnNumber: number): boolean {
+  return turnNumber > 0 && turnNumber % AI_DISCLOSURE_INTERVAL_TURNS === 0;
 }
