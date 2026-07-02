@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, uuid, unique, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, unique, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 
 export const bannedIdentitiesTable = pgTable("banned_identities", {
@@ -12,6 +13,7 @@ export const bannedIdentitiesTable = pgTable("banned_identities", {
 }, (table) => [
   unique("uq_identifier_type_hash").on(table.identifierType, table.identifierHash),
   index("idx_banned_identities_hash").on(table.identifierHash),
+  check("banned_identities_type_check", sql`${table.identifierType} in ('email_hash', 'apple_sub_hash', 'google_sub_hash')`),
 ]);
 
 export type BannedIdentity = typeof bannedIdentitiesTable.$inferSelect;

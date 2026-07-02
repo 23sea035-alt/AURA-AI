@@ -20,13 +20,27 @@
 > UNIQUE. `rate_limits` and `deletion_audit` are now modeled as Drizzle `pgTable`s (SQL-only before) —
 > the TS schema is the **complete Drizzle source of truth**. The enum catalog below reflects the
 > shipped `@aura/shared` values.
+>
+> **Update 2026-07-02 (migrations `0001`/`0002`).** More `text + CHECK` enum constraints are now
+> DB-enforced (migration `0002`): `users.age_assurance_method`, `memories.category`,
+> `subscriptions.tier/status/store/period_type`, `device_tokens.platform/environment`,
+> `banned_identities.identifier_type`, `voice_usage.direction`, `safety_events.status/action`
+> (`action` is `NULL OR IN (…)`). Two columns are **intentionally NOT constrained**:
+> `safety_events.category` (stores the *raw moderator category* string — e.g. `"self-harm/intent"`,
+> `"sexual/minors"`, `"injection"` — which is richer than the coarse `MODERATION_CATEGORY` enum), and
+> the RevenueCat webhook now **normalizes** its UPPERCASE `store`/`period_type` to the enum before
+> writing (`app_store`/`normal` etc.; unknown period → `null`). `users.date_of_birth` is now a
+> `date` column (was `text`). PKs are **UUIDv4** (`defaultRandom()`) — see Conventions. Added
+> `idx_safety_events_review (status, severity, created_at)` for the review queue.
 
 ---
 
 ## Conventions (apply to every table)
 
-- **Primary keys:** `uuid`, **app-generated UUIDv7** (time-ordered — preserves index locality on
-  write-heavy tables; pairs with the client-minted `turn_id` idempotency model).
+- **Primary keys:** `uuid`, **DB-generated UUIDv4** (`defaultRandom()`). *(As-built 2026-07-02: the
+  original design called for app-generated UUIDv7 for index locality, but that gain is marginal at v1
+  scale and would add a dependency + touch every table — deferred. The client-minted `turn_id`
+  idempotency model is unaffected.)*
 - **Column naming:** **snake_case** in Postgres, **camelCase** in TypeScript — bridged by Drizzle's
   `casing: 'snake_case'` setting (write `clerkUserId: text()` → column `clerk_user_id`).
 - **Enums:** **`text` + `CHECK` constraint**, values defined once in `@aura/shared` (NOT native

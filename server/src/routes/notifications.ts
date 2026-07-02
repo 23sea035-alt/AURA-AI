@@ -12,7 +12,8 @@ const router = Router();
 
 const RegisterTokenSchema = z.object({
   token: z.string().min(1),
-  platform: z.enum(["ios", "android"]).default("ios"),
+  // v1 is iOS-only (DEVICE_PLATFORM = ['ios']); Android is post-v1.0.
+  platform: z.enum(["ios"]).default("ios"),
 });
 
 router.post("/notifications/register", requireAuth, validate(RegisterTokenSchema), async (req: AuthRequest, res) => {

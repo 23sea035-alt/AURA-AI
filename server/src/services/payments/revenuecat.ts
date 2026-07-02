@@ -28,6 +28,26 @@ interface RevenueCatWebhookPayload {
   refund_reason?: string | null;
 }
 
+// RevenueCat sends UPPERCASE store/period values; normalize to the SUBSCRIPTION_STORE /
+// SUBSCRIPTION_PERIOD enums (the DB now enforces these via CHECK constraints).
+const STORE_MAP: Record<string, string> = {
+  APP_STORE: "app_store",
+  MAC_APP_STORE: "app_store",
+  PLAY_STORE: "play_store",
+  STRIPE: "stripe",
+};
+function normalizeStore(raw: string): string {
+  const mapped = STORE_MAP[raw?.toUpperCase()];
+  if (mapped) return mapped;
+  logger.warn({ store: raw }, "Unknown RevenueCat store — defaulting to app_store (v1 is iOS-only)");
+  return "app_store";
+}
+const PERIOD_MAP: Record<string, string> = { NORMAL: "normal", TRIAL: "trial", INTRO: "intro" };
+function normalizePeriodType(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return PERIOD_MAP[raw.toUpperCase()] ?? null; // PROMOTIONAL / unknown → null (column is nullable)
+}
+
 function verifyWebhookSignature(body: string, signature: string): boolean {
   const secret = getEnv().REVENUECAT_WEBHOOK_SECRET;
   const expected = createHmac("sha256", secret).update(body).digest("hex");
@@ -102,15 +122,17 @@ export async function handleRevenueCatWebhook(
       case "RENEWAL":
       case "PURCHASE": {
         const expiresAt = expiration_at_ms ? new Date(expiration_at_ms) : null;
+        const normalizedStore = normalizeStore(store);
+        const normalizedPeriod = normalizePeriodType(period_type);
         await tx.insert(subscriptionsTable).values({
           userId,
           tier: "premium",
           status: "active",
-          store,
+          store: normalizedStore,
           productId: product_id,
           originalTransactionId: original_transaction_id,
           rcAppUserId: app_user_id,
-          periodType: period_type,
+          periodType: normalizedPeriod,
           expiresAt,
           willRenew: expiresAt ? expiresAt > new Date() : true,
           lastEventTimestampMs: event_timestamp_ms,
@@ -120,7 +142,7 @@ export async function handleRevenueCatWebhook(
             status: "active",
             productId: product_id,
             originalTransactionId: original_transaction_id,
-            periodType: period_type,
+            periodType: normalizedPeriod,
             expiresAt,
             willRenew: expiresAt ? expiresAt > new Date() : true,
             lastEventTimestampMs: event_timestamp_ms,

@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, uuid, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, date, check, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { companionsTable } from "./companions.js";
 
@@ -8,7 +8,7 @@ export const usersTable = pgTable("users", {
   firstName: text("first_name"),
   lastName: text("last_name"),
   email: text("email").notNull().unique(),
-  dateOfBirth: text("date_of_birth"),
+  dateOfBirth: date("date_of_birth"),
   ageAssuranceMethod: text("age_assurance_method").notNull().default("self_declared"),
   ageVerified: boolean("age_verified").notNull().default(false),
   ageVerifiedAt: timestamp("age_verified_at", { withTimezone: true }),
@@ -30,6 +30,7 @@ export const usersTable = pgTable("users", {
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
 }, (table) => [
   check("users_status_check", sql`${table.status} in ('active', 'suspended', 'banned', 'deleted')`),
+  check("users_age_assurance_check", sql`${table.ageAssuranceMethod} in ('self_declared', 'apple_declared_age_range', 'third_party')`),
 ]);
 
 export type User = typeof usersTable.$inferSelect;

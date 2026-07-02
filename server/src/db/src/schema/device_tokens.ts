@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 
 export const deviceTokensTable = pgTable("device_tokens", {
@@ -11,6 +12,8 @@ export const deviceTokensTable = pgTable("device_tokens", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_device_tokens_user").on(table.userId),
+  check("device_tokens_platform_check", sql`${table.platform} in ('ios')`),
+  check("device_tokens_environment_check", sql`${table.environment} in ('production', 'sandbox')`),
 ]);
 
 export type DeviceToken = typeof deviceTokensTable.$inferSelect;

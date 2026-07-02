@@ -97,7 +97,8 @@ router.put("/auth/me", requireAuth, validate(UpdateProfileSchema), async (req: A
     if (dateOfBirth !== undefined) {
       if (!isPlausibleDob(dateOfBirth)) { res.status(400).json({ error: "Please enter a valid date of birth." }); return; }
       if (!isAdult(dateOfBirth)) { res.status(403).json({ error: "You must be 18 or older to use Aura." }); return; }
-      updates.dateOfBirth = dateOfBirth;
+      // Normalize to a calendar date (YYYY-MM-DD) for the `date` column, accepting any ISO input.
+      updates.dateOfBirth = new Date(dateOfBirth).toISOString().slice(0, 10);
       updates.isMinor = false;
       updates.ageVerified = true;
       updates.ageVerifiedAt = new Date();

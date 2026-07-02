@@ -26,10 +26,15 @@ export const safetyEventsTable = pgTable("safety_events", {
   check("safety_events_event_type_check", sql`${table.eventType} in ('input_blocked', 'output_blocked', 'crisis_detected', 'injection_detected', 'user_reported')`),
   check("safety_events_source_check", sql`${table.source} in ('input', 'output', 'injection', 'user_report')`),
   check("safety_events_severity_check", sql`${table.severity} in ('info', 'warning', 'critical')`),
+  check("safety_events_status_check", sql`${table.status} in ('open', 'reviewed', 'actioned', 'dismissed')`),
+  check("safety_events_action_check", sql`${table.action} is null or ${table.action} in ('none', 'warned', 'suspended', 'banned')`),
   index("idx_safety_events_user").on(table.userId),
   // Review queue: open events by severity, newest first (SB 243 review workflow).
   index("idx_safety_events_review").on(table.status, table.severity, table.createdAt),
 ]);
+// NOTE: safety_events.category is intentionally NOT constrained — it stores the raw moderator
+// category string (e.g. "self-harm/intent", "sexual/minors", "injection"), which is richer than
+// the coarse MODERATION_CATEGORY enum. Constraining it would lose audit detail.
 
 export type SafetyEvent = typeof safetyEventsTable.$inferSelect;
 export type NewSafetyEvent = typeof safetyEventsTable.$inferInsert;

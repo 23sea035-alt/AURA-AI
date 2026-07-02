@@ -1,4 +1,5 @@
-import { pgTable, text, integer, timestamp, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, uuid, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 import { companionsTable } from "./companions.js";
 
@@ -12,7 +13,9 @@ export const voiceUsageTable = pgTable("voice_usage", {
   direction: text("direction", { enum: ["stt", "tts"] }).notNull(),
   modelId: text("model_id").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  check("voice_usage_direction_check", sql`${table.direction} in ('stt', 'tts')`),
+]);
 
 export type VoiceUsage = typeof voiceUsageTable.$inferSelect;
 export type NewVoiceUsage = typeof voiceUsageTable.$inferInsert;

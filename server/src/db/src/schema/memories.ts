@@ -1,4 +1,5 @@
-import { pgTable, text, real, timestamp, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, real, timestamp, uuid, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 import { companionsTable } from "./companions.js";
 import { messagesTable } from "./messages.js";
@@ -17,6 +18,7 @@ export const memoriesTable = pgTable("memories", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_memories_user_companion").on(table.userId, table.companionId),
+  check("memories_category_check", sql`${table.category} in ('identity', 'preference', 'attribute', 'relationship', 'work', 'location', 'general')`),
 ]);
 
 export type Memory = typeof memoriesTable.$inferSelect;

@@ -87,6 +87,33 @@ describe("RevenueCat webhook — contract", () => {
     vi.clearAllMocks();
   });
 
+  describe("store / period_type normalization", () => {
+    it("maps RevenueCat UPPERCASE store + PROMOTIONAL period to the enum (app_store / null)", async () => {
+      const body = makePayload({ store: "APP_STORE", period_type: "PROMOTIONAL" });
+      const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
+      await handleRevenueCatWebhook(body, signBody(body));
+      expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({
+        store: "app_store",
+        periodType: null,
+      }));
+    });
+
+    it("maps known store + period casings to the enum", async () => {
+      const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
+      const cases: Array<[string, string, string, string]> = [
+        ["PLAY_STORE", "play_store", "TRIAL", "trial"],
+        ["STRIPE", "stripe", "INTRO", "intro"],
+        ["MAC_APP_STORE", "app_store", "NORMAL", "normal"],
+      ];
+      for (const [rawStore, store, rawPeriod, periodType] of cases) {
+        mockInsertValues.mockClear();
+        const body = makePayload({ store: rawStore, period_type: rawPeriod });
+        await handleRevenueCatWebhook(body, signBody(body));
+        expect(mockInsertValues).toHaveBeenCalledWith(expect.objectContaining({ store, periodType }));
+      }
+    });
+  });
+
   describe("signature verification", () => {
     it("processes event with valid signature", async () => {
       const body = makePayload();

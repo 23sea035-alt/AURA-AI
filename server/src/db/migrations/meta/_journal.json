@@ -15,6 +15,13 @@
       "when": 1783014002916,
       "tag": "0001_add_safety_events_review_index",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783016137961,
+      "tag": "0002_schema_integrity_dob_and_checks",
+      "breakpoints": true
     }
   ]
 }

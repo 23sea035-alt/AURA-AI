@@ -1,4 +1,5 @@
-import { pgTable, text, boolean, timestamp, uuid, bigint, index } from "drizzle-orm/pg-core";
+import { pgTable, text, boolean, timestamp, uuid, bigint, index, check } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 
 export const subscriptionsTable = pgTable("subscriptions", {
@@ -21,6 +22,10 @@ export const subscriptionsTable = pgTable("subscriptions", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index("idx_subscriptions_user").on(table.userId),
+  check("subscriptions_tier_check", sql`${table.tier} in ('free', 'premium')`),
+  check("subscriptions_status_check", sql`${table.status} in ('active', 'trialing', 'grace_period', 'billing_retry', 'expired', 'revoked')`),
+  check("subscriptions_store_check", sql`${table.store} in ('app_store', 'play_store', 'stripe')`),
+  check("subscriptions_period_type_check", sql`${table.periodType} is null or ${table.periodType} in ('normal', 'trial', 'intro')`),
 ]);
 
 export type Subscription = typeof subscriptionsTable.$inferSelect;
