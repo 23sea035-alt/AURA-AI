@@ -21,19 +21,19 @@ Stack: pnpm monorepo — `client` (Expo RN, not yours) + `server` (Express 5 + T
 
 ## Branch and push rules
 
-You are on **`test-results`**. At the start of each session:
+The canonical branch is **`backend`** (it superseded `test-results`). At the start of each session:
 
 ```bash
-git pull origin test-results
+git pull origin backend
 ```
 
-After each task, push here only:
+After each task, commit and push here:
 
 ```bash
-git push origin test-results
+git push origin backend
 ```
 
-Do NOT push to `main` or `backend`.
+Do NOT push directly to `main`.
 
 ## Run & operate
 
@@ -113,7 +113,7 @@ The client (Expo app, not yours) has its own separate `client/.env.example` — 
 2. No `console.*` or hardcoded secrets in the diff.
 3. Commit with a `feat:` / `fix:` / `test:` / `chore:` prefix.
 4. Add a CHANGELOG entry in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
-5. Push to `origin/test-results`.
+5. Push to `origin/backend`.
 
 ## Critical rules
 

@@ -7,7 +7,7 @@ After completing each task:
 2. No `console.*` or hardcoded secrets in the diff.
 3. Commit your changes with a clear message (`feat:` / `fix:` / `test:` / `chore:` prefix).
 4. Add an entry to [`CHANGELOG.md`](CHANGELOG.md) describing what landed.
-5. Push to `origin/test-results` only — do not push to `main` or `backend`.
+5. Push to `origin/backend` (the canonical branch) — do not push directly to `main`.
 
 ---
 
