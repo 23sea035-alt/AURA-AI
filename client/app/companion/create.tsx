@@ -5,8 +5,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import Animated from 'react-native-reanimated';
+import { View, Text, StyleSheet, Platform, ScrollView } from 'react-native';
+// keyboard-controller's KAV drives the lift via reanimated (not RN's LayoutAnimation), so the
+// footer's padding can interpolate in sync with the keyboard — same setup as chat/[id].tsx.
+import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -47,6 +50,13 @@ export default function CreateCompanionScreen() {
   const [name, setName] = useState('Aurora');
   const [look, setLook] = useState(DEFAULT_LOOK_ID);
   const [lookOpen, setLookOpen] = useState(false);
+
+  // Footer padding tracks the keyboard: the home-indicator inset only matters when the keyboard is
+  // down (when it's up, the keyboard covers that area, so that inset would be dead gap above it).
+  const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+  const footerStyle = useAnimatedStyle(() => ({
+    paddingBottom: interpolate(keyboardProgress.value, [0, 1], [insets.bottom + SPACE.lg, SPACE.md], Extrapolation.CLAMP),
+  }));
 
   const selectBase = (p: PersonaName) => {
     setBase(p);
@@ -193,17 +203,14 @@ export default function CreateCompanionScreen() {
         {/* Floating footer dock — always in reach, not scrolled away at the bottom of the form
             (matches persona.tsx's footer). Save is the ONE accent fill for premium; the Unlock door
             + explainer for free. Kept outside the dimmed form so the door stays live when locked. */}
-        <View
-          style={[
-            styles.footer,
-            { paddingBottom: insets.bottom + SPACE.lg, backgroundColor: colors.bg, borderTopColor: colors.divider },
-          ]}
+        <Animated.View
+          style={[styles.footer, footerStyle, { backgroundColor: colors.bg, borderTopColor: colors.divider }]}
         >
           {locked ? (
             <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
           ) : null}
           <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
-        </View>
+        </Animated.View>
       </View>
 
       <LookSheet
