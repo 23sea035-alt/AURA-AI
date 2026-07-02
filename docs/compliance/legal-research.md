@@ -109,12 +109,13 @@ propagation → `deletion_audit`); data export; 18+ age gate; break reminders; m
 | Render | App process | Hosting | **[LEGAL-REVIEW]** |
 | Sentry (optional) | Error messages/stack traces | Error monitoring | **[LEGAL-REVIEW]** |
 
-## 5. Documents to produce (this workstream)
+## 5. Documents in this workstream (status)
 
-1. `terms-of-service-draft.md` (G1) — **highest leverage, wholly missing.**
-2. Finalize `privacy-policy-draft.md` (G2) — resolve TODOs against the data map above.
-3. `crisis-protocol.md` (G3) — public SB 243 page.
-4. Apple 5.1.2(i) consent copy/spec (G4).
-5. DPA execution + subprocessor list (G5) — counsel/ops, tracked in GO-LIVE Gate 5.
+1. ✅ `terms-of-service-draft.md` (G1) — drafted (was wholly missing).
+2. ✅ `privacy-policy-draft.md` (G2) — finalized against the code data map (added OpenAI + Neon/Render/Sentry, fixed model name, sensitive-PI).
+3. ✅ `crisis-protocol.md` (G3) — drafted (public SB 243 page).
+4. ✅ `apple-third-party-ai-consent.md` (G4) — remediation spec drafted (consent copy is `[PRODUCT]`-pending; client change not yet implemented).
+5. ⏳ DPA execution + subprocessor list (G5) — counsel/ops, tracked in GO-LIVE Gate 5.
+6. ⏳ Multi-state coverage confirmation (G6) — counsel.
 
 All drafts carry **[LEGAL-REVIEW]** tags and remain planning artifacts until a licensed attorney reviews.
