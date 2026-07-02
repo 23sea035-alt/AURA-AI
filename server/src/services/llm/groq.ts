@@ -1,9 +1,20 @@
 import OpenAI from "openai";
 import { GENERATION_TEMPERATURE, GENERATION_MAX_TOKENS } from "@aura/shared";
+import { incrementMetric } from "../../lib/metrics.js";
 import type { LLMProvider, GenerateReplyParams } from "./index.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+
+// The OpenAI SDK transparently retries 429s (maxRetries) and only throws once retries are exhausted,
+// so a rate-limit reaching here means Groq is throttling us for real. Count it as an early-warning
+// signal on GET /api/admin/metrics instead of only discovering throttling from failed user turns.
+// Duck-typed on `.status` (OpenAI.APIError.status === 429) to stay robust to SDK internals/mocks.
+function recordIfRateLimited(err: unknown): void {
+  if ((err as { status?: unknown } | null)?.status === 429) {
+    incrementMetric("groq.rate_limited");
+  }
+}
 
 const GUARD_MODELS = new Set(["llama-guard-3-8b"]);
 const GUARD_MODEL_MAX_TOKENS = 512;
@@ -32,6 +43,9 @@ export function createGroqProvider(apiKey: string, model?: string, temperature?:
         messages: buildMessages(params),
         temperature: resolvedTemperature,
         max_tokens: maxTokensForModel(resolvedModel),
+      }).catch((err: unknown) => {
+        recordIfRateLimited(err);
+        throw err;
       });
 
       const content = completion.choices[0]?.message?.content?.trim() ?? "";
@@ -52,7 +66,10 @@ export function createGroqProvider(apiKey: string, model?: string, temperature?:
           stream: true,
         },
         signal ? { signal } : undefined,
-      );
+      ).catch((err: unknown) => {
+        recordIfRateLimited(err);
+        throw err;
+      });
 
       let emitted = false;
       for await (const chunk of stream) {
