@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock shared constants before importing the module under test
 vi.mock("@aura/shared", () => ({
   TURN_QUEUE_CONCURRENCY: 5,
-  INWORLD_CONCURRENT_LIMIT: 2,
+  INWORLD_CONCURRENT_LIMIT: 1, // 1 makes TTS priority ordering deterministic to test
 }));
 
 describe("turn-queue", () => {
@@ -28,11 +28,33 @@ describe("turn-queue", () => {
   });
 
   describe("enqueueTts", () => {
-    it("enqueues and resolves a TTS task", async () => {
+    it("enqueues and resolves a TTS task (defaults to free priority)", async () => {
       const { enqueueTts } = await import("../services/chat/turn-queue.js");
       const fn = vi.fn().mockResolvedValue("tts-result");
       const result = await enqueueTts(fn);
       expect(result).toBe("tts-result");
+    });
+
+    it("enqueues a premium TTS task and resolves", async () => {
+      const { enqueueTts } = await import("../services/chat/turn-queue.js");
+      const fn = vi.fn().mockResolvedValue("premium-tts");
+      const result = await enqueueTts(fn, { isPremium: true });
+      expect(result).toBe("premium-tts");
+    });
+
+    it("runs a queued premium TTS task before a queued free one", async () => {
+      const { enqueueTts } = await import("../services/chat/turn-queue.js");
+      const order: string[] = [];
+      let release!: () => void;
+      const blocker = new Promise<void>((r) => { release = r; });
+
+      enqueueTts(() => blocker); // occupies the single TTS slot
+      const free = enqueueTts(async () => { order.push("free"); }, { isPremium: false });
+      const premium = enqueueTts(async () => { order.push("premium"); }, { isPremium: true });
+
+      release(); // free the slot; p-queue drains the higher-priority item first
+      await Promise.all([free, premium]);
+      expect(order).toEqual(["premium", "free"]);
     });
   });
 

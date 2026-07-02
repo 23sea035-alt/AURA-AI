@@ -190,7 +190,7 @@ export function registerWebSocketHandler(server: Server): void {
       try {
         // Same shared engine as text: L0–L3 moderation + sentence-gated generation; the voice
         // adapter turns each approved sentence into TTS audio frames (and meters TTS output).
-        await enqueueTurn(() => chat.run(makeVoiceAdapter(ws, session, companionId)), { isPremium: voiceIsPremium });
+        await enqueueTurn(() => chat.run(makeVoiceAdapter(ws, session, companionId, voiceIsPremium)), { isPremium: voiceIsPremium });
       } catch (err) {
         logger.error({ err, userId }, "Voice turn error");
         send({ type: "abort", code: "internal_error", companionId });

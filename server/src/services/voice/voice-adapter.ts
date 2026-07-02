@@ -18,13 +18,14 @@ export function makeVoiceAdapter(
   ws: WebSocket,
   session: VoiceSession,
   companionId: string,
+  isPremium = false,
 ): ChatSessionCallbacks {
   let frameIndex = 0;
 
   return {
     onToken(replyText: string, opts?: { crisis?: boolean }) {
       session.transitionTo("AI_SPEAKING");
-      enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }))
+      enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }), { isPremium })
         .then((audio) => {
           sendBinaryFrame(ws, frameIndex++, audio);
           // Meter synthesized speech against the per-call + daily voice budgets.

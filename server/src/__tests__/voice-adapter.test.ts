@@ -3,10 +3,11 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const mockRecordVoiceUsage = vi.fn().mockResolvedValue(undefined);
 const mockSendBinaryFrame = vi.fn();
 const mockSendJsonFrame = vi.fn();
+// Runs the thunk immediately but records the priority opts so we can assert tier passthrough.
+const mockEnqueueTts = vi.fn((fn: () => Promise<unknown>, _opts?: { isPremium?: boolean }) => fn());
 
-// enqueueTts runs the thunk immediately (no real queue in the unit test).
 vi.mock("../services/chat/turn-queue.js", () => ({
-  enqueueTts: (fn: () => Promise<unknown>) => fn(),
+  enqueueTts: (fn: () => Promise<unknown>, opts?: { isPremium?: boolean }) => mockEnqueueTts(fn, opts),
 }));
 vi.mock("../websocket/frame-utils.js", () => ({
   sendBinaryFrame: mockSendBinaryFrame,
@@ -47,6 +48,28 @@ describe("makeVoiceAdapter", () => {
     expect(session.synthesizeReply).toHaveBeenCalledWith("Hello there friend.", { crisis: undefined });
     expect(session.addCallSeconds).toHaveBeenCalledWith(1);
     expect(mockRecordVoiceUsage).toHaveBeenCalledWith("u1", "c1", 1, "tts", "inworld-tts-2");
+  });
+
+  it("enqueues TTS with premium priority when the call is premium", async () => {
+    const { makeVoiceAdapter } = await import("../services/voice/voice-adapter.js");
+    const session = makeSession();
+    const adapter = makeVoiceAdapter({} as any, session as any, "c1", true);
+
+    adapter.onToken!("A premium user's reply.");
+    await vi.waitFor(() => expect(mockSendBinaryFrame).toHaveBeenCalled());
+
+    expect(mockEnqueueTts).toHaveBeenCalledWith(expect.any(Function), { isPremium: true });
+  });
+
+  it("defaults TTS to free priority when isPremium is omitted", async () => {
+    const { makeVoiceAdapter } = await import("../services/voice/voice-adapter.js");
+    const session = makeSession();
+    const adapter = makeVoiceAdapter({} as any, session as any, "c1");
+
+    adapter.onToken!("A free user's reply.");
+    await vi.waitFor(() => expect(mockSendBinaryFrame).toHaveBeenCalled());
+
+    expect(mockEnqueueTts).toHaveBeenCalledWith(expect.any(Function), { isPremium: false });
   });
 
   it("passes the crisis flag through to the calm delivery style", async () => {

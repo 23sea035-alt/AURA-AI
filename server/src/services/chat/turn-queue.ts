@@ -13,8 +13,11 @@ export function enqueueTurn<T>(fn: () => Promise<T>, opts: { isPremium: boolean 
   return turnQueue.add(fn, { priority }) as Promise<T>;
 }
 
-export function enqueueTts<T>(fn: () => Promise<T>): Promise<T> {
-  return ttsQueue.add(fn) as Promise<T>;
+// Premium voice calls get TTS-lane priority too, so a paying user's audio never waits behind
+// free users' synthesis when the Inworld concurrency budget is saturated. Defaults to free.
+export function enqueueTts<T>(fn: () => Promise<T>, opts?: { isPremium?: boolean }): Promise<T> {
+  const priority = opts?.isPremium ? PRIORITY_PREMIUM : PRIORITY_FREE;
+  return ttsQueue.add(fn, { priority }) as Promise<T>;
 }
 
 export function turnQueueSize(): number {
