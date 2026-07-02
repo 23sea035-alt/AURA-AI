@@ -173,6 +173,7 @@ companions
   last_message    text nullable                   -- chat-list preview cache (update transactionally)
   last_active_at  timestamptz nullable
   message_count   integer notNull default 0
+  archived_at     timestamptz nullable            -- null = active; reversible archive (Active/Archived roster subtabs)
   remember_memory_id    uuid nullable FK -> memories.id (on delete set null)  -- "remembers" Home-card cache
   remember_question     text nullable             -- Groq-generated follow-up question for the surfaced memory
   remember_generated_at timestamptz nullable      -- when the consolidation job last populated the cache
@@ -184,6 +185,10 @@ The `remember_*` cache is upserted by the post-consolidation Groq "remembers" se
 memory + a generated follow-up question) and read **read-only** by the Home "remembers" card.
 Free tier = the 3 seeded (`is_default`) personas on default traits; **trait tuning + creating
 companions are premium** (app-enforced). On downgrade: non-default companions **lock, not delete**.
+**Removal model:** `POST /companions/:id/archive` (reversible; sets `archived_at`, unpins if primary,
+guards the last active companion) + `/restore`; `DELETE /companions/:id` permanently removes a companion
+(cascades messages/memories/etc.) but is **refused for `is_default` base personas** (archive-only). Search
+is client-side over the fetched roster (`GET /companions` returns all, active + archived).
 
 ### 4. `messages`
 Chat messages. Heart of the turn model: `turn_id` groups a user message with its assistant reply

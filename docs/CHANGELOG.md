@@ -8,6 +8,25 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-02 (redesign merge + companion archive/delete) — branch `backend`
+
+- **Merged `origin/redesign` → `backend`.** Brought the full RN client (Warm Sanctuary port) onto the
+  canonical trunk. Nearly clean: one conflict (`paywall.ts` — kept the voice-feature lines + redesign's
+  polished tuning copy); docs + lockfile auto-merged. Server untouched by the merge; suite stayed green.
+  The RN UI is polished but **not yet API-wired** (deferred to client work), and voice-call screens don't
+  exist yet — tracked in `docs/redesign/rn-port-status.md`.
+- **Companion archive (code).** New `companions.archived_at` column (migration `0003`) +
+  `POST /companions/:id/archive` (guards the last active companion; unpins if it was the Home pin) and
+  `/restore`. `GET /companions` still returns the whole roster; Active/Archived + search are client-side.
+- **Companion permanent-delete (code).** `DELETE /companions/:id` hard-deletes (messages/memories/
+  memory_jobs/voice_usage cascade; safety_events + `primary_companion_id` set null) — **refused for the
+  three `is_default` base personas** (archive-only). Product model: archive by default + gated permanent
+  delete for user-created companions.
+- **Tests:** new `companions.contract.test.ts` (12 tests incl. a PGlite cascade proof). Suite **540 passing**.
+- Schema doc updated (`v1-schema.md` companions table + removal model).
+
+---
+
 ## 2026-07-02 (later) — Groq hardening + voice pricing & compliance groundwork (branch `backend`)
 
 **Groq concurrency hardening (code):**

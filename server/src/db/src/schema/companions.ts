@@ -13,6 +13,9 @@ export const companionsTable = pgTable("companions", {
   lastMessage: text("last_message"),
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   messageCount: integer("message_count").notNull().default(0),
+  // Archive is a reversible soft-remove (null = active). The roster is fetched whole and filtered
+  // client-side into Active/Archived; base companions can be archived but not permanently deleted.
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
   // "Remembers" Home-card cache (read-only on Home; upserted by the consolidation job).
   // A surfaced memory + a Groq-generated follow-up question. FK set null if the memory is deleted.
   rememberMemoryId: uuid("remember_memory_id").references((): AnyPgColumn => memoriesTable.id, { onDelete: "set null" }),
