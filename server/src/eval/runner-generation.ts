@@ -84,6 +84,8 @@ function buildJudgePrompt(
   rubricFocus: string[],
   userMessage: string,
   reply: string,
+  memoryBlock?: string[],
+  history?: Array<{ role: "user" | "assistant"; content: string }>,
 ): string {
   const rubricDimensions = rubricFocus
     .map((d) => {
@@ -104,6 +106,13 @@ function buildJudgePrompt(
     })
     .join("\n");
 
+  const memoryLines = memoryBlock && memoryBlock.length > 0
+    ? memoryBlock.map((m) => `    • ${m}`).join("\n")
+    : "    (none provided)";
+  const historyLines = history && history.length > 0
+    ? history.map((h) => `    ${h.role}: ${h.content}`).join("\n")
+    : "    (none)";
+
   return `You are a strict but fair judge for Aura AI companion replies.
 
 Evaluate the reply against the following rubric dimensions.
@@ -116,6 +125,10 @@ ${rubricDimensions}
 Case:
 - Persona: ${persona}
 - Traits: warmth=${traits.warmth}, energy=${traits.energy}, verbosity=${traits.verbosity}
+- Memory available to the model (for the continuity dimension — the reply MAY use what is relevant and should NOT force in what isn't):
+${memoryLines}
+- Conversation history:
+${historyLines}
 - User message: "${userMessage}"
 - Generated reply: "${reply}"`;
 }
@@ -158,7 +171,7 @@ async function main(): Promise<void> {
   const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
   const { assemblePrompt } = await import("../services/chat/prompt-assembler.js");
 
-  const genProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.1-8b-instant");
+  const genProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.3-70b-versatile");
   const judgeProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.3-70b-versatile");
 
   const results: GenerationResult[] = [];
@@ -190,7 +203,7 @@ async function main(): Promise<void> {
       });
       result.generatedReply = reply;
 
-      const judgePrompt = buildJudgePrompt(c.persona, c.traits, c.rubricFocus, c.userMessage, reply);
+      const judgePrompt = buildJudgePrompt(c.persona, c.traits, c.rubricFocus, c.userMessage, reply, c.memoryBlock, c.history);
       const judgeRaw = await judgeProvider.generateReply({
         systemPrompt: "You are a quality judge for AI companion replies. Score each dimension honestly. Respond with only the JSON object.",
         messages: [{ role: "user", content: judgePrompt }],

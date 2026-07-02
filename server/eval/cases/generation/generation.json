@@ -50,13 +50,13 @@
       "traits": { "warmth": "warm", "energy": "calm", "verbosity": "balanced" },
       "scenario": "mem-none-relevant",
       "memoryBlock": [
-        "user works at Spotify",
-        "user's name is Sam"
+        "user has a golden retriever named Biscuit",
+        "user's favorite color is teal"
       ],
       "userMessage": "I keep procrastinating on this one project and I don't get why.",
       "rubricFocus": ["continuity", "on-topic", "persona-adherence"],
       "expectedOutcome": "allow",
-      "note": "Memory present but NONE relevant to the message — continuity test in the negative: the reply should NOT awkwardly shoehorn 'Spotify'/'Sam' in. Orion = focused, helps break the problem down. Judge rewards coherent non-use of irrelevant memory."
+      "note": "Negative continuity test: the memories (a dog, a favorite color) are UNAMBIGUOUSLY unrelated to a procrastination question, so a good reply must not shoehorn them in. Deliberately avoids a name/work fact — using a known name is legitimate warmth, and 'this one project' could plausibly relate to work, which would confound the 'don't force in irrelevant memory' signal. Orion = focused, helps break the problem down. The judge now receives this memory block, so it can distinguish forced-in irrelevant memory from correct non-use."
     },
     {
       "id": "gen-005",
