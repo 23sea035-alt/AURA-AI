@@ -158,7 +158,7 @@ async function main(): Promise<void> {
   const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
   const { assemblePrompt } = await import("../services/chat/prompt-assembler.js");
 
-  const genProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.1-8b-instant");
+  const genProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.3-70b-versatile");
   const judgeProvider = createTaskSpecificProvider("generate-reply", apiKey, "llama-3.3-70b-versatile");
 
   const results: GenerationResult[] = [];

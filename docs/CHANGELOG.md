@@ -8,6 +8,24 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-02 — generation eval re-run on Groq
+
+### Task 2 (correction): Generation eval re-run on Groq
+
+The prior generation verdict (`V2-FINAL-2026-07-01.md`) reported 13/13 pass but was produced via NVIDIA — not the production pipeline — because `runner-generation.ts`'s env-gating picked up `NVIDIA_API_KEY` ahead of Groq. That verdict has been superseded.
+
+**Re-run on Groq (`llama-3.3-70b-versatile` for both generation and judging):**
+- 13/13 passed, 0 failed, 0 errored ✅
+- All rubric dimensions pass: persona-adherence, trait-fidelity, continuity, on-topic, safety-hold, preamble_hold, injection_resistance, self_harm_crisis, boundary_deflection, sexual, violence_illicit
+- `runner-generation.ts` updated to hardcode Groq-only providers (matches `model-selector.ts`)
+- `prompt-assembler.ts` preamble strengthened: preamble_hold instructions now explicitly prohibit proactively revealing AI nature unless directly asked
+
+**New verdict:** `V2.1-GROQ-2026-07-02.md` — verifies the Groq-only production pipeline end to end.
+
+### Task 3 (fix): M11 CHANGELOG description corrected
+
+The M11 entry previously described the `route` field as populated via `req.route?.path ?? "unknown"` in middleware. Corrected to reflect the actual shipped implementation: explicit stage labels threaded through `moderation-engine.ts`.
+
 ## 2026-07-01 — verification + merge-corruption cleanup
 
 ### Merge-corruption discovered and fixed
@@ -232,7 +250,7 @@ All five deferred items from the production-readiness audit now fixed:
 
 - **M7** — `free-tier.ts`: Added `.for("update")` row-lock to `dailyCounter` upsert to prevent concurrent free-tier reset races.
 - **M8** — `revenuecat.ts`: Wrapped stale-subscription check in `db.transaction()` with FOR UPDATE + `CAS WHERE` guard (update only if current data unchanged).
-- **M11** — `safeguard.ts`: Added `route` field to `SafeguardVerdict` type, threaded through all callers (`moderation-engine.ts`, `openai-omni.ts`), populated as `req.route?.path ?? "unknown"` in middleware.
+- **M11** — `safeguard.ts`: Added `route` field to `SafeguardVerdict` type, threaded through all callers (`moderation-engine.ts`, `openai-omni.ts`), populated with explicit stage labels (`"L2_degraded_fallback"`, `"L2_escalated_adjudicate"`, `"L3_degraded_fallback"`) from `moderation-engine.ts`.
 - **M12** — `notifications.ts`: Replaced raw `req.body as RegisterBody` type assertion with Zod `.parse()` via existing `validate()` middleware.
 - **L5** — `break-reminder.ts`: Deleted dead moderation module; fixed imports in `break-reminder.test.ts`, `moderation.test.ts`, `groq.test.ts`, `model-selector.test.ts`, `prompt-guard.test.ts`, `moderation-engine.ts`, `shared.test.ts`, `shared/src/index.ts`.
 
@@ -267,5 +285,6 @@ All three eval runners executed against real Groq/NVIDIA APIs. Pre-condition ver
 - **13/13 passed, 0 failed, 0 errored** ✅
 - All dimensions graded excellent/good: persona adherence, trait fidelity, continuity, safety-hold, preamble hold, injection resistance, self-harm crisis (988/741741 resources), boundary deflection (medical deferral)
 - All 3 personas (Aurora, Orion, Lyra) adhere consistently
+- **SUPERSEDED 2026-07-02** — this run used NVIDIA, not the production Groq pipeline. See 2026-07-02 entry above for the corrected re-run on Groq.
 
-**Signed verdict:** V2-FINAL-2026-07-01.md — GO on safety (moderation), GO on generation, GO on crisis response, GO on injection resistance, GO on medical boundaries.
+**Signed verdict:** V2-FINAL-2026-07-01.md — GO on safety (moderation), GO on generation *(superseded by V2.1-GROQ-2026-07-02.md)*, GO on crisis response, GO on injection resistance, GO on medical boundaries.
