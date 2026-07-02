@@ -89,4 +89,22 @@ describe("VoiceSession", () => {
       expect((session as any).fallbackClip).toBeUndefined();
     });
   });
+
+  describe("callSeconds metering", () => {
+    it("accumulates metered seconds and ignores negatives", () => {
+      const session = new VoiceSession({ userId: "u1", companionId: "c1", personaKey: "aurora" });
+      expect(session.callSeconds).toBe(0);
+      session.addCallSeconds(5);
+      session.addCallSeconds(3);
+      session.addCallSeconds(-10); // ignored
+      expect(session.callSeconds).toBe(8);
+    });
+
+    it("close() resets the per-call total", () => {
+      const session = new VoiceSession({ userId: "u1", companionId: "c1", personaKey: "aurora" });
+      session.addCallSeconds(42);
+      session.close();
+      expect(session.callSeconds).toBe(0);
+    });
+  });
 });

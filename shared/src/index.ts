@@ -68,6 +68,9 @@ export interface PersonaTraits {
 
 export const FREE_DAILY_LIMIT = 30;
 export const MAX_MESSAGE_CHARS = 2000;
+// Upper bound on a single voice utterance (one Apple-VAD chunk). Bounds the per-utterance
+// STT/LLM/TTS cost before any paid work runs; ~1 minute of audio across common codecs.
+export const MAX_UTTERANCE_BYTES = 2_000_000;
 export const MEMORY_RETRIEVAL_TOP_N = 5;
 export const MEMORY_SCORE_WEIGHTS = { jaccard: 0.7, importance: 0.3, recency: 0.15 };
 export const MEMORY_RECENCY_HALFLIFE_DAYS = 30;

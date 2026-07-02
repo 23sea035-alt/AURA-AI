@@ -2,7 +2,8 @@ import { getEnv } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
 
 const INWORLD_TTS_URL = "https://api.inworld.ai/tts/v1/voice";
-const MODEL_ID = "inworld-tts-2";
+export const TTS_MODEL_ID = "inworld-tts-2";
+const MODEL_ID = TTS_MODEL_ID;
 
 export type DeliveryMode = "STABLE" | "BALANCED" | "CREATIVE";
 

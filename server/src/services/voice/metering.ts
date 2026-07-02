@@ -1,17 +1,28 @@
 import { eq, and, gte, sql } from "drizzle-orm";
-import { db } from "../../db/src/index.js";
-import { voiceUsageTable } from "../../db/src/index.js";
-import { VOICE_DAILY_LIMIT_SECONDS, VOICE_CALL_MAX_DURATION_SECONDS } from "@aura/shared";
+import { db, voiceUsageTable } from "../../db/src/index.js";
+import {
+  VOICE_DAILY_LIMIT_SECONDS, VOICE_DAILY_LIMIT_SECONDS_PREMIUM,
+  VOICE_CALL_MAX_DURATION_SECONDS, VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM,
+} from "@aura/shared";
 
 export interface VoiceMeteringResult {
   allowed: boolean;
   usedSeconds: number;
   limitSeconds: number;
   remainingSeconds: number;
-  reason?: string;
 }
 
-export async function checkVoiceDailyLimit(userId: string): Promise<VoiceMeteringResult> {
+/** Daily voice-seconds cap for the tier (premium gets the higher bucket). */
+export function dailyLimitSeconds(isPremium: boolean): number {
+  return isPremium ? VOICE_DAILY_LIMIT_SECONDS_PREMIUM : VOICE_DAILY_LIMIT_SECONDS;
+}
+
+/** Per-call voice-seconds ceiling for the tier. */
+export function callMaxSeconds(isPremium: boolean): number {
+  return isPremium ? VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM : VOICE_CALL_MAX_DURATION_SECONDS;
+}
+
+export async function checkVoiceDailyLimit(userId: string, isPremium = false): Promise<VoiceMeteringResult> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
@@ -23,39 +34,11 @@ export async function checkVoiceDailyLimit(userId: string): Promise<VoiceMeterin
       gte(voiceUsageTable.createdAt, today),
     ));
 
-  const usedSeconds = result?.totalSeconds ?? 0;
-  const remainingSeconds = Math.max(0, VOICE_DAILY_LIMIT_SECONDS - usedSeconds);
+  const usedSeconds = Number(result?.totalSeconds ?? 0);
+  const limitSeconds = dailyLimitSeconds(isPremium);
+  const remainingSeconds = Math.max(0, limitSeconds - usedSeconds);
 
-  return {
-    allowed: usedSeconds < VOICE_DAILY_LIMIT_SECONDS,
-    usedSeconds,
-    limitSeconds: VOICE_DAILY_LIMIT_SECONDS,
-    remainingSeconds,
-  };
-}
-
-export async function checkCallDurationLimit(_userId: string, requestedSeconds: number): Promise<VoiceMeteringResult> {
-  if (requestedSeconds > VOICE_CALL_MAX_DURATION_SECONDS) {
-    return {
-      allowed: false,
-      usedSeconds: 0,
-      limitSeconds: VOICE_CALL_MAX_DURATION_SECONDS,
-      remainingSeconds: VOICE_CALL_MAX_DURATION_SECONDS,
-      reason: `Call duration ${requestedSeconds}s exceeds maximum ${VOICE_CALL_MAX_DURATION_SECONDS}s`,
-    };
-  }
-  const daily = await checkVoiceDailyLimit(_userId);
-  if (!daily.allowed) {
-    return { ...daily, reason: "Daily voice limit reached — upgrade to premium or wait until tomorrow" };
-  }
-  if (requestedSeconds > daily.remainingSeconds) {
-    return {
-      ...daily,
-      allowed: false,
-      reason: `Only ${daily.remainingSeconds}s of voice time remaining today`,
-    };
-  }
-  return daily;
+  return { allowed: usedSeconds < limitSeconds, usedSeconds, limitSeconds, remainingSeconds };
 }
 
 export async function recordVoiceUsage(
@@ -72,4 +55,13 @@ export async function recordVoiceUsage(
     direction,
     modelId,
   });
+}
+
+// Estimate the spoken duration of a piece of text for TTS metering, without decoding audio.
+// ~165 wpm ≈ ~14 chars/sec; floored at 1s so any synthesized reply costs at least a second.
+const CHARS_PER_SECOND = 14;
+export function estimateSpeechSeconds(text: string): number {
+  const chars = text.trim().length;
+  if (chars === 0) return 0;
+  return Math.max(1, Math.round(chars / CHARS_PER_SECOND));
 }

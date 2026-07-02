@@ -33,8 +33,12 @@ export type AbortReason =
   | "internal_error";
 
 export interface ChatSessionCallbacks {
-  /** Called once per approved sentence (already output-moderated). Text is safe to render. */
-  onToken?: (token: string) => void;
+  /**
+   * Called once per approved sentence (already output-moderated). Text is safe to render.
+   * `opts.crisis` marks the fixed 988 crisis reply so the voice adapter can speak it in the
+   * calm crisis delivery style.
+   */
+  onToken?: (token: string, opts?: { crisis?: boolean }) => void;
   onComplete: (result: ChatSessionResult) => void;
   onAbort: (reason: AbortReason, detail?: string) => void;
 }
@@ -132,6 +136,9 @@ export class ChatSession {
         });
         await autoSuspendIfNeeded(userId);
         const crisisReply = buildCrisisResponse();
+        // Deliver the crisis reply itself (text renders it; voice speaks it in the calm style),
+        // then complete with the 988 resources.
+        callbacks.onToken?.(crisisReply, { crisis: true });
         const { userMessage, aiMessage } = await persistMessages(userId, companionId, turnId, trimmed, crisisReply);
         callbacks.onComplete({
           userMessage, aiMessage, turnId,

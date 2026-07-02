@@ -51,11 +51,18 @@ export interface VoiceSessionParams {
 
 export class VoiceSession {
   state: VoiceState = "IDLE";
+  /** Metered voice-seconds (STT + TTS) accumulated over this call; drives the per-call ceiling. */
+  callSeconds = 0;
   private fillerClips: Buffer[] = [];
   private fallbackClip: Buffer | undefined;
   private fillerIndex = 0;
 
   constructor(readonly params: VoiceSessionParams) {}
+
+  /** Add metered seconds to the running per-call total (STT input or TTS output). */
+  addCallSeconds(seconds: number): void {
+    this.callSeconds += Math.max(0, seconds);
+  }
 
   async open(): Promise<void> {
     const voiceId = getVoiceId(this.params.personaKey);
@@ -120,5 +127,6 @@ export class VoiceSession {
     this.transitionTo("IDLE");
     this.fillerClips = [];
     this.fallbackClip = undefined;
+    this.callSeconds = 0;
   }
 }

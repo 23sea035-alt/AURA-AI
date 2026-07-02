@@ -32,7 +32,9 @@ vi.mock("../db/src/index.js", () => ({
 
 vi.mock("@aura/shared", () => ({
   VOICE_DAILY_LIMIT_SECONDS: 600,
+  VOICE_DAILY_LIMIT_SECONDS_PREMIUM: 3600,
   VOICE_CALL_MAX_DURATION_SECONDS: 900,
+  VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM: 3600,
 }));
 
 describe("Voice metering", () => {
@@ -70,32 +72,6 @@ describe("Voice metering", () => {
     });
   });
 
-  describe("checkCallDurationLimit", () => {
-    it("blocks call exceeding max duration", async () => {
-      resultsQueue.push([{ totalSeconds: 0 }]);
-      const { checkCallDurationLimit } = await import("../services/voice/metering.js");
-      const result = await checkCallDurationLimit("user-1", 1000);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("exceeds maximum");
-    });
-
-    it("blocks when daily limit already reached", async () => {
-      resultsQueue.push([{ totalSeconds: 600 }]);
-      const { checkCallDurationLimit } = await import("../services/voice/metering.js");
-      const result = await checkCallDurationLimit("user-1", 60);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("Daily voice limit reached");
-    });
-
-    it("blocks when requested exceeds remaining", async () => {
-      resultsQueue.push([{ totalSeconds: 580 }]);
-      const { checkCallDurationLimit } = await import("../services/voice/metering.js");
-      const result = await checkCallDurationLimit("user-1", 60);
-      expect(result.allowed).toBe(false);
-      expect(result.reason).toContain("Only");
-    });
-  });
-
   describe("recordVoiceUsage", () => {
     it("inserts a voice usage record", async () => {
       const { recordVoiceUsage } = await import("../services/voice/metering.js");
@@ -119,6 +95,50 @@ describe("Voice metering", () => {
         direction: "stt",
         modelId: "whisper-1",
       });
+    });
+  });
+
+  describe("tier-aware limits", () => {
+    it("dailyLimitSeconds / callMaxSeconds pick the premium bucket", async () => {
+      const { dailyLimitSeconds, callMaxSeconds } = await import("../services/voice/metering.js");
+      expect(dailyLimitSeconds(false)).toBe(600);
+      expect(dailyLimitSeconds(true)).toBe(3600);
+      expect(callMaxSeconds(false)).toBe(900);
+      expect(callMaxSeconds(true)).toBe(3600);
+    });
+
+    it("premium user is allowed past the free daily cap", async () => {
+      resultsQueue.push([{ totalSeconds: 700 }]); // over free 600, under premium 3600
+      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceDailyLimit("user-1", true);
+      expect(result.allowed).toBe(true);
+      expect(result.limitSeconds).toBe(3600);
+      expect(result.remainingSeconds).toBe(2900);
+    });
+
+    it("free user is blocked at the same usage", async () => {
+      resultsQueue.push([{ totalSeconds: 700 }]);
+      const { checkVoiceDailyLimit } = await import("../services/voice/metering.js");
+      const result = await checkVoiceDailyLimit("user-1", false);
+      expect(result.allowed).toBe(false);
+      expect(result.limitSeconds).toBe(600);
+    });
+  });
+
+  describe("estimateSpeechSeconds", () => {
+    it("returns 0 for empty text", async () => {
+      const { estimateSpeechSeconds } = await import("../services/voice/metering.js");
+      expect(estimateSpeechSeconds("   ")).toBe(0);
+    });
+
+    it("floors any non-empty text at 1 second", async () => {
+      const { estimateSpeechSeconds } = await import("../services/voice/metering.js");
+      expect(estimateSpeechSeconds("hi")).toBe(1);
+    });
+
+    it("scales with length (~14 chars/sec)", async () => {
+      const { estimateSpeechSeconds } = await import("../services/voice/metering.js");
+      expect(estimateSpeechSeconds("a".repeat(140))).toBe(10);
     });
   });
 });

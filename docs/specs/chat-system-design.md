@@ -263,6 +263,32 @@ audio. On the server, check `typeof message === 'string'` vs `message instanceof
 { type: "auth_expired" }
 ```
 
+> **As-built wire contract (2026-07-02) — authoritative; the names in the diagram/list above are illustrative.**
+> Audio vs. control is disambiguated by the WebSocket `isBinary` flag (binary = one complete utterance;
+> otherwise a JSON control frame).
+>
+> | Dir | Frame | Meaning |
+> |---|---|---|
+> | C→S | *(binary)* raw audio bytes | one complete utterance (Apple-VAD chunk); rejected if > `MAX_UTTERANCE_BYTES` (2 MB) |
+> | C→S | `{ type: "voice_start", companionId, sessionStartedAt? }` | open a call (persona + tier lookup, pre-gen fillers); re-start closes the prior session |
+> | C→S | `{ type: "voice_interrupt", transcript? }` | barge-in: aborts the in-flight reply; server classifies the interjection |
+> | C→S | `{ type: "voice_stop" }` | end the call |
+> | S→C | `{ type: "voice_ready", companionId, remainingSeconds }` | call open, ready for audio |
+> | S→C | *(binary)* `[4-byte BE index][mp3 bytes]` | one synthesized sentence of the reply |
+> | S→C | `{ type: "voice_complete", turnId, companionId, memoriesUsed, breakReminder, crisisResources }` | reply finished |
+> | S→C | `{ type: "voice_interrupted", class, companionId }` | class = resume / interjection / detour (client drives the follow-up) |
+> | S→C | `{ type: "voice_busy", companionId }` | an utterance is already in flight — one at a time |
+> | S→C | `{ type: "abort", code, companionId }` | code = voice_limit_reached / utterance_too_large / rate_limited / internal_error |
+>
+> **Metering (server-authoritative):** daily + per-call caps are checked before any paid STT/LLM/TTS on
+> every utterance; STT is billed from the transcript estimate (never a client-declared duration), TTS from
+> the synthesized text. Lifecycle/gate REST endpoints: `POST /api/voice/start` (pre-flight; 429 when over
+> the daily cap), `POST /api/voice/stop` (usage summary), `GET /api/voice/limits`. **Moderation:** the STT
+> transcript runs through the same `ChatSession` (L0–L3) as text — voice is not a moderation bypass; the 988
+> crisis reply is spoken in the calm delivery style. **Not yet wired (client-driven, v1 limitation):** true
+> resume-after-interrupt (the classifier informs the client, which sends the next utterance), and
+> cross-companion switching mid-call.
+
 ### 3.2 Session open
 
 On `{ type: "start_voice" }`:
