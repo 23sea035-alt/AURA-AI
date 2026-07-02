@@ -9,10 +9,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ConfirmSheet from '@/components/ConfirmSheet';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { PressableScale } from '@/components/motion';
 import { Toast } from '@/components/Toast';
 import { TopBar } from '@/components/TopBar';
 import { ACCOUNT } from '@/constants/content';
-import { FONTS, SPACE, TYPE } from '@/constants/design';
+import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -48,13 +49,20 @@ export default function AccountScreen() {
           </ListGroup>
         </View>
 
-        {/* Danger area — neutral at rest (line + chevron row + grace explainer); the loud
-            destructive red lives only inside the confirm dialog. */}
+        {/* Danger area — a standalone destructive button (not a chevron row, which would imply
+            navigation rather than an action); the loud destructive red still lives only inside the
+            confirm dialog, so the resting button reads as a warm-neutral card with error-tinted text. */}
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.delete.line}</Text>
-          <ListGroup>
-            <ListRow first label={a.delete.cta} onPress={() => setConfirmDelete(true)} />
-          </ListGroup>
+          <PressableScale
+            haptic="medium"
+            onPress={() => setConfirmDelete(true)}
+            accessibilityRole="button"
+            accessibilityLabel={a.delete.cta}
+            style={[styles.deleteBtn, { backgroundColor: colors.raised, borderColor: colors.border }]}
+          >
+            <Text style={[styles.deleteBtnText, { color: colors.error }]}>{a.delete.cta}</Text>
+          </PressableScale>
           <Text style={[styles.explainer, { color: colors.textTertiary }]}>{a.delete.explainer}</Text>
         </View>
       </ScrollView>
@@ -86,4 +94,13 @@ const styles = StyleSheet.create({
   section: { gap: SPACE.sm },
   line: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
   explainer: { ...TYPE.caption, lineHeight: 17 },
+  // Mirrors you.tsx's Sign out button — an isolated, self-evidently-tappable card, not a
+  // navigation row. Error-tinted label; the full destructive red stays inside the confirm sheet.
+  deleteBtn: {
+    alignItems: 'center',
+    borderRadius: RADIUS.soft,
+    borderWidth: StyleSheet.hairlineWidth,
+    paddingVertical: SPACE.lg,
+  },
+  deleteBtnText: { fontFamily: FONTS.body.semibold, fontSize: 16 },
 });
