@@ -37,6 +37,7 @@ export default function YouScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACE.xl, paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -118,7 +119,13 @@ export default function YouScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: SPACE.xl, gap: SPACE.lg },
+  // Without flex:1, the ScrollView's own viewport sizes to its content instead of stretching to
+  // fill the screen — its touchable bounds stop short of the floating tab bar, so a scroll
+  // gesture in that gap never reaches the ScrollView at all.
+  scroll: { flex: 1 },
+  // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
+  // header-to-navbar area stays swipeable even when under-filled.
+  content: { flexGrow: 1, paddingHorizontal: SPACE.xl, gap: SPACE.lg },
   header: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -88,6 +88,7 @@ export default function CompanionsScreen() {
       </Animated.View>
 
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -297,6 +298,11 @@ function SheetRow({
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  // Without flex:1 here, the ScrollView's own viewport sizes to its content rather than
+  // stretching to fill the space beside the fixed header — its touchable bounds stop short of
+  // the floating tab bar, leaving a dead gap where a scroll gesture never reaches the ScrollView
+  // at all (looks identical to "stuck at the bottom" but is actually "never entered the view").
+  scroll: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -325,7 +331,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  content: { paddingHorizontal: SPACE.xl, gap: SPACE.md, paddingTop: SPACE.xs },
+  // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
+  // header-to-navbar area stays swipeable even when under-filled — same fix as chat/[id].tsx's
+  // `thread` style.
+  content: { flexGrow: 1, paddingHorizontal: SPACE.xl, gap: SPACE.md, paddingTop: SPACE.xs },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
