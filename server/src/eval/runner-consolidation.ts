@@ -177,7 +177,9 @@ async function main(): Promise<void> {
   }
 
   const { createTaskSpecificProvider } = await import("../services/llm/model-selector.js");
-  const llmProvider = createTaskSpecificProvider("consolidate-memory", apiKey, "llama-3.1-8b-instant");
+  // Match PRODUCTION: consolidation.ts calls getLLMProvider() (the global generate-reply provider
+  // = llama-3.3-70b-versatile), not the consolidate-memory task model. Evaluate what actually ships.
+  const llmProvider = createTaskSpecificProvider("consolidate-memory", apiKey, "llama-3.3-70b-versatile");
 
   const results: ConsolidationResult[] = [];
 

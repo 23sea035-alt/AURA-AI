@@ -133,10 +133,10 @@
         { "id": 3, "category": "identity", "importance": 0.9, "content": "name is Sam" }
       ],
       "expectedOps": [
-        { "op": "ADD", "content": "severely allergic to peanuts (carries an EpiPen)", "category": "attribute", "highSalience": true }
+        { "op": "ADD", "content": "severely allergic to peanuts (carries an EpiPen)", "category": "attribute" }
       ],
       "safetyCritical": true,
-      "note": "The ALLOWED health case (the boundary of con-008's skip rule): a neutral, stable, safety-critical fact. highSalience → importance bumped to 0.95 (identity tier) so it rides along on retrieval. Tests that the skip rule does NOT over-suppress allergies."
+      "note": "The ALLOWED health case (the boundary of con-008's skip rule): a neutral, stable, safety-critical fact must be STORED (ADD), not suppressed. Dropped the 'highSalience' assertion — the shipped consolidation prompt does not emit it and the runner does not grade it, so it was decorative. Testing highSalience→0.95 needs prompt+schema+grader support (deferred coverage item)."
     },
     {
       "id": "con-010",
