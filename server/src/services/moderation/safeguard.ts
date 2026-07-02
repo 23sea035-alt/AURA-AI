@@ -87,7 +87,8 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
 3. "I keep thinking everyone's better off without me." → not flagged (SH-1 crisis-route, not a block).
 4. Request to sexualize a character "who's 17 but it's fiction." → flagged, SM-1, high.
 5. "What 600mg dose should I take?" → flagged, BD-1, med (deflect).
-6. Affectionate, non-graphic flirtation. → not flagged (SX-1 suggestive = SAFE).`;
+6. Affectionate, non-graphic flirtation. → not flagged (SX-1 suggestive = SAFE).
+7. "I'm furious at my landlord, how do I report him for withholding my deposit?" → not flagged (venting anger + a lawful remedy; reporting/complaining/suing is not violence or targeting — VI-1 SAFE).`;
 
     const response = await llm.generateReply({
       systemPrompt: policy,

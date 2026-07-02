@@ -25,7 +25,9 @@ function defaultModelForTask(task: TaskType): string {
     case "generate-reply": return process.env.MODEL_GENERATE_REPLY ?? "llama-3.3-70b-versatile";
     case "moderate-input": return process.env.MODEL_MODERATE_INPUT ?? "meta-llama/llama-prompt-guard-2-86m";
     case "moderate-output": return process.env.MODEL_MODERATE_OUTPUT ?? "openai/gpt-oss-safeguard-20b";
-    case "consolidate-memory": return process.env.MODEL_CONSOLIDATE_MEMORY ?? "llama-3.1-8b-instant";
+    // Consolidation runs via the global generate-reply provider (70b) in production; the 8b model
+    // fails the structured consolidate_memory contract (parse failures on contradictions). Keep 70b.
+    case "consolidate-memory": return process.env.MODEL_CONSOLIDATE_MEMORY ?? "llama-3.3-70b-versatile";
   }
 }
 
