@@ -68,6 +68,20 @@ describe("Memory service — contract", () => {
       expect(jobId).toBe("job-1");
     });
 
+    it("combines the user message + assistant reply into rawContent when both are given", async () => {
+      const { enqueueMemoryJob } = await import("../services/memory.js");
+      await enqueueMemoryJob("user-1", "companion-1", "I got a dog", "Nice, what breed is it?");
+      expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({
+        rawContent: 'Raw message: "I got a dog"\nAssistant reply: "Nice, what breed is it?"',
+      }));
+    });
+
+    it("uses just the user message when no assistant reply is given", async () => {
+      const { enqueueMemoryJob } = await import("../services/memory.js");
+      await enqueueMemoryJob("user-1", "companion-1", "just the user message");
+      expect(mockValues).toHaveBeenCalledWith(expect.objectContaining({ rawContent: "just the user message" }));
+    });
+
     it("returns null on empty returning", async () => {
       returningResult = [];
       const { enqueueMemoryJob } = await import("../services/memory.js");

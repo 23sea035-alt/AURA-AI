@@ -10,6 +10,16 @@ LLM consolidation) and read (keyword retrieval). Implements [v1-architecture.md]
 > dedups, and lightly handles contradictions. This doc is the build spec for both halves; all tunable
 > values live in `@aura/shared`.
 
+> **As-built reconcile (2026-07-02).** Consolidation now receives **the user message + the companion's
+> reply** (the reply is context to resolve references like "yeah, that one"; the extractor still pulls
+> facts about the *user* only) — this closes the prior user-message-only gap and matches the eval's input.
+> The following spec points were **not** implemented and are accepted as-built (eval-validated), so treat
+> the spec below as design intent, not as-built, for these: **importance is model-chosen** (clamped 0–1),
+> not derived from a category map, and there is **no `highSalience` bump**; the consolidation contract is a
+> **plain JSON array** parsed with a keyword fallback, not a forced tool-call; the dedup candidate set is
+> the **20 most-recent** existing memories (not 50 ordered by importance); and a failed pass **retries up to
+> 3×** (not "one retry"). Retrieval (scoring, floor, recency-decay) matches the spec.
+
 ---
 
 ## 1. Data flow

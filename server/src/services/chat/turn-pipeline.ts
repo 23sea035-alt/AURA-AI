@@ -8,6 +8,7 @@ import { getLLMProvider } from "../llm/index.js";
 import { retrieveMemories, enqueueMemoryJob } from "../memory.js";
 import { checkFreeTierLimit } from "./free-tier.js";
 import { shouldShowBreakReminder } from "./break-reminder.js";
+import { shouldShowAiDisclosure } from "./ai-disclosure.js";
 import { autoSuspendIfNeeded } from "../auth/auth.service.js";
 import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js";
 import { logger } from "../../lib/logger.js";
@@ -30,6 +31,7 @@ export interface ChatTurnResult {
   safetyFlagged?: boolean;
   memoriesUsed?: boolean;
   breakReminder?: string;
+  aiDisclosure?: boolean;
   limitReached?: boolean;
   used?: number;
   limit?: number;
@@ -175,7 +177,7 @@ async function executeTurn(
   // ── Phase 5: post-commit side-effects (must never roll back a delivered turn) ──
   if (!outputBlocked) {
     // Enqueued AFTER commit on the root connection — a memory-job failure can't undo the turn.
-    enqueueMemoryJob(userId, companionId, trimmed).catch((err) => logger.error({ err }, "Failed to enqueue memory job"));
+    enqueueMemoryJob(userId, companionId, trimmed, finalReply).catch((err) => logger.error({ err }, "Failed to enqueue memory job"));
   }
   // Skip push if user has an active WS connection — they're already live.
   void (async () => {
@@ -198,6 +200,7 @@ async function executeTurn(
     userMessage, aiMessage, turnId,
     memoriesUsed: relevantMemories.length > 0,
     breakReminder: breakCheck.remind ? breakCheck.reason : undefined,
+    aiDisclosure: shouldShowAiDisclosure(msgCount) || undefined,
   };
 }
 

@@ -49,6 +49,7 @@ describe("makeTextAdapter", () => {
       userMessageId: "um1",
       memoriesUsed: true,
       breakReminder: "Take a break",
+      aiDisclosure: false,
       crisisResources: ["988"],
       companionId,
     });

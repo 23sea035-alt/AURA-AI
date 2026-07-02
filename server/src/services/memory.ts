@@ -59,10 +59,16 @@ export async function storeMemory(
 export async function enqueueMemoryJob(
   userId: string,
   companionId: string,
-  rawContent: string,
+  userMessage: string,
+  assistantReply?: string,
   tx?: DbOrTx,
 ): Promise<string | null> {
   const client = tx ?? db;
+  // Include the companion's reply as context so the consolidation LLM can resolve references
+  // (e.g. "yeah, that one") — matches the consolidation eval's input shape.
+  const rawContent = assistantReply
+    ? `Raw message: "${userMessage}"\nAssistant reply: "${assistantReply}"`
+    : userMessage;
   try {
     const [job] = await client.insert(memoryJobsTable).values({ userId, companionId, rawContent }).returning();
     logger.info({ jobId: job.id }, "Memory consolidation job enqueued");

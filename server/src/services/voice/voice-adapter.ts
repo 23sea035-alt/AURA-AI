@@ -54,6 +54,7 @@ export function makeVoiceAdapter(
         companionId,
         memoriesUsed: result.memoriesUsed,
         breakReminder: result.breakReminder ?? null,
+        aiDisclosure: result.aiDisclosure ?? false,
         crisisResources: result.crisisResources ?? null,
       });
     },

@@ -18,6 +18,7 @@ export function makeTextAdapter(ws: WebSocket, companionId: string): ChatSession
         userMessageId: result.userMessage.id,
         memoriesUsed: result.memoriesUsed,
         breakReminder: result.breakReminder ?? null,
+        aiDisclosure: result.aiDisclosure ?? false,
         crisisResources: result.crisisResources ?? null,
         companionId,
       });

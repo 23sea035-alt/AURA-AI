@@ -38,6 +38,8 @@
 
 ## Backend-driven items (coworker appends as work lands)
 
+- [ ] **AI-disclosure recurring notice (SB 243)** — the chat `complete` / `voice_complete` frame (and the REST turn response) now carries an `aiDisclosure: boolean`. When `true`, render the standard "you're talking to an AI" disclosure line in the chat (UI copy is client-owned; the server only decides *when*, ~every 50 messages). This is alongside the existing `breakReminder` string, which should also be surfaced when present.
+
 - [ ] **Auth → Clerk (D8, reverses in-house auth)** — all sign-in/up/forgot-password/email-verification + Apple/Google move to `@clerk/clerk-expo`; the server verifies the Clerk session token (no app JWT). → rebuild the Auth UI on Clerk (the "Auth UI (Clerk)" item above) and attach the Clerk session token to API requests. New client env: `CLERK_PUBLISHABLE_KEY`.
 - [ ] **Schema: userId type changed to UUID** — `users.id`, `companions.user_id`, etc. are now `uuid` (were `serial`). Client API calls and local state that assume numeric IDs need updating.
 - [ ] **Auth endpoints removed** — `POST /api/auth/register` and `POST /api/auth/login` are gone. Sign-up/Login is handled entirely by Clerk on the client side. After Clerk auth, call `POST /api/auth/seed-companions` to create default companions.

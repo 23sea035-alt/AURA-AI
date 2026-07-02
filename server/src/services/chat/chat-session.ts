@@ -14,6 +14,7 @@ import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js
 import { createSentenceBuffer } from "./sentence-buffer.js";
 import { checkFreeTierLimit } from "./free-tier.js";
 import { shouldShowBreakReminder } from "./break-reminder.js";
+import { shouldShowAiDisclosure } from "./ai-disclosure.js";
 import { autoSuspendIfNeeded } from "../auth/auth.service.js";
 import { buildCrisisResponse } from "../moderation/crisis.js";
 import { createModerator } from "../moderation/moderation-engine.js";
@@ -59,6 +60,7 @@ export interface ChatSessionResult {
   turnId: string;
   crisisResources?: string[];
   breakReminder?: string;
+  aiDisclosure?: boolean;
   memoriesUsed: boolean;
 }
 
@@ -304,7 +306,7 @@ export class ChatSession {
 
       // ── Post-commit side-effects ──────────────────────────────────
       if (!outputBlocked) {
-        enqueueMemoryJob(userId, companionId, trimmed).catch((err) => logger.error({ err }, "Memory job enqueue failed"));
+        enqueueMemoryJob(userId, companionId, trimmed, finalReply).catch((err) => logger.error({ err }, "Memory job enqueue failed"));
       }
 
       const sessionStart = sessionStartedAt
@@ -318,6 +320,7 @@ export class ChatSession {
         turnId,
         memoriesUsed: memories.length > 0,
         breakReminder: breakCheck.remind ? breakCheck.reason : undefined,
+        aiDisclosure: shouldShowAiDisclosure(msgCount) || undefined,
       });
 
     } catch (err) {
