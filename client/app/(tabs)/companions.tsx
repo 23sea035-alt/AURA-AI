@@ -12,13 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useRef, useState } from 'react';
-import { Pressable, View, Text, StyleSheet, ScrollView } from 'react-native';
+import { Pressable, View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import BottomSheet from '@/components/BottomSheet';
+import { Segmented } from '@/components/Segmented';
 import { PressableScale, enterUp } from '@/components/motion';
 import { COMPANIONS, PERSONAS } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
@@ -43,7 +44,14 @@ export default function CompanionsScreen() {
   const archived = companions.filter((c) => c.archivedAt);
   const canArchive = active.length > 1;
 
-  const [archivedOpen, setArchivedOpen] = useState(false);
+  // Active / Archived subtabs replace the old scroll-to-the-bottom collapsible; search filters
+  // within the selected tab by name.
+  const [tab, setTab] = useState<'active' | 'archived'>('active');
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const source = tab === 'active' ? active : archived;
+  const filtered = q ? source.filter((c) => c.name.toLowerCase().includes(q)) : source;
+
   const [sheetFor, setSheetFor] = useState<string | null>(null);
   const [undo, setUndo] = useState<{ id: string; name: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -87,13 +95,51 @@ export default function CompanionsScreen() {
         </PressableScale>
       </Animated.View>
 
+      {/* Subtabs + search — fixed above the list; search filters within the selected tab. */}
+      <View style={styles.controls}>
+        <View style={[styles.search, { backgroundColor: colors.raised, borderColor: colors.border }]}>
+          <Ionicons name="search" size={18} color={colors.textTertiary} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={COMPANIONS.search}
+            placeholderTextColor={colors.textTertiary}
+            style={[styles.searchInput, { color: colors.textPrimary }]}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+          />
+          {query ? (
+            <PressableScale
+              haptic="light"
+              onPress={() => setQuery('')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
+              <Ionicons name="close-circle" size={18} color={colors.textTertiary} />
+            </PressableScale>
+          ) : null}
+        </View>
+        <Segmented options={COMPANIONS.subtabs} value={tab} onChange={(v) => setTab(v as 'active' | 'archived')} />
+      </View>
+
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        {active.map((c, i) => {
-          const locked = !isPremium && !BASE_IDS.includes(c.id); // base free; custom locked-not-deleted on free
+        {filtered.length === 0 ? (
+          <View style={styles.empty}>
+            <Ionicons name={q ? 'search-outline' : 'archive-outline'} size={30} color={colors.textTertiary} />
+            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+              {q ? COMPANIONS.noResults.replace('{query}', query.trim()) : COMPANIONS.archivedSection.empty}
+            </Text>
+          </View>
+        ) : tab === 'active' ? (
+          filtered.map((c, i) => {
+            const locked = !isPremium && !BASE_IDS.includes(c.id); // base free; custom locked-not-deleted on free
           const isHome = c.id === primaryCompanionId;
           return (
             <Animated.View key={c.id} entering={enterUp(i + 1)}>
@@ -162,50 +208,31 @@ export default function CompanionsScreen() {
               </Swipeable>
             </Animated.View>
           );
-        })}
-
-        {archived.length > 0 ? (
-          <View style={styles.archivedSection}>
-            <PressableScale
-              haptic="light"
-              onPress={() => setArchivedOpen((o) => !o)}
-              style={styles.archivedHeader}
-              accessibilityRole="button"
-              accessibilityLabel={`${COMPANIONS.archivedSection.label}, ${archived.length}`}
-            >
-              <Text style={[styles.archivedLabel, { color: colors.textSecondary }]}>
-                {COMPANIONS.archivedSection.label} ({archived.length})
-              </Text>
-              <Ionicons
-                name={archivedOpen ? 'chevron-up' : 'chevron-down'}
-                size={16}
-                color={colors.textTertiary}
-              />
-            </PressableScale>
-            {archivedOpen
-              ? archived.map((c) => (
-                  <View
-                    key={c.id}
-                    style={[styles.archivedCard, { backgroundColor: colors.raised, opacity: 0.7 }]}
-                  >
-                    <Avatar id={c.id} name={c.name} size={40} colorFrom={c.colorFrom} colorTo={c.colorTo} />
-                    <Text style={[styles.name, { color: colors.textPrimary, flex: 1 }]} numberOfLines={1}>
-                      {c.name}
-                    </Text>
-                    <PressableScale
-                      haptic="light"
-                      onPress={() => restoreCompanion(c.id)}
-                      style={[styles.restoreBtn, { borderColor: colors.border }]}
-                    >
-                      <Text style={[styles.restoreText, { color: colors.accent }]}>
-                        {COMPANIONS.archivedSection.restore}
-                      </Text>
-                    </PressableScale>
-                  </View>
-                ))
-              : null}
-          </View>
-        ) : null}
+          })
+        ) : (
+          filtered.map((c, i) => (
+            <Animated.View key={c.id} entering={enterUp(i + 1)}>
+              <View style={[styles.archivedCard, { backgroundColor: colors.raised }, shadows.e1]}>
+                <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} />
+                <View style={styles.archivedText}>
+                  <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                    {c.name}
+                  </Text>
+                  <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {voiceFor(c.name)}
+                  </Text>
+                </View>
+                <PressableScale
+                  haptic="light"
+                  onPress={() => restoreCompanion(c.id)}
+                  style={[styles.restoreBtn, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.restoreText, { color: colors.accent }]}>{COMPANIONS.archivedSection.restore}</Text>
+                </PressableScale>
+              </View>
+            </Animated.View>
+          ))
+        )}
       </ScrollView>
 
       {undo ? (
@@ -331,10 +358,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  // Fixed controls block (search + subtabs) between the header and the scrolling list.
+  controls: { paddingHorizontal: SPACE.xl, paddingBottom: SPACE.md, gap: SPACE.sm },
+  search: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.soft,
+    paddingHorizontal: SPACE.md,
+    height: 44,
+  },
+  searchInput: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 16, padding: 0 },
   // flexGrow: the content wrapper spans the full frame (not just its own content) so the whole
   // header-to-navbar area stays swipeable even when under-filled — same fix as chat/[id].tsx's
   // `thread` style.
   content: { flexGrow: 1, paddingHorizontal: SPACE.xl, gap: SPACE.md, paddingTop: SPACE.xs },
+  empty: { alignItems: 'center', gap: SPACE.md, paddingTop: SPACE.xxxl },
+  emptyText: { fontFamily: FONTS.body.regular, fontSize: 15, textAlign: 'center' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -371,21 +412,14 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   actionLabel: { fontFamily: FONTS.body.semibold, fontSize: 12, color: '#fff' },
-  archivedSection: { marginTop: SPACE.sm, gap: SPACE.sm },
-  archivedHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACE.sm,
-  },
-  archivedLabel: { fontFamily: FONTS.body.semibold, fontSize: 13, letterSpacing: 0.2 },
   archivedCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACE.md,
     borderRadius: RADIUS.card,
-    padding: SPACE.md,
+    padding: SPACE.lg,
   },
+  archivedText: { flex: 1, gap: 2 },
   restoreBtn: {
     paddingHorizontal: SPACE.md,
     paddingVertical: SPACE.xs,

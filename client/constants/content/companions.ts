@@ -15,8 +15,11 @@ export const COMPANIONS = {
   undoArchived: '{Companion} archived', // paired with an Undo action, ~4-5s dwell
   undoAction: 'Undo',
 
-  // Archived section: collapsed row at the bottom of the roster, expands in place.
-  archivedSection: { label: 'Archived', empty: 'No archived companions', restore: 'Restore' },
+  // Active / Archived subtabs + search over the roster (search filters within the selected tab).
+  search: 'Search companions',
+  noResults: 'No companions match “{query}”.',
+  subtabs: ['active', 'archived'] as const, // Segmented capitalizes these for display
+  archivedSection: { label: 'Archived', empty: 'No archived companions yet', restore: 'Restore' },
 } as const;
 
 export const CREATE = {
