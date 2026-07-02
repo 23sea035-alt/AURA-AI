@@ -86,7 +86,12 @@ vi.mock("../services/moderation/crisis.js", () => ({ buildCrisisResponse: mockBu
 vi.mock("../services/llm/index.js", () => ({ getLLMProvider: mockGetLLMProvider }));
 vi.mock("../services/memory.js", () => ({ retrieveMemories: mockRetrieveMemories, enqueueMemoryJob: mockEnqueueMemoryJob }));
 vi.mock("../services/chat/safety-logging.js", () => ({ logSafetyEvent: mockLogSafetyEvent }));
-vi.mock("../services/chat/persistence.js", () => ({ persistMessages: mockPersistMessages }));
+const mockFetchExistingTurn = vi.fn().mockResolvedValue(null);
+vi.mock("../services/chat/persistence.js", () => ({
+  persistMessages: mockPersistMessages,
+  fetchExistingTurn: mockFetchExistingTurn,
+  isTurnUniqueViolation: (err: unknown) => err instanceof Error && err.message.includes("unique"),
+}));
 vi.mock("../services/chat/prompt-assembler.js", () => ({
   assemblePrompt: mockAssemblePrompt,
   GENERATION_FALLBACK_REPLY: "I lost my train of thought for a second — say that again?",
@@ -134,6 +139,8 @@ function setupHappyPath(): void {
   mockAssemblePrompt.mockReturnValue({ systemPrompt: "You are Aurora.", messages: [{ role: "user", content: "Hello!" }] });
   mockPersistMessages.mockResolvedValue({ userMessage: { id: "um1", role: "user", content: "Hello!" }, aiMessage: { id: "am1", role: "assistant", content: "reply" } });
   mockShouldShowBreakReminder.mockReturnValue({ remind: false, reason: "" });
+  mockFetchExistingTurn.mockReset();
+  mockFetchExistingTurn.mockResolvedValue(null);
 }
 
 // ── Tests ────────────────────────────────────────────────────────────
@@ -158,6 +165,40 @@ describe("ChatSession", () => {
   it("uses the provided turnId", async () => {
     const { ChatSession } = await import("../services/chat/chat-session.js");
     expect(new ChatSession(defaultParams()).turnId).toBe("t-turn-1");
+  });
+
+  // ── Idempotency ────────────────────────────────────────────────────
+  it("replays an already-committed turn without regenerating or re-moderating", async () => {
+    mockFetchExistingTurn.mockResolvedValueOnce({
+      userMessage: { id: "um-old", role: "user" },
+      aiMessage: { id: "am-old", role: "assistant", content: "prior reply" },
+    });
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession(defaultParams()).run(callbacks());
+    expect(mockOnComplete).toHaveBeenCalledWith(expect.objectContaining({
+      aiMessage: expect.objectContaining({ id: "am-old" }),
+    }));
+    expect(mockScreenInput).not.toHaveBeenCalled();
+    expect(mockGenerateReply).not.toHaveBeenCalled();
+  });
+
+  it("replays on a concurrent persist collision (same-turnId race)", async () => {
+    mockFetchExistingTurn
+      .mockResolvedValueOnce(null) // upfront check: not committed yet
+      .mockResolvedValueOnce({ userMessage: { id: "um-r" }, aiMessage: { id: "am-r" } }); // after collision
+    mockPersistMessages.mockRejectedValueOnce(new Error("duplicate key value violates unique constraint"));
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession(defaultParams()).run(callbacks());
+    expect(mockOnComplete).toHaveBeenCalledWith(expect.objectContaining({
+      aiMessage: expect.objectContaining({ id: "am-r" }),
+    }));
+  });
+
+  it("does not do an idempotency lookup when no turnId is provided", async () => {
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession({ ...defaultParams(), providedTurnId: undefined }).run(callbacks());
+    expect(mockFetchExistingTurn).not.toHaveBeenCalled();
+    expect(mockOnComplete).toHaveBeenCalled();
   });
 
   // ── Happy path (blocking provider) ─────────────────────────────────

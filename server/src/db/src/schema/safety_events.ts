@@ -27,6 +27,8 @@ export const safetyEventsTable = pgTable("safety_events", {
   check("safety_events_source_check", sql`${table.source} in ('input', 'output', 'injection', 'user_report')`),
   check("safety_events_severity_check", sql`${table.severity} in ('info', 'warning', 'critical')`),
   index("idx_safety_events_user").on(table.userId),
+  // Review queue: open events by severity, newest first (SB 243 review workflow).
+  index("idx_safety_events_review").on(table.status, table.severity, table.createdAt),
 ]);
 
 export type SafetyEvent = typeof safetyEventsTable.$inferSelect;

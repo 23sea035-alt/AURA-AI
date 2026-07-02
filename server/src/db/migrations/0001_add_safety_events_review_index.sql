@@ -1,0 +1,1 @@
+CREATE INDEX "idx_safety_events_review" ON "safety_events" USING btree ("status","severity","created_at");

@@ -1,7 +1,7 @@
 import { writeFileSync, mkdirSync } from 'fs';
 
-const API_KEY = process.env.INWORLD_TTS_KEY;
-if (!API_KEY) { console.error('Missing INWORLD_TTS_KEY'); process.exit(1); }
+const API_KEY = process.env.INWORLD_API_KEY;
+if (!API_KEY) { console.error('Missing INWORLD_API_KEY'); process.exit(1); }
 
 const SAMPLES = [
   {

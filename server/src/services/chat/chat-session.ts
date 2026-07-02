@@ -7,7 +7,7 @@ import { logger } from "../../lib/logger.js";
 import { captureException } from "../../lib/observability.js";
 import { incrementMetric } from "../../lib/metrics.js";
 import { logSafetyEvent } from "./safety-logging.js";
-import { persistMessages } from "./persistence.js";
+import { persistMessages, fetchExistingTurn, isTurnUniqueViolation } from "./persistence.js";
 import { getLLMProvider } from "../llm/index.js";
 import { retrieveMemories, enqueueMemoryJob } from "../memory.js";
 import { assemblePrompt, GENERATION_FALLBACK_REPLY } from "./prompt-assembler.js";
@@ -95,6 +95,33 @@ export class ChatSession {
     return rows.length;
   }
 
+  /** If this turnId already has a committed (user+assistant) turn, return it for replay. */
+  private async fetchReplay(): Promise<ChatSessionResult | null> {
+    if (!this.params.providedTurnId) return null;
+    const existing = await fetchExistingTurn(this.params.userId, this.params.companionId, this.turnId);
+    if (existing?.userMessage && existing?.aiMessage) {
+      return { userMessage: existing.userMessage, aiMessage: existing.aiMessage, turnId: this.turnId, memoriesUsed: false };
+    }
+    return null;
+  }
+
+  /**
+   * Persist the turn; on a concurrent duplicate (same turnId committed by a racing request
+   * between our idempotency check and this write), return the already-committed turn instead.
+   */
+  private async persistOrReplay(userContent: string, aiContent: string, msgCount?: number):
+    Promise<{ persisted: { userMessage: typeof messagesTable.$inferSelect; aiMessage: typeof messagesTable.$inferSelect } } | { replay: ChatSessionResult }> {
+    try {
+      return { persisted: await persistMessages(this.params.userId, this.params.companionId, this.turnId, userContent, aiContent, msgCount) };
+    } catch (err) {
+      if (isTurnUniqueViolation(err)) {
+        const replay = await this.fetchReplay();
+        if (replay) return { replay };
+      }
+      throw err;
+    }
+  }
+
   async run(callbacks: ChatSessionCallbacks): Promise<void> {
     const { userId, companionId, content, isPremium, isMinor, sessionStartedAt } = this.params;
     const trimmed = content.trim();
@@ -102,6 +129,10 @@ export class ChatSession {
     const moderator = createModerator();
 
     try {
+      // ── Idempotency: a reconnect/retry carrying a committed turnId returns it (no regeneration) ──
+      const replay = await this.fetchReplay();
+      if (replay) { callbacks.onComplete(replay); return; }
+
       // ── Free-tier gate ─────────────────────────────────────────────
       if (!isPremium) {
         const limitCheck = await checkFreeTierLimit(userId);
@@ -124,6 +155,7 @@ export class ChatSession {
           || inputVerdict.categories.some((c) => c.category === "injection");
         await logSafetyEvent(userId, isInjection ? "injection_detected" : "input_blocked", {
           severity: "warning", detail: inputVerdict.reason, content: trimmed,
+          companionId, category: inputVerdict.categories[0]?.category,
         });
         await autoSuspendIfNeeded(userId);
         callbacks.onAbort("input_blocked", inputVerdict.reason ?? "Blocked");
@@ -131,17 +163,20 @@ export class ChatSession {
       }
 
       if (inputVerdict.action === "crisis") {
+        const crisisCategory = inputVerdict.categories.find((c) => c.category.startsWith("self-harm"))?.category;
         await logSafetyEvent(userId, "crisis_detected", {
           severity: "critical", detail: inputVerdict.reason, content: trimmed,
+          companionId, category: crisisCategory,
         });
         await autoSuspendIfNeeded(userId);
         const crisisReply = buildCrisisResponse();
         // Deliver the crisis reply itself (text renders it; voice speaks it in the calm style),
         // then complete with the 988 resources.
         callbacks.onToken?.(crisisReply, { crisis: true });
-        const { userMessage, aiMessage } = await persistMessages(userId, companionId, turnId, trimmed, crisisReply);
+        const persisted = await this.persistOrReplay(trimmed, crisisReply);
+        if ("replay" in persisted) { callbacks.onComplete(persisted.replay); return; }
         callbacks.onComplete({
-          userMessage, aiMessage, turnId,
+          userMessage: persisted.persisted.userMessage, aiMessage: persisted.persisted.aiMessage, turnId,
           crisisResources: inputVerdict.crisisResources ?? CRISIS_RESOURCES,
           memoriesUsed: false,
         });
@@ -190,6 +225,7 @@ export class ChatSession {
       let approved = "";
       let outputBlocked = false;
       let blockedDraft = "";
+      let blockedCategory: string | undefined;
 
       // Moderate one completed sentence; forward it only if it clears L3. Returns false
       // (and records the offending sentence) when the sentence must be withheld.
@@ -197,6 +233,7 @@ export class ChatSession {
         const verdict = await moderator.screenOutput(sentence);
         if (verdict.action !== "allow") {
           blockedDraft = sentence;
+          blockedCategory = verdict.categories[0]?.category;
           return false;
         }
         approved += (approved ? " " : "") + sentence;
@@ -251,14 +288,19 @@ export class ChatSession {
 
       // ── Resolve final reply + persist ──────────────────────────────
       if (outputBlocked) {
-        await logSafetyEvent(userId, "output_blocked", { severity: "warning", content: blockedDraft || approved });
+        await logSafetyEvent(userId, "output_blocked", {
+          severity: "warning", content: blockedDraft || approved,
+          companionId, category: blockedCategory, source: "output",
+        });
         await autoSuspendIfNeeded(userId);
       }
       // On an output block we persist the safe approved prefix (what the user already saw); if
       // nothing was approved, the generic safe fallback. Suppress + safe fallback, no oracle.
       const finalReply = (outputBlocked ? (approved.trim() || SAFE_FALLBACK_REPLY) : (approved.trim() || GENERATION_FALLBACK_REPLY));
       const msgCount = history.length + 1;
-      const { userMessage, aiMessage } = await persistMessages(userId, companionId, turnId, trimmed, finalReply, msgCount);
+      const persisted = await this.persistOrReplay(trimmed, finalReply, msgCount);
+      if ("replay" in persisted) { callbacks.onComplete(persisted.replay); return; }
+      const { userMessage, aiMessage } = persisted.persisted;
 
       // ── Post-commit side-effects ──────────────────────────────────
       if (!outputBlocked) {

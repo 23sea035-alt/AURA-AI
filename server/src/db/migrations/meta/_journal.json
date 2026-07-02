@@ -8,6 +8,13 @@
       "when": 1782834867502,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783014002916,
+      "tag": "0001_add_safety_events_review_index",
+      "breakpoints": true
     }
   ]
 }
