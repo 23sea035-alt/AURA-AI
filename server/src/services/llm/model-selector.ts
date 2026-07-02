@@ -69,5 +69,22 @@ export function createTaskSpecificProvider(task: TaskType, apiKey: string, model
         }
       }
     },
+
+    async *generateReplyStream(params, signal) {
+      // Only fall back to the secondary model if the primary fails *before* emitting any
+      // token — once tokens have streamed to the caller, restarting would duplicate output,
+      // so a mid-stream failure propagates (the caller degrades to its canned fallback line).
+      let emitted = false;
+      try {
+        for await (const delta of primary.generateReplyStream!(params, signal)) {
+          emitted = true;
+          yield delta;
+        }
+      } catch (err) {
+        if (emitted || !fallback.generateReplyStream) throw err;
+        logger.warn({ err, task, model: primaryModel, fallbackModel }, "Primary stream failed pre-token, trying fallback");
+        yield* fallback.generateReplyStream(params, signal);
+      }
+    },
   };
 }

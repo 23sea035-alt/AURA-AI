@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { GENERATION_TEMPERATURE, GENERATION_MAX_TOKENS } from "@aura/shared";
-import type { LLMProvider } from "./index.js";
+import type { LLMProvider, GenerateReplyParams } from "./index.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const DEFAULT_MODEL = "llama-3.3-70b-versatile";
@@ -16,16 +16,18 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
   const resolvedModel = model ?? process.env.MODEL_GROQ ?? DEFAULT_MODEL;
   const client = new OpenAI({ baseURL: GROQ_BASE_URL, apiKey, timeout: 30000 });
 
-  return {
-    async generateReply({ systemPrompt, messages }) {
-      const chatMessages = [
-        ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
-        ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
-      ];
+  function buildMessages({ systemPrompt, messages }: GenerateReplyParams) {
+    return [
+      ...(systemPrompt ? [{ role: "system" as const, content: systemPrompt }] : []),
+      ...messages.map(m => ({ role: m.role as "user" | "assistant", content: m.content })),
+    ];
+  }
 
+  return {
+    async generateReply(params) {
       const completion = await client.chat.completions.create({
         model: resolvedModel,
-        messages: chatMessages,
+        messages: buildMessages(params),
         temperature: GENERATION_TEMPERATURE,
         max_tokens: maxTokensForModel(resolvedModel),
       });
@@ -36,6 +38,31 @@ export function createGroqProvider(apiKey: string, model?: string): LLMProvider 
       // request — treat as a failure so the caller's fallback logic kicks in.
       if (!content) throw new Error("Empty model response");
       return content;
+    },
+
+    async *generateReplyStream(params, signal) {
+      const stream = await client.chat.completions.create(
+        {
+          model: resolvedModel,
+          messages: buildMessages(params),
+          temperature: GENERATION_TEMPERATURE,
+          max_tokens: maxTokensForModel(resolvedModel),
+          stream: true,
+        },
+        signal ? { signal } : undefined,
+      );
+
+      let emitted = false;
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta?.content;
+        if (delta) {
+          emitted = true;
+          yield delta;
+        }
+      }
+      // A stream that produced no content is a model failure — surface it so the
+      // caller's fallback logic kicks in (mirrors the non-streaming empty-response guard).
+      if (!emitted) throw new Error("Empty model response (stream)");
     },
   };
 }
