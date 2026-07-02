@@ -8,6 +8,28 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-02 — eval suite validated end-to-end; retrieval scorer fix; moderation safety gate
+
+Full validation pass across all four eval suites, plus the production bugs the eval surfaced. Human-judged where the dimension is subjective (the generation LLM-judge proved unreliable and is kept only as a convenience for contributors without Claude Code).
+
+**Memory retrieval — production bug fix** (`services/memory.ts`, new `services/memory/scorer.ts`). `retrieveMemories` had diverged from `memory-pipeline.md` §3.2–3.3 and was leaking topically-irrelevant, high-importance memories into every prompt. Extracted a pure, DB-free `scoreAndRank()`: eligibility floor on the **Jaccard component** (not the blended score) **OR** the identity bypass (importance ≥ 0.85); **base-e** recency; stable **score → importance → id** tie-break; dropped the importance-ordered top-50 prefilter (kept a plain `.limit(200)` safety bound).
+
+**Retrieval eval runner restored** (`eval/runner-retrieval.ts`, `eval:retrieval`). Deterministic — no LLM judge, no API key. Drives `scoreAndRank` with each case's pinned clock and asserts exact id order. 9/9 pass.
+
+**Generation eval on Groq** (`eval/runner-generation.ts`, `chat/prompt-assembler.ts`). Generator bumped `llama-3.1-8b-instant` → `llama-3.3-70b-versatile` to match production; the LLM judge now receives the case memory + history (it had been grading `continuity` blind); the preamble restored the SB-243 AI self-disclosure clause (audit **C3**) while keeping the prompt-extraction hardening, and gained a memory-relevance clause so the model stops shoehorning irrelevant memory. `gen-004` rewritten to use unambiguously-irrelevant memory.
+
+**Eval case + model hardening.** `labeled-007/008/009` (hate/harassment/illicit) marked `safetyCritical`; `labeled-003` reworded so it actually reaches L2; `jb-006` de-confounded; `con-009` dropped an unenforceable `highSalience` assertion. `runner-consolidation` and the `model-selector` `consolidate-memory` default bumped `8b` → `70b` to match production (consolidation runs via the global 70b provider; 8b fails the structured contract). The safeguard policy gained an example clarifying that venting anger + a lawful remedy is SAFE (fixed the `labeled-010` over-block).
+
+**Moderation determinism + safety gate** (`llm/groq.ts`, `llm/model-selector.ts`, `moderation/safeguard.ts`, `eval/runner.ts`). `createGroqProvider` takes an optional `temperature`; moderation classifications (`moderate-input`/`moderate-output`) now run at **temperature 0**. The moderation eval gate is now explicitly **0 safety-critical false negatives** — precision FPs (benign content flagged) are advisory/non-blocking, since exact match is not achievable given Groq's residual non-determinism even at temp 0. Crisis routing kept **recall-biased** (a tightening attempt was reverted after it dropped a subtle-distress case, `labeled-003`, to a safety-critical FN) and additionally honors the model's `crisis_route` flag.
+
+**Validated baseline:** retrieval **9/9**; moderation **safety gate passes (0 FN) every run, self-harm recall 100%** (residual benign→crisis routings are advisory precision FPs that flip run-to-run under Groq non-determinism); consolidation **10/10** on the production 70b model; generation **13/13** by manual grading.
+
+**Deferred:** upstream escalation calibration (L1/L2 self-harm band) to reduce the benign→crisis precision FPs — a precision/recall product decision. Grader coverage adds: grade `category`/`highSalience` in consolidation; add no-DELETE / hallucinated-UPDATE-id / injection consolidation cases and identity-bypass / 0.08-boundary / >50-memory retrieval cases.
+
+Commits `0619170..d38f95b` on `backend`.
+
+---
+
 ## 2026-07-01 — cherry-picked verified fixes from `test-results`
 
 The coworker's `test-results` branch had diverged with real, independently-verified work mixed in with corrupted/dead content from an unrelated merge issue on that branch. Ported only the verified-good parts:
