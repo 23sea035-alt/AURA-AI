@@ -3,12 +3,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Platform, ScrollView } from 'react-native';
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
+import { KeyboardFooter } from '@/components/KeyboardFooter';
 import { Toast } from '@/components/Toast';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
@@ -59,7 +61,7 @@ export default function EditProfileScreen() {
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <TopBar title="Edit profile" />
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.lg }]}
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -107,11 +109,11 @@ export default function EditProfileScreen() {
               onSubmitEditing={handleSave}
             />
           </View>
-
-          <View style={styles.action}>
-            <Button label={a.save} onPress={handleSave} loading={saving} disabled={!dirty || firstEmpty} />
-          </View>
         </ScrollView>
+
+        <KeyboardFooter>
+          <Button label={a.save} onPress={handleSave} loading={saving} disabled={!dirty || firstEmpty} />
+        </KeyboardFooter>
       </View>
       <Toast visible={toast} message="Saved" emoji="✓" duration={1800} onHide={() => setToast(false)} />
     </KeyboardAvoidingView>
@@ -127,5 +129,4 @@ const styles = StyleSheet.create({
   swatch: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
   fields: { gap: SPACE.sm },
   helper: { fontFamily: FONTS.body.regular, fontSize: 12, marginTop: -SPACE.xs, marginLeft: SPACE.xs },
-  action: { marginTop: 'auto', paddingTop: SPACE.lg },
 });

@@ -7,9 +7,9 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, Platform, ScrollView } from 'react-native';
 // keyboard-controller's KAV drives the lift via reanimated (not RN's LayoutAnimation), so the
-// footer's padding can interpolate in sync with the keyboard — same setup as chat/[id].tsx.
-import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
-import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
+// KeyboardFooter's padding interpolates in sync with the keyboard — same setup as chat/[id].tsx.
+import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
+import { KeyboardFooter } from '@/components/KeyboardFooter';
 import { LookSheet } from '@/components/companion/LookSheet';
 import { Field } from '@/components/Field';
 import { SectionLabel } from '@/components/SectionLabel';
@@ -50,13 +51,6 @@ export default function CreateCompanionScreen() {
   const [name, setName] = useState('Aurora');
   const [look, setLook] = useState(DEFAULT_LOOK_ID);
   const [lookOpen, setLookOpen] = useState(false);
-
-  // Footer padding tracks the keyboard: the home-indicator inset only matters when the keyboard is
-  // down (when it's up, the keyboard covers that area, so that inset would be dead gap above it).
-  const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
-  const footerStyle = useAnimatedStyle(() => ({
-    paddingBottom: interpolate(keyboardProgress.value, [0, 1], [insets.bottom + SPACE.lg, SPACE.md], Extrapolation.CLAMP),
-  }));
 
   const selectBase = (p: PersonaName) => {
     setBase(p);
@@ -203,14 +197,12 @@ export default function CreateCompanionScreen() {
         {/* Floating footer dock — always in reach, not scrolled away at the bottom of the form
             (matches persona.tsx's footer). Save is the ONE accent fill for premium; the Unlock door
             + explainer for free. Kept outside the dimmed form so the door stays live when locked. */}
-        <Animated.View
-          style={[styles.footer, footerStyle, { backgroundColor: colors.bg, borderTopColor: colors.divider }]}
-        >
+        <KeyboardFooter>
           {locked ? (
             <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
           ) : null}
           <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
-        </Animated.View>
+        </KeyboardFooter>
       </View>
 
       <LookSheet
@@ -284,15 +276,5 @@ const styles = StyleSheet.create({
   axis: { gap: SPACE.sm },
   axisLabel: { fontFamily: FONTS.body.semibold, fontSize: 13 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 20 },
-  footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: SPACE.xl,
-    paddingTop: SPACE.md,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    gap: SPACE.sm,
-  },
   unlockExplainer: { ...TYPE.caption, textAlign: 'center' },
 });
