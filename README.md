@@ -119,11 +119,12 @@ pnpm --filter @aura/server run dev
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/voice/limits` | Get voice usage limits |
-| POST | `/api/voice/start` | Start a voice session — _specced (D13), not yet implemented_ |
-| POST | `/api/voice/stop` | Stop a voice session — _specced (D13), not yet implemented_ |
+| POST | `/api/voice/start` | Start a voice session (pre-flight daily-limit gate) |
+| POST | `/api/voice/stop` | Stop a voice session (usage summary) |
 
-> Voice: only `GET /api/voice/limits` is live. TTS/STT clients (Inworld TTS 2, Groq Whisper) exist but the
-> end-to-end audio path is not yet wired. `/api/voice/token` + `/api/voice/tts` were removed with LiveKit/Cartesia.
+> Voice is wired end-to-end: binary WS audio frame → Groq Whisper STT → `ChatSession` (same moderation as
+> text) → Inworld TTS 2 streamed back. Metering enforced per utterance. Set `INWORLD_VOICE_ID_{AURORA,ORION,LYRA}`
+> for TTS to produce audio (it skips gracefully until then). `/api/voice/token` + `/api/voice/tts` were removed with LiveKit/Cartesia.
 
 ### Payments
 | Method | Path | Description |

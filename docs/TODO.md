@@ -13,7 +13,7 @@ After completing each task:
 
 ## 1. Voice ID selection — Inworld portal
 
-**This task blocks tasks 2 and 3.** ⚠️ **Correction (2026-07-02): the voice pipeline is NOT fully built.** The Inworld TTS 2 (`inworld-tts-2`) and Groq STT clients are real, but the end-to-end audio path is **not wired** — the WebSocket handler drops inbound binary/audio frames, `VoiceSession`/`makeVoiceAdapter`/interruption are never instantiated, `POST /api/voice/start`+`/stop` don't exist yet, and metering is never recorded. Before voice IDs matter, the audio path (STT→ChatSession→TTS), the start/stop endpoints, and metering enforcement must be implemented. The three voice IDs (below) are still required, but they are the *last* step, not the only one.
+**This task blocks tasks 2 and 3.** ✅ **Update (2026-07-02): the voice pipeline is now wired end-to-end** — inbound binary audio → Groq STT → shared `ChatSession` (same moderation as text) → Inworld TTS 2 streamed back; `POST /api/voice/start`+`/stop` exist and metering is enforced per utterance (`websocket/handler.ts`, `services/voice/*`). The **only remaining piece is this task**: create the three `INWORLD_VOICE_ID_*` in the Inworld portal — TTS skips gracefully until they're set, so no audio is produced without them.
 
 **Steps:**
 1. Go to the Inworld TTS portal → Voice → Create Voice.

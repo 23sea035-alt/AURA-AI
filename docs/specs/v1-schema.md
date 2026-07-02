@@ -120,7 +120,7 @@ soft-delete anonymization (email is *tombstoned* instead, to free it for re-regi
 
 ```
 users
-  id                      uuid PK                         -- UUIDv7
+  id                      uuid PK                         -- UUIDv4 (defaultRandom)
   clerk_user_id           text  notNull UNIQUE            -- Clerk user id (the auth identity); synced by the Clerk webhook
   first_name              text  nullable                  -- onboarding source of truth; nulled on delete
   last_name               text  nullable                  -- nulled on delete
@@ -131,9 +131,11 @@ users
   age_verified_at         timestamptz nullable
   is_minor                boolean notNull default false   -- dormant (18+ in v1.0)
   is_premium              boolean notNull default false   -- entitlement cache (RevenueCat webhook updates)
+  stripe_customer_id      text  nullable                  -- deferred web-billing (unused in v1; also present on subscriptions)
   avatar_color            text  nullable                  -- Home avatar tint (user-set)
   primary_companion_id    uuid  nullable FK -> companions.id (on delete set null)  -- user-switchable Home pin
   status                  text  notNull default 'active'  -- USER_STATUS (CHECK)
+  role                    text  notNull default 'user'    -- 'user' | 'admin' — gates /api/admin/* (auth.service.ts)
   onboarding_done         boolean notNull default false
   ai_disclosure_accepted  boolean notNull default false
   tos_accepted_version    text  nullable

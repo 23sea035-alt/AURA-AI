@@ -111,6 +111,11 @@ same-turnId collision replays the committed turn.
 
 ## 2. Text chat
 
+> **As-built note:** §1.1 (interface) and §2.1 (frames) are authoritative. The code samples in §2.2–§2.4
+> below are **illustrative of the original design** and predate the reconcile — they still show
+> `sentence_complete` / `onSentenceComplete` / `onError` / a `fetch_messages` frame that the shipped code
+> does not have (see §2.1's "Not implemented in v1" note; reconnect is a REST re-fetch).
+
 ### 2.1 WebSocket protocol
 
 All frames are JSON. Client → server:
@@ -159,7 +164,7 @@ Client                              Server
   │                                    │  1. idempotency check (turnId already in DB?)
   │                                    │     yes → stream existing reply → done
   │                                    │  2. insert user message (immediate)
-  │                                    │  3. enqueue to TurnQueue (premium=0, free=1)
+  │                                    │  3. enqueue to TurnQueue (premium=1, free=0)
   │                                    │  4. [when slot available] run ChatSession
   │◀─── { type: "token" } ────────────│  onToken → push frame
   │◀─── { type: "token" } ────────────│
@@ -587,12 +592,12 @@ export function enqueueTurn(
   task: () => Promise<void>,
   isPremium: boolean
 ): Promise<void> {
-  return turnQueue.add(task, { priority: isPremium ? 0 : 1 });
+  return turnQueue.add(task, { priority: isPremium ? 1 : 0 });
 }
 ```
 
-- **Priority 0** (premium): served immediately when a slot opens
-- **Priority 1** (free): waits behind all pending premium turns
+- **Priority 1** (premium): served first when a slot opens (p-queue is a max-heap — higher runs first)
+- **Priority 0** (free): waits behind all pending premium turns
 - When a free user's turn has waited > `TURN_QUEUE_MAX_FREE_WAIT_MS` without being picked up,
   send `{ type: "busy", retryAfterMs }` and remove from queue
 - Premium users are only rate-limited by Groq's org-level TPM, not by this queue

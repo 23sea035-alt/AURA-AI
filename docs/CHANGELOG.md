@@ -8,6 +8,27 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-02 — streaming chat, voice wiring, and a production-readiness sweep (branch `backend`)
+
+Landed the streaming/voice work the docs had been describing, then a full readiness pass.
+
+**Sentence-gated streaming chat.** `ChatSession` (the WS path) now streams Groq token deltas, buffers to sentence boundaries, and L3-moderates each sentence **before** forwarding it — closing a fail-open where the full reply was pushed to the client before output moderation. `generateReplyStream()` added to the LLM provider; `ChatSession` consumes the shared `ModerationEngine` (`screenInput` + per-sentence `screenOutput`) for full parity with the REST path.
+
+**Voice wired end-to-end.** Inbound binary WS audio → Groq STT → the same `ChatSession` (identical L0–L3 moderation) → Inworld TTS 2 streamed back as binary frames. `POST /api/voice/start`+`/stop` added; premium-aware daily + per-call metering enforced per utterance; barge-in via `voice_interrupt`; crisis reply spoken in the calm style. Premium priority also on the TTS synthesis lane.
+
+**Production-readiness items:**
+- **WS `turnId` idempotency** — a reconnect/retry of a committed turn replays instead of regenerating (shared `fetchExistingTurn`); WS `turnId`/`companionId` now UUID-validated at the frame boundary.
+- **`safety_events` metadata** — correct `source` per event type (output blocks no longer mislabeled `input`), plus `category` + `companionId`; review-queue index `(status, severity, created_at)`.
+- **Schema integrity** (migration `0002`) — `date_of_birth` `text`→`date`; DB CHECK constraints on the app-only enum columns; **fixed a latent RevenueCat bug** (webhook stored UPPERCASE `store`/`period_type` verbatim, violating the enum — now normalized). Accepted UUIDv4 (deferred v7).
+- **Memory consolidation** now includes the companion's reply as context (matches the eval input); documented the accepted as-built divergences.
+- **AI-disclosure notice (SB 243)** — `aiDisclosure` flag surfaced on the complete/voice_complete frames + REST result, on a per-turn cadence.
+- **CI** — coverage thresholds now enforced (`test:coverage`); `pg-rate-limit` contract tests skip cleanly without a local Postgres (prod is Neon).
+- **Docs reconciled** to as-built (voice wired, chat-system-design §1–3, v1-schema CHECKs/dob/UUIDv4/`role`, memory-pipeline).
+
+Suite: **526 passing, 2 skipped** (pg), typecheck + lint + coverage green.
+
+---
+
 ## 2026-07-02 — eval suite validated end-to-end; retrieval scorer fix; moderation safety gate
 
 Full validation pass across all four eval suites, plus the production bugs the eval surfaced. Human-judged where the dimension is subjective (the generation LLM-judge proved unreliable and is kept only as a convenience for contributors without Claude Code).

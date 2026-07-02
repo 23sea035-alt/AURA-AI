@@ -109,7 +109,7 @@ The client (Expo app, not yours) has its own separate `client/.env.example` — 
 
 ## After each task
 
-1. `pnpm build && pnpm typecheck && npx vitest run` — all green (baseline: **342 tests**).
+1. `pnpm build && pnpm typecheck && npx vitest run` — all green (baseline: **526 passing**, +2 `pg-rate-limit` contract tests skipped without a local Postgres).
 2. No `console.*` or hardcoded secrets in the diff.
 3. Commit with a `feat:` / `fix:` / `test:` / `chore:` prefix.
 4. Add a CHANGELOG entry in [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
