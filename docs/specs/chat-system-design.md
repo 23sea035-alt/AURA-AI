@@ -203,18 +203,19 @@ is hit, return `{ type: "abort", code: "rate_limited" }` and do not enqueue.
 
 **Transport decision (supersedes D13's LiveKit-as-media-transport):** The hybrid Apple VAD
 architecture sends *complete utterance chunks* (not a continuous audio stream). Continuous
-WebRTC streaming (LiveKit's primary value) is not needed. LiveKit is therefore retained only for
-what its existing REST endpoints already do — session lifecycle management (`/start`, `/stop`,
-`/token`) and usage metering into `voice_usage` — but **audio no longer travels through LiveKit
-WebRTC tracks.** Instead:
+WebRTC streaming (LiveKit's primary value) is not needed. **LiveKit was therefore removed entirely**
+(as-built: `livekit-server-sdk` uninstalled, no `LIVEKIT_*` env vars remain, `/api/voice/token` deleted).
+Session lifecycle (`/start`, `/stop`, `/limits`) becomes **plain metering/DB endpoints** with no LiveKit
+SDK — and audio travels over **binary WebSocket frames**, not WebRTC tracks. Instead:
 
 - **Control plane:** chat WebSocket (JSON frames — interrupt signals, state transitions, errors)
 - **Audio upload (STT):** binary WebSocket frame on the same chat connection — raw audio bytes, not
   base64 JSON (avoids the ~33% encoding overhead and is faster to parse)
 - **Audio download (TTS):** binary WebSocket frames back to iOS — raw Inworld TTS output
 
-This simplifies the stack: no WebRTC ICE negotiation on voice start, fewer moving parts, and the
-existing `LIVEKIT_*` secrets remain only for the session-lifecycle endpoints.
+This simplifies the stack: no WebRTC ICE negotiation on voice start, fewer moving parts, and **no
+`LIVEKIT_*` secrets at all** (LiveKit is fully removed). Voice env is `INWORLD_API_KEY` +
+`INWORLD_VOICE_ID_{AURORA,ORION,LYRA}`; Groq STT reuses `GROQ_API_KEY`.
 
 ```
 iOS (on-device)                          Server

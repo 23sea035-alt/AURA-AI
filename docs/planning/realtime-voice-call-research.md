@@ -4,14 +4,15 @@
 Scoped as a **2-week, 2-engineer, flag-gated spike** — NOT a v1.0 GA commitment. Expands the deferred
 "Companion voice call (real-time conversation) 🧊" entry in [post-v1.0-roadmap.md](post-v1.0-roadmap.md).
 
-> **As-built (2026-06-30) — reconcile note.** The voice backend has shipped (`server/src/services/voice/`):
-> token/limits/start/stop/tts endpoints (`/api/voice/*`) + a **`voice_usage`** metering table.
-> **TTS = Cartesia, STT = Deepgram** are the chosen providers (per `env.ts`: `CARTESIA_API_KEY`,
-> `CARTESIA_VOICE_ID`, `DEEPGRAM_API_KEY`, `LIVEKIT_*`) — this **resolves the "TTS vendor open"** question
-> below. **Divergence from the plan:** the planned `voice_call_sessions` table and the
-> `safety_events.modality` column (§3) were **NOT** used — the as-built ships a **`voice_usage`** table
-> instead. The research body below is preserved as-written; treat these provider/schema decisions as the
-> authoritative as-built deltas.
+> **⚠️ SUPERSEDED (2026-07-02) — the research body below is historical.** The as-built voice stack does
+> **NOT** match this document. Authoritative as-built = **v1-architecture.md D13** + **chat-system-design.md §3**:
+> transport is **binary WebSocket frames** (LiveKit fully removed — no `LIVEKIT_*` env vars), TTS is
+> **Inworld TTS 2** (`inworld-tts-2`, `INWORLD_API_KEY` / `INWORLD_VOICE_ID_*`), STT is **Groq Whisper**
+> (`whisper-large-v3-turbo`, batch — reuses `GROQ_API_KEY`). Cartesia + Deepgram were **not** shipped;
+> `/api/voice/token` + `/api/voice/tts` were deleted. Metering lives in a **`voice_usage`** table (the
+> planned `voice_call_sessions` table and `safety_events.modality` column were not used). Note the audio
+> path is also **not yet wired end-to-end** — see D13 §0a. Everything below reflects the earlier LiveKit +
+> Cartesia + Deepgram exploration and is kept only as decision history.
 
 > **Why this is harder for us than for competitors:** Aura is mental-health-adjacent with a 988/crisis
 > obligation. The entire L0–L3 moderation pipeline ([specs/moderation-pipeline.md](../specs/moderation-pipeline.md))

@@ -16,7 +16,7 @@ This document is the operational schedule that tells the engineering/ops team **
 - Retention windows are enforced by **scheduled jobs**, not by memory or ad-hoc SQL.
 - A later legal review has a single, concrete artifact to mark up.
 
-**In scope:** all 12 v1.0 Postgres (Neon) tables, database backups, and data mirrored to third parties (Groq, RevenueCat/Apple, Clerk, and the voice providers LiveKit/Cartesia/Deepgram).
+**In scope:** all 12 v1.0 Postgres (Neon) tables, database backups, and data mirrored to third parties (Groq — incl. Whisper STT for voice, RevenueCat/Apple, Clerk, and the voice TTS provider Inworld).
 
 **Out of scope:** the user-facing privacy policy wording, marketing/analytics tooling (none in v1.0), and server/application logs beyond what is noted under §7.
 

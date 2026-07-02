@@ -10,8 +10,9 @@ Sample clips comparing TTS providers for the Aurora persona across five emotiona
 | Inworld `tts-1.5-mini` | `.mp3` | `inworld-inworld-tts-1.5-mini-<register>.mp3` |
 | Inworld `tts-2` | `.mp3` | `inworld-inworld-tts-2-<register>.mp3` |
 
-**Outcome:** Cartesia Sonic-3.5 was selected and is the default in the voice stack
-(`CARTESIA_VOICE_ID` / `services/voice/tts.ts`).
+**Outcome (updated 2026-07-02):** **Inworld TTS 2 (`inworld-tts-2`) was selected** and is the as-built
+voice stack (`INWORLD_API_KEY` / `INWORLD_VOICE_ID_*` / `services/voice/inworld-tts.ts`). The earlier
+"Cartesia Sonic-3.5" outcome is superseded — Cartesia/Deepgram/LiveKit were removed.
 
 ## Regenerate
 
@@ -19,9 +20,10 @@ The `.wav` / `.mp3` clips are **git-ignored** (regenerable, see `.gitignore`). T
 
 ```bash
 # from server/, with keys set
-CARTESIA_API_KEY=sk_car_... node test-tts-cartesia.mjs
 INWORLD_API_KEY=...        node test-tts-inworld.mjs
 ```
+
+> Note: `test-tts-cartesia.mjs` is a stale A/B artifact from the removed Cartesia provider and can be deleted.
 
 Both scripts write into this folder.
 

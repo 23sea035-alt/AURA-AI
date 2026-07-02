@@ -7,7 +7,7 @@ An 18+ AI companion chat app with safety-first design, memory engine, and premiu
 - **Frontend**: React Native (Expo) + TypeScript
 - **Backend**: Node.js + Express 5 (TypeScript)
 - **Database**: PostgreSQL (Neon) + Drizzle ORM
-- **LLM**: Groq (llama-3.1-8b-instant)
+- **LLM**: Groq (llama-3.3-70b-versatile primary, llama-3.1-8b-instant fallback)
 - **Auth**: Clerk (session tokens, webhooks)
 - **Payments**: RevenueCat (in-app subscriptions)
 - **Push**: APNs (Apple Push Notification service)
@@ -27,7 +27,7 @@ aura/
 │   │   │   ├── chat/      # Turn pipeline, prompt assembler
 │   │   │   ├── moderation/ # L0-L3 safety pipeline
 │   │   │   ├── memory/    # Retrieval, consolidation
-│   │   │   ├── voice/     # LiveKit + Cartesia TTS + Deepgram STT
+│   │   │   ├── voice/     # Inworld TTS 2 + Groq Whisper STT over WebSocket
 │   │   │   ├── payments/  # RevenueCat webhook
 │   │   │   ├── notifications/ # APNs push
 │   │   │   └── jobs/      # Async workers
@@ -83,12 +83,11 @@ pnpm --filter @aura/server run dev
 | `OPENAI_API_KEY` | OpenAI moderation API key |
 | `REVENUECAT_WEBHOOK_SECRET` | RevenueCat webhook signing secret |
 | `BANNED_IDENTITY_PEPPER` | Pepper for banned-identity hashing |
-| `CARTESIA_API_KEY` | Cartesia TTS API key — voice (optional) |
-| `CARTESIA_VOICE_ID` | Cartesia voice ID — voice (optional) |
-| `DEEPGRAM_API_KEY` | Deepgram streaming STT API key — voice (optional) |
-| `LIVEKIT_API_KEY` | LiveKit API key — voice (optional) |
-| `LIVEKIT_API_SECRET` | LiveKit API secret — voice (optional) |
-| `LIVEKIT_URL` | LiveKit server URL — voice (optional) |
+| `INWORLD_API_KEY` | Inworld TTS 2 API key — voice (optional) |
+| `INWORLD_VOICE_ID_AURORA` | Inworld voice ID for Aurora — voice (optional) |
+| `INWORLD_VOICE_ID_ORION` | Inworld voice ID for Orion — voice (optional) |
+| `INWORLD_VOICE_ID_LYRA` | Inworld voice ID for Lyra — voice (optional) |
+| _(STT)_ | Groq Whisper STT reuses `GROQ_API_KEY` — no separate key |
 
 ## API Endpoints
 
@@ -120,10 +119,11 @@ pnpm --filter @aura/server run dev
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/api/voice/limits` | Get voice usage limits |
-| POST | `/api/voice/token` | Mint a LiveKit access token |
-| POST | `/api/voice/start` | Start a voice session |
-| POST | `/api/voice/stop` | Stop a voice session |
-| POST | `/api/voice/tts` | Synthesize speech (Cartesia TTS) |
+| POST | `/api/voice/start` | Start a voice session — _specced (D13), not yet implemented_ |
+| POST | `/api/voice/stop` | Stop a voice session — _specced (D13), not yet implemented_ |
+
+> Voice: only `GET /api/voice/limits` is live. TTS/STT clients (Inworld TTS 2, Groq Whisper) exist but the
+> end-to-end audio path is not yet wired. `/api/voice/token` + `/api/voice/tts` were removed with LiveKit/Cartesia.
 
 ### Payments
 | Method | Path | Description |
