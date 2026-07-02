@@ -20,3 +20,4 @@ export * from './account';
 export * from './paywall';
 export * from './memory';
 export * from './support';
+export * from './legal-docs';

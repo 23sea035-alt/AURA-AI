@@ -7,9 +7,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { SYSTEM } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
@@ -25,15 +25,13 @@ export default function SubscriptionScreen() {
   const isPremium = !!user?.isPremium;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Subscription" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Subscription</Text>
-
         <ListGroup label="Current plan">
           {isPremium ? (
             <ListRow first label="Premium" detail={`Renews ${RENEW_DATE}`} />
@@ -76,9 +74,8 @@ export default function SubscriptionScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.lg },
-  title: { ...TYPE.headline, marginBottom: SPACE.xs },
+  container: { flex: 1 },
+  content: { gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   helper: { ...TYPE.caption, lineHeight: 16 },
   linkBtn: { alignItems: 'center', paddingVertical: SPACE.sm },
   link: { fontFamily: FONTS.body.semibold, fontSize: 14 },

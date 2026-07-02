@@ -1,12 +1,13 @@
 // Privacy / legal — a calm reading layout: a plain-language retention summary card above the formal
 // (sectioned) policy text + a link to full Terms. Utility, still, ink-on-paper (no accent flourish).
+import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { TopBar } from '@/components/TopBar';
 import { LEGAL } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
@@ -20,15 +21,13 @@ export default function PrivacyScreen() {
   const companion = companions[0]?.name ?? DEMO.primaryCompanion;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title={LEGAL.title} />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{LEGAL.title}</Text>
-
         <View style={[styles.summary, { backgroundColor: colors.raised, borderColor: colors.border }]}>
           <Text style={[styles.summaryText, { color: colors.textPrimary }]}>
             {LEGAL.retentionSummary.replace('{Companion}', companion)}
@@ -45,7 +44,7 @@ export default function PrivacyScreen() {
         <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>{LEGAL.lastUpdated}</Text>
 
         <ListGroup>
-          <ListRow first label={LEGAL.fullTerms} onPress={() => {}} />
+          <ListRow first label={LEGAL.fullTerms} onPress={() => router.push('/terms-of-service')} />
         </ListGroup>
       </ScrollView>
     </View>
@@ -53,9 +52,8 @@ export default function PrivacyScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.md },
-  title: { ...TYPE.headline, marginBottom: SPACE.xs },
+  container: { flex: 1 },
+  content: { gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   summary: {
     borderRadius: RADIUS.edit,
     borderWidth: StyleSheet.hairlineWidth,

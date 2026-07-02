@@ -9,7 +9,6 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { Skeleton } from '@/components/Skeleton';
 import { PressableScale, enterUp } from '@/components/motion';
@@ -32,14 +31,30 @@ export default function PaywallScreen() {
     router.back();
   };
 
+  const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
+
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.sm }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {/* Paywall reads as a sheet (locked design), not a pushed screen — drag handle + a circular
+          close, not a back chevron: there's nowhere "back" to conceptually go, just "close". */}
+      <View style={styles.handleWrap}>
+        <View style={[styles.handle, { backgroundColor: colors.border }]} />
+      </View>
+      <PressableScale
+        onPress={goBack}
+        hitSlop={8}
+        haptic="light"
+        accessibilityRole="button"
+        accessibilityLabel="Close"
+        style={[styles.closeBtn, { backgroundColor: colors.raised }]}
+      >
+        <Ionicons name="close" size={16} color={colors.textTertiary} />
+      </PressableScale>
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
         <Animated.Text entering={enterUp(0)} style={[styles.headline, { color: colors.textPrimary }]}>
           {withAppName(owned ? PAYWALL.ownedHeadline : PAYWALL.headline)}
         </Animated.Text>
@@ -92,6 +107,15 @@ export default function PaywallScreen() {
             </PressableScale>
           )}
           <Text style={[styles.legal, { color: colors.textTertiary }]}>{SYSTEM.autoRenew}</Text>
+          <View style={styles.legalLinks}>
+            <PressableScale haptic="light" onPress={() => router.push('/terms-of-service')}>
+              <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.termsLink}</Text>
+            </PressableScale>
+            <Text style={[styles.legal, { color: colors.textTertiary }]}> · </Text>
+            <PressableScale haptic="light" onPress={() => router.push('/privacy')}>
+              <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.privacyLink}</Text>
+            </PressableScale>
+          </View>
         </View>
       </ScrollView>
     </View>
@@ -99,8 +123,21 @@ export default function PaywallScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { flexGrow: 1, gap: SPACE.md },
+  container: { flex: 1 },
+  handleWrap: { alignItems: 'center', paddingBottom: SPACE.xs },
+  handle: { width: 38, height: 4, borderRadius: 2 },
+  closeBtn: {
+    position: 'absolute',
+    top: SPACE.xxl,
+    right: SPACE.lg,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1,
+  },
+  content: { flexGrow: 1, gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.sm },
   headline: { ...TYPE.headline },
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
   valueList: { gap: SPACE.md, marginVertical: SPACE.sm },
@@ -114,4 +151,6 @@ const styles = StyleSheet.create({
   linkBtn: { alignItems: 'center', paddingVertical: SPACE.sm },
   link: { fontFamily: FONTS.body.semibold, fontSize: 14 },
   legal: { ...TYPE.caption, textAlign: 'center', lineHeight: 16 },
+  legalLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: -SPACE.xs },
+  legalLink: { ...TYPE.caption, textDecorationLine: 'underline' },
 });

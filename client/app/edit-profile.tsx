@@ -7,10 +7,10 @@ import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } fr
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/Avatar';
-import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { Field } from '@/components/Field';
 import { Toast } from '@/components/Toast';
+import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { ACCOUNT } from '@/constants/content';
 import { FONTS, SPACE } from '@/constants/design';
@@ -55,14 +55,14 @@ export default function EditProfileScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <TopBar title="Edit profile" />
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.lg }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <BackChevron />
           <View style={styles.avatarWrap}>
             <Avatar id="" name={displayName} size={88} color={avatarColor} />
             {/* Change color — curated monogram tones; selecting one dirties the form. */}
@@ -120,8 +120,8 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { flexGrow: 1, gap: SPACE.md },
+  container: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   avatarWrap: { alignItems: 'center', gap: SPACE.md, marginVertical: SPACE.md },
   swatches: { flexDirection: 'row', gap: SPACE.sm },
   swatch: { width: 34, height: 34, borderRadius: 17, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },

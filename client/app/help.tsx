@@ -7,11 +7,11 @@ import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import Animated, { FadeIn, LinearTransition, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import { ListGroup } from '@/components/ListGroup';
+import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { HELP, withAppName } from '@/constants/content';
-import { FONTS, SPACE, TYPE } from '@/constants/design';
+import { FONTS, SPACE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
 function FaqRow({
@@ -56,14 +56,13 @@ export default function HelpScreen() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Help" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Help</Text>
         <ListGroup label="Frequently asked">
           {HELP.faq.map((item, i) => (
             <FaqRow
@@ -89,9 +88,8 @@ export default function HelpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.md },
-  title: { ...TYPE.headline, marginBottom: SPACE.xs },
+  container: { flex: 1 },
+  content: { gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   faqHead: {
     flexDirection: 'row',
     alignItems: 'center',

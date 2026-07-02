@@ -7,10 +7,10 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import ConfirmSheet from '@/components/ConfirmSheet';
 import { ListGroup, ListRow } from '@/components/ListGroup';
 import { Toast } from '@/components/Toast';
+import { TopBar } from '@/components/TopBar';
 import { ACCOUNT } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
@@ -34,15 +34,13 @@ export default function AccountScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Manage your data" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Manage your data</Text>
-
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.export.line}</Text>
           <ListGroup>
@@ -83,9 +81,8 @@ export default function AccountScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.xl },
-  title: { ...TYPE.headline, marginBottom: SPACE.sm },
+  container: { flex: 1 },
+  content: { gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   section: { gap: SPACE.sm },
   line: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
   explainer: { ...TYPE.caption, lineHeight: 17 },

@@ -9,9 +9,9 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import { GoogleG } from '@/components/GoogleG';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { TopBar } from '@/components/TopBar';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -46,15 +46,13 @@ export default function SignInSecurityScreen() {
       : `Your email comes from your ${provider} account. Change it there and it updates here.`;
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Sign-in & security" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
-        <Text style={[styles.title, { color: colors.textPrimary }]}>Sign-in & security</Text>
-
         {/* How you sign in */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>How you sign in</Text>
@@ -96,9 +94,8 @@ export default function SignInSecurityScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.lg },
-  title: { ...TYPE.headline, marginBottom: SPACE.xs },
+  container: { flex: 1 },
+  content: { gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   section: { gap: SPACE.sm },
   sectionLabel: { fontFamily: FONTS.body.semibold, fontSize: 13, marginLeft: SPACE.xs },
   methodCard: {

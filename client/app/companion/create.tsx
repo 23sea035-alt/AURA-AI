@@ -12,13 +12,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Avatar } from '@/components/Avatar';
-import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
 import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
 import { LookSheet } from '@/components/companion/LookSheet';
 import { Field } from '@/components/Field';
 import { SectionLabel } from '@/components/SectionLabel';
 import { Segmented } from '@/components/Segmented';
+import { TopBar } from '@/components/TopBar';
 import { PressableScale, enterUp } from '@/components/motion';
 import { CREATE, PERSONAS, TRAITS } from '@/constants/content';
 import { FONTS, LOGO_COLORS, RADIUS, SPACE, TYPE } from '@/constants/design';
@@ -80,18 +80,14 @@ export default function CreateCompanionScreen() {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+      <View style={[styles.container, { backgroundColor: colors.bg }]}>
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+        <TopBar title={isEdit ? 'Edit companion' : 'New companion'} />
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <BackChevron />
-          <Animated.Text entering={enterUp(0)} style={[styles.title, { color: colors.textPrimary }]}>
-            {isEdit ? 'Edit companion' : 'New companion'}
-          </Animated.Text>
-
           <View pointerEvents={locked ? 'none' : 'auto'} style={[styles.form, locked && styles.dimmed]}>
             {/* avatar + change look — swap-not-upload curated mood filters, never a new photo */}
             <View style={styles.avatarSection}>
@@ -210,9 +206,8 @@ export default function CreateCompanionScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { flexGrow: 1, gap: SPACE.lg },
-  title: { ...TYPE.headline },
+  container: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   form: { gap: SPACE.xl },
   dimmed: { opacity: 0.5 },
   section: { gap: SPACE.sm },

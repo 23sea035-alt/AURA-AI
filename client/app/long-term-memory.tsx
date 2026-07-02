@@ -8,11 +8,11 @@ import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { BackChevron } from '@/components/BackChevron';
 import BottomSheet from '@/components/BottomSheet';
 import ConfirmSheet from '@/components/ConfirmSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { ListGroup } from '@/components/ListGroup';
+import { TopBar } from '@/components/TopBar';
 import { PressableScale, enterUp } from '@/components/motion';
 import { MEMORY, PERSONAS } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
@@ -59,13 +59,13 @@ export default function MemoryScreen() {
     .filter((g) => g.items.length > 0);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
+    <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      <TopBar title="Memory" />
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
-        <BackChevron />
         <Animated.Text entering={enterUp(0)} style={[styles.title, { color: colors.textPrimary }]}>
           {MEMORY.title.replace('{Companion}', companion)}
         </Animated.Text>
@@ -159,8 +159,8 @@ export default function MemoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.md },
+  container: { flex: 1 },
+  content: { gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   title: { ...TYPE.headline },
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
   row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md },
