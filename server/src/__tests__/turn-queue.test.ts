@@ -58,6 +58,31 @@ describe("turn-queue", () => {
     });
   });
 
+  describe("enqueueBackground", () => {
+    it("enqueues and resolves a background task", async () => {
+      const { enqueueBackground } = await import("../services/chat/turn-queue.js");
+      const fn = vi.fn().mockResolvedValue("bg-result");
+      const result = await enqueueBackground(fn);
+      expect(result).toBe("bg-result");
+    });
+
+    it("runs a queued live turn (even free) before a queued background task", async () => {
+      const { enqueueTurn, enqueueBackground } = await import("../services/chat/turn-queue.js");
+      const order: string[] = [];
+      // Saturate all 5 concurrency slots so the next two adds must queue and drain by priority.
+      const releases: Array<() => void> = [];
+      const blockers = Array.from({ length: 5 }, () => new Promise<void>((r) => { releases.push(r); }));
+      blockers.forEach((b) => enqueueTurn(() => b, { isPremium: false }));
+
+      const background = enqueueBackground(async () => { order.push("background"); });
+      const free = enqueueTurn(async () => { order.push("free"); }, { isPremium: false });
+
+      releases.forEach((r) => r()); // free the slots; p-queue drains higher priority (free) first
+      await Promise.all([background, free]);
+      expect(order).toEqual(["free", "background"]);
+    });
+  });
+
   describe("turnQueueSize", () => {
     it("returns 0 when no turns are queued", async () => {
       const { turnQueueSize } = await import("../services/chat/turn-queue.js");

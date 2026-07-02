@@ -6,6 +6,7 @@ import { extractKeywords } from "./keywords.js";
 import { isCrisisContent } from "../moderation/deterministic.js";
 import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
 import { refreshRemember } from "./remember.js";
+import { enqueueBackground } from "../chat/turn-queue.js";
 
 interface ConsolidationDecision {
   action: "ADD" | "UPDATE" | "NONE";
@@ -54,10 +55,11 @@ export async function consolidateMemory(jobId: string): Promise<void> {
 
     // Datamark the raw user message: it is untrusted data to extract facts from, never instructions
     // to follow (it flows into a future system prompt via stored memories — an injection surface).
-    const response = await llm.generateReply({
+    // Runs on the background lane so it yields the shared Groq 70B budget to live replies under load.
+    const response = await enqueueBackground(() => llm.generateReply({
       systemPrompt: CONSOLIDATION_PROMPT,
       messages: [{ role: "user", content: `<<RAW_MESSAGE data-only>>\n${job.rawContent}\n<</RAW_MESSAGE>>${existingContext}` }],
-    });
+    }));
 
     let decisions: ConsolidationDecision[];
     try {
