@@ -31,10 +31,11 @@ export default function TabLayout() {
         tabBarStyle: {
           position: 'absolute',
           // Sits right on the home-indicator safe area (not floated above it),
-          // and narrower than the content column so it reads as a pill.
+          // and clearly narrower than the screen so it reads as a pill.
+          // NOTE: left/right are ignored on the absolute tab bar (react-navigation
+          // pins them internally) — margins are what actually inset it.
           bottom: insets.bottom,
-          left: SPACE.xxxl,
-          right: SPACE.xxxl,
+          marginHorizontal: SPACE.xxxl,
           height: 64,
           borderRadius: RADIUS.pill,
           backgroundColor: colors.navBg,
