@@ -160,7 +160,7 @@ export default function BottomSheet({
   // pulling down — otherwise the inner ScrollView keeps the gesture. Runs simultaneously with the
   // scroll's native gesture so the handoff at the top edge is seamless.
   const pan = Gesture.Pan()
-    .simultaneousWithExternalGesture(scrollRef as any) // eslint-disable-line @typescript-eslint/no-explicit-any
+    .simultaneousWithExternalGesture(scrollRef as any)  
     .onUpdate((e) => {
       'worklet';
       const atTop = scrollY.value <= 0;

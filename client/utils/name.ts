@@ -8,3 +8,16 @@ export function friendlyFirstName(name?: string | null): string {
   if (!segment) return 'there';
   return segment.charAt(0).toUpperCase() + segment.slice(1);
 }
+
+/**
+ * A second "Aurora" auto-numbers to "Aurora 2" (then 3, 4 …) so companion
+ * names stay distinct without blocking the save. Case-insensitive; skips
+ * already-taken numbers.
+ */
+export function autoNumberName(requested: string, takenNames: Iterable<string>): string {
+  const taken = new Set([...takenNames].map((n) => n.toLowerCase()));
+  if (!taken.has(requested.toLowerCase())) return requested;
+  let n = 2;
+  while (taken.has(`${requested.toLowerCase()} ${n}`)) n += 1;
+  return `${requested} ${n}`;
+}

@@ -5,7 +5,6 @@
 // free-limit card. Runs entirely on the mock pipeline (context.sendTurn) —
 // wiring the live API later only touches AppContext.
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -38,8 +37,10 @@ import { CHAT, SYSTEM } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { DURATION } from '@/constants/motion';
 import { type Message, useApp } from '@/context/AppContext';
+import { useDraft } from '@/hooks/useDraft';
 import { useTheme } from '@/hooks/useTheme';
 import { reportMessage } from '@/lib/mock';
+import { buildThreadRows, type ThreadRow } from '@/lib/thread';
 
 // Recurring SB 243 line (client-owned copy; the server decides when it fires).
 const AI_NOTICE = 'Just a quiet reminder: {Companion} is an AI.';
@@ -49,27 +50,7 @@ const AI_NOTICE = 'Just a quiet reminder: {Companion} is an AI.';
 // WIRE SEAM: GET /api/companions/:id/messages?before=<cursor>&limit=PAGE_SIZE.
 const PAGE_SIZE = 30;
 
-/** Serif chapter label for a thread date. */
-function dayLabel(iso: string): string {
-  const date = new Date(iso);
-  const now = new Date();
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const dayDiff = Math.round((startOf(now) - startOf(date)) / 86400000);
-  if (dayDiff <= 0) return 'Today';
-  if (dayDiff === 1) return 'Yesterday';
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
-}
-
-// One rendered element per row — attachments (send-state captions, the AI
-// notice, the crisis card) are their own rows so the inverted list controls
-// their order (intra-cell sibling order is unreliable under inversion).
-type Row =
-  | { kind: 'divider'; key: string; label: string }
-  | { kind: 'message'; key: string; msg: Message; grouped: boolean; tail: boolean }
-  | { kind: 'time'; key: string; msg: Message }
-  | { kind: 'sendState'; key: string; msg: Message }
-  | { kind: 'notice'; key: string }
-  | { kind: 'crisis'; key: string };
+type Row = ThreadRow<Message>;
 
 export default function ChatScreen() {
   const { colors, mode, shadows } = useTheme();
@@ -86,8 +67,9 @@ export default function ChatScreen() {
   const listRef = useRef<FlatList<Row>>(null);
   const sessionTurns = useRef(0);
 
-  // Home's starter chips arrive pre-filled, ready to send — never auto-sent.
-  const [input, setInput] = useState(typeof starter === 'string' ? starter : '');
+  // Home's starter chips arrive pre-filled, ready to send — never auto-sent;
+  // otherwise an unsent draft (persisted per companion) is restored.
+  const [input, setInput] = useDraft(cid, typeof starter === 'string' ? starter : '');
   const [thinking, setThinking] = useState(false);
   const [revealId, setRevealId] = useState<string | null>(null);
   const [limit, setLimit] = useState<{ used: number; limit: number } | null>(null);
@@ -107,26 +89,6 @@ export default function ChatScreen() {
   showJumpRef.current = showJump;
 
   const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
-
-  // Draft persistence — an unsent composer draft survives leaving the screen.
-  const draftLoaded = useRef(false);
-  useEffect(() => {
-    if (!cid) return;
-    AsyncStorage.getItem(`draft:${cid}`)
-      .then((saved) => {
-        if (saved && !starter) setInput((cur) => (cur ? cur : saved));
-      })
-      .catch(() => {})
-      .finally(() => {
-        draftLoaded.current = true;
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cid]);
-  useEffect(() => {
-    if (!draftLoaded.current || !cid) return;
-    if (input) AsyncStorage.setItem(`draft:${cid}`, input).catch(() => {});
-    else AsyncStorage.removeItem(`draft:${cid}`).catch(() => {});
-  }, [input, cid]);
 
   const stored = getMessagesForCompanion(cid);
 
@@ -165,43 +127,12 @@ export default function ChatScreen() {
     }, DURATION.normal);
   };
 
-  // Thread rows: serif date dividers between days, then the messages. The list
-  // renders INVERTED (opens anchored to the newest message), so the row array
-  // is reversed — double inversion keeps the visual order chronological.
-  const rows: Row[] = useMemo(() => {
-    const out: Row[] = [];
-    let lastDay = '';
-    for (let i = 0; i < windowed.length; i++) {
-      const msg = windowed[i];
-      const prev = windowed[i - 1];
-      const next = windowed[i + 1];
-      const label = dayLabel(msg.createdAt);
-      if (label !== lastDay) {
-        lastDay = label;
-        out.push({ kind: 'divider', key: `day-${label}-${msg.id}`, label });
-      }
-      // Grouping: consecutive same-sender, same day, unbroken by a send-state
-      // caption. Only the last bubble of a group keeps the tail.
-      const grouped =
-        !!prev && prev.role === msg.role && dayLabel(prev.createdAt) === label && !prev.status;
-      const tail =
-        !next || next.role !== msg.role || dayLabel(next.createdAt) !== label || !!msg.status;
-      out.push({ kind: 'message', key: msg.id, msg, grouped, tail });
-      if (timeFor === msg.id) {
-        out.push({ kind: 'time', key: `time-${msg.id}`, msg });
-      }
-      if (msg.status === 'failed' || msg.status === 'blocked') {
-        out.push({ kind: 'sendState', key: `state-${msg.id}`, msg });
-      }
-      if (msg.role === 'assistant' && msg.aiDisclosure && msg.id !== revealId) {
-        out.push({ kind: 'notice', key: `notice-${msg.id}` });
-      }
-      if (msg.role === 'assistant' && msg.safetyFlagged && msg.id !== revealId) {
-        out.push({ kind: 'crisis', key: `crisis-${msg.id}` });
-      }
-    }
-    return out.reverse();
-  }, [windowed, revealId, timeFor]);
+  // Thread rows (dividers, grouping/tails, attachments as their own rows),
+  // reversed for the inverted list — pure logic in @/lib/thread, unit-tested.
+  const rows: Row[] = useMemo(
+    () => buildThreadRows(windowed, { revealId, timeFor }),
+    [windowed, revealId, timeFor],
+  );
 
   // Inverted list: offset 0 IS the bottom (the newest message).
   const scrollToBottom = (animated = true) => listRef.current?.scrollToOffset({ offset: 0, animated });

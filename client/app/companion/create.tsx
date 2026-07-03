@@ -29,6 +29,7 @@ import { FONTS, LOGO_COLORS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { DEFAULT_LOOK_ID } from '@/constants/looks';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { autoNumberName } from '@/utils/name';
 
 const ORDER = ['Aurora', 'Orion', 'Lyra'] as const;
 type PersonaName = (typeof ORDER)[number];
@@ -64,24 +65,15 @@ export default function CreateCompanionScreen() {
 
   const voicePreview = `${cap(traits.warmth)} · ${traits.energy} · ${traits.verbosity}. ${PERSONAS[base].voice}`;
 
-  // A second "Aurora" auto-numbers to "Aurora 2" (then 3, 4 …) so names stay
-  // distinct without blocking the save.
-  const autoNumber = (requested: string): string => {
-    const taken = new Set(
-      companions.filter((c) => c.id !== editing?.id).map((c) => c.name.toLowerCase()),
-    );
-    if (!taken.has(requested.toLowerCase())) return requested;
-    let n = 2;
-    while (taken.has(`${requested.toLowerCase()} ${n}`)) n += 1;
-    return `${requested} ${n}`;
-  };
-
   const handleSave = () => {
     if (locked) {
       router.push('/premium');
       return;
     }
-    const finalName = autoNumber(name.trim() || base);
+    const finalName = autoNumberName(
+      name.trim() || base,
+      companions.filter((c) => c.id !== editing?.id).map((c) => c.name),
+    );
     if (editing) {
       updateCompanion(editing.id, {
         name: finalName,
