@@ -1,3 +1,5 @@
+import { MAX_MESSAGE_CHARS } from '@aura/shared';
+
 // Shared chat chrome, built in onboarding `firstchat` and reused verbatim by the
 // Chat hero screen. Companion name is tokenized ({Companion}). The demo conversation
 // itself lives in constants/demo.ts (fixtures, not copy).
@@ -8,7 +10,8 @@ export const CHAT = {
     '{Companion} is an AI companion, here for support, not a substitute for professional care.',
   breakReminder: "You've been chatting a while. {Companion} will be here whenever you come back.",
   inputPlaceholder: 'Message {Companion}…', // proposed; not specified in the deck — review
-  characterLimit: 2000, // counter stays invisible until ~80%, then turns wine (not red) near the cap
+  // Counter stays invisible until ~80% of the cap, then turns wine (not red) near it.
+  characterLimit: MAX_MESSAGE_CHARS,
 
   overflow: {
     settings: 'Companion settings',
@@ -23,6 +26,9 @@ export const CHAT = {
       "You've reached today's 30 free messages. {Companion} will be here tomorrow, or go unlimited with Premium.",
     cta: 'See Premium',
   },
+
+  // Degenerate send states (see SYSTEM.blocked for the moderation-hold line).
+  sendFailed: "Couldn't send. Tap to retry.",
 
   // voice-minutes cap (paywall promise: 20 min/month free, 10 h/month premium).
   // Gentle, never a hard wall: chat stays open, the meter renews monthly.

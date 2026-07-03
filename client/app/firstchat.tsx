@@ -33,7 +33,7 @@ export default function FirstChatScreen() {
   const companion = (
     typeof params.companion === 'string' && params.companion in PERSONAS ? params.companion : 'Aurora'
   ) as keyof typeof PERSONAS;
-  const firstName = friendlyFirstName(user?.name);
+  const firstName = friendlyFirstName(user?.firstName);
 
   const greeting = ONBOARDING.firstChat.greetingTemplate.replace('{firstName}', firstName);
   const banner = CHAT.disclosureBanner.replace('{Companion}', companion);

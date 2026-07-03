@@ -177,7 +177,7 @@ export default function CompanionsScreen() {
                   style={[styles.card, { backgroundColor: colors.raised }, shadows.e2, locked && { opacity: 0.55 }]}
                 >
                   <View style={styles.avatarWrap}>
-                    <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} />
+                    <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
                     {isHome ? (
                       <View
                         style={[styles.pinBadge, { backgroundColor: colors.accent, borderColor: colors.raised }]}
@@ -217,7 +217,7 @@ export default function CompanionsScreen() {
           filtered.map((c, i) => (
             <Animated.View key={c.id} entering={enterUp(i + 1)}>
               <View style={[styles.archivedCard, { backgroundColor: colors.raised }, shadows.e1]}>
-                <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} />
+                <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
                 <View style={styles.archivedText}>
                   <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                     {c.name}

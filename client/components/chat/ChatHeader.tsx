@@ -13,13 +13,15 @@ import { useTheme } from '@/hooks/useTheme';
 interface ChatHeaderProps {
   id: string;
   name: string;
+  /** The companion's saved look (companions.appearance seam). */
+  lookId?: string;
   onBack: () => void;
   onOverflow?: () => void;
   /** Opens the voice call — the header is its one entry point. */
   onVoiceCall?: () => void;
 }
 
-export function ChatHeader({ id, name, onBack, onOverflow, onVoiceCall }: ChatHeaderProps) {
+export function ChatHeader({ id, name, lookId, onBack, onOverflow, onVoiceCall }: ChatHeaderProps) {
   const { colors } = useTheme();
   return (
     <View style={[styles.header, { borderBottomColor: colors.divider }]}>
@@ -32,7 +34,7 @@ export function ChatHeader({ id, name, onBack, onOverflow, onVoiceCall }: ChatHe
       >
         <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
       </PressableScale>
-      <Avatar id={id} name={name} size={38} />
+      <Avatar id={id} name={name} size={38} lookId={lookId} />
       <View style={styles.titleArea}>
         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
           {name}

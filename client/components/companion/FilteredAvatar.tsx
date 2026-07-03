@@ -6,7 +6,7 @@ import React from 'react';
 import { Image as RNImage } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
-import { avatarFor } from '@/components/Avatar';
+import { avatarFor } from '@/components/companion/portraits';
 import { LOOKS, DEFAULT_LOOK_ID, stepsForLook } from '@/constants/looks';
 
 export function FilteredAvatar({

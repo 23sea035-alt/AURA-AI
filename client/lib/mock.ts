@@ -69,7 +69,16 @@ export interface TurnResult {
   breakReminder?: string;
   /** Free-tier daily cap reached; the send was not processed. */
   limitReached?: { used: number; limit: number };
+  /** Input moderation held the message back (MESSAGE_STATUS 'blocked') — no reply. */
+  inputBlocked?: boolean;
 }
+
+// Deterministic dev triggers for the degenerate send states (real networks and
+// the real moderation pipeline produce these; the mock needs a handle on them):
+//   message containing "##fail"  → simulated network failure (throws)
+//   message containing "##block" → simulated input-moderation block
+const DEV_FAIL_TRIGGER = '##fail';
+const DEV_BLOCK_TRIGGER = '##block';
 
 // Implied-crisis language (mild, per the safety spec) → grounding response path.
 const CRISIS_PATTERN =
@@ -119,6 +128,13 @@ const BREAK_AFTER = 12; // session turns before the gentle break reminder
 export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
   await simulateLatency(500);
 
+  if (req.content.includes(DEV_FAIL_TRIGGER)) {
+    throw new Error('mock network failure');
+  }
+  if (req.content.includes(DEV_BLOCK_TRIGGER)) {
+    return { inputBlocked: true };
+  }
+
   if (!req.isPremium && req.usage.used >= req.usage.limit) {
     return { limitReached: { used: req.usage.used, limit: req.usage.limit } };
   }
@@ -148,10 +164,12 @@ export function mockVoiceReply(personaKey: string, turnIndex: number): string {
 }
 
 // ── Voice metering (the paywall promise: 20 min/month free, 10 h/month premium) ──
-// Mirrors the @aura/shared entitlement constants once monorepo wiring lands; the
-// server meters real usage (voice_usage records) — GET /api/voice/usage.
-export const VOICE_FREE_SECONDS = 20 * 60;
-export const VOICE_PREMIUM_SECONDS = 10 * 3600;
+// Straight from the @aura/shared contract; the server meters real usage
+// (voice_usage records) — GET /api/voice/usage.
+export {
+  VOICE_MONTHLY_LIMIT_SECONDS as VOICE_FREE_SECONDS,
+  VOICE_MONTHLY_LIMIT_SECONDS_PREMIUM as VOICE_PREMIUM_SECONDS,
+} from '@aura/shared';
 
 // ── Memories ────────────────────────────────────────────────────────────────
 

@@ -31,7 +31,7 @@ export default function ProfileScreen() {
       setTouched(true);
       return;
     }
-    updateUser({ name: `${first.trim()} ${last.trim()}`.trim() });
+    updateUser({ firstName: first.trim(), lastName: last.trim() });
     router.push('/persona');
   };
 

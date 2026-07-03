@@ -9,6 +9,7 @@
 // touching any screen. Nothing else in the client imports the network layer.
 // ════════════════════════════════════════════════════════════════════════
 
+import { FREE_DAILY_LIMIT } from '@aura/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
@@ -30,6 +31,8 @@ export interface Companion {
   lastMessage?: string;
   lastActive?: string;
   messageCount?: number;
+  /** The saved "look" (mood filter) for the portrait. Backed by companions.appearance (jsonb). */
+  lookId?: string;
   /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
   archivedAt?: string | null;
 }
@@ -47,13 +50,19 @@ export interface Message {
   safetyFlagged?: boolean;
   /** SB 243 recurring notice — this turn carries the quiet "you're talking to an AI" line. */
   aiDisclosure?: boolean;
+  /** Mirrors MESSAGE_STATUS (@aura/shared); absent = complete. */
+  status?: 'failed' | 'blocked';
 }
 
+// Matches the backend user shape (firstName/lastName + ISO dateOfBirth + UUID
+// string ids — the old `name`/`birthYear` shape is gone server-side).
 export interface UserProfile {
   id?: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  birthYear?: number;
+  /** ISO date string (YYYY-MM-DD). */
+  dateOfBirth?: string;
   isMinor?: boolean;
   ageVerified?: boolean;
   onboardingDone?: boolean;
@@ -90,6 +99,10 @@ export interface VoiceUsage {
 export interface SendResult {
   assistant?: Message;
   limitReached?: { used: number; limit: number };
+  /** The send never reached the server (network) — the user message is marked 'failed'. */
+  failed?: boolean;
+  /** Input moderation held the message back — the user message is marked 'blocked'. */
+  blocked?: boolean;
 }
 
 interface AppContextType {
@@ -110,7 +123,7 @@ interface AppContextType {
   safetyState: SafetyState;
 
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, birthYear?: number) => Promise<void>;
+  register: (email: string, password: string) => Promise<void>;
   logout: () => void;
   updateUser: (updates: Partial<UserProfile>) => void;
 
@@ -122,6 +135,8 @@ interface AppContextType {
 
   getMessagesForCompanion: (companionId: string) => Message[];
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
+  /** Remove a message (used by the failed-send retry, which re-sends the content). */
+  removeMessage: (companionId: string, messageId: string) => void;
   /** Send a turn through the (mock) chat pipeline; appends both sides + returns the assistant turn. */
   sendTurn: (
     companionId: string,
@@ -149,10 +164,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | null>(null);
 
 // ── Demo fixtures → initial state ───────────────────────────────────────────
-
-// Mirrors @aura/shared FREE_DAILY_LIMIT (the client re-reads it from the
-// contract package once monorepo wiring lands).
-const FREE_DAILY_LIMIT = 30;
 
 const today = () => new Date().toISOString().slice(0, 10);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -216,6 +227,23 @@ function seedConversation(): Record<string, Message[]> {
 
 const lastSeedTurn = DEMO.conversation[DEMO.conversation.length - 1];
 
+// One-time storage migration: earlier builds stored `name` + `birthYear`; the
+// backend (and this client now) uses firstName/lastName + ISO dateOfBirth.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function migrateProfile(raw: any): UserProfile {
+  if (raw && typeof raw.name === 'string' && raw.firstName === undefined) {
+    const [first, ...rest] = raw.name.trim().split(/\s+/);
+    const { name: _name, birthYear, ...keep } = raw;
+    return {
+      ...keep,
+      firstName: first || raw.email?.split('@')[0] || '',
+      lastName: rest.join(' '),
+      dateOfBirth: typeof birthYear === 'number' ? `${birthYear}-01-01` : undefined,
+    };
+  }
+  return raw as UserProfile;
+}
+
 // ── Provider ───────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -266,7 +294,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         AsyncStorage.getItem('usage'),
       ]);
 
-      if (storedUser) setUser(JSON.parse(storedUser));
+      if (storedUser) setUser(migrateProfile(JSON.parse(storedUser)));
       if (storedCompanions) setCompanions(JSON.parse(storedCompanions));
       if (storedPrimary) setPrimaryCompanionId(storedPrimary);
 
@@ -304,8 +332,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, _password: string) => {
     // Clerk drop-in point: signIn.create → session token; here, a local session.
+    // firstName is a placeholder from the email until the profile provides one.
     const profile: UserProfile = {
-      name: email.split('@')[0],
+      firstName: email.split('@')[0],
+      lastName: '',
       email,
       ageVerified: true,
       onboardingDone: true,
@@ -320,12 +350,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (status.status === 'deactivated') setAccountStatus(status);
   }, []);
 
-  const register = useCallback(async (name: string, email: string, _password: string, birthYear?: number) => {
-    // Clerk drop-in point: signUp.create + email verification.
+  const register = useCallback(async (email: string, _password: string) => {
+    // Clerk drop-in point: signUp.create + email verification. Names + DOB are
+    // captured by the onboarding profile/age steps that follow.
     const profile: UserProfile = {
-      name,
+      firstName: email.split('@')[0],
+      lastName: '',
       email,
-      birthYear,
       ageVerified: false,
       onboardingDone: false,
       aiDisclosureAccepted: false,
@@ -428,6 +459,28 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [appendMessage],
   );
 
+  const removeMessage = useCallback((companionId: string, messageId: string) => {
+    setMessages((prev) => {
+      const updated = {
+        ...prev,
+        [companionId]: (prev[companionId] ?? []).filter((m) => m.id !== messageId),
+      };
+      persistMessages(updated);
+      return updated;
+    });
+  }, []);
+
+  const setMessageStatus = useCallback((companionId: string, messageId: string, status: Message['status']) => {
+    setMessages((prev) => {
+      const updated = {
+        ...prev,
+        [companionId]: (prev[companionId] ?? []).map((m) => (m.id === messageId ? { ...m, status } : m)),
+      };
+      persistMessages(updated);
+      return updated;
+    });
+  }, []);
+
   const sendTurn = useCallback(
     async (
       companionId: string,
@@ -452,8 +505,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ).length;
 
       // Optimistic user bubble.
+      const userMsgId = localId();
       appendMessage(companionId, {
-        id: localId(),
+        id: userMsgId,
         role: 'user',
         content,
         createdAt: new Date().toISOString(),
@@ -461,18 +515,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         audioUri: opts?.audioUri,
       });
 
-      const result = await mock.sendTurn({
-        companionId,
-        companionName: name,
-        personaKey,
-        content,
-        assistantTurnCount,
-        sessionTurnCount,
-        usage: { used: currentUsage.used, limit: currentUsage.limit },
-        isPremium,
-      });
+      let result: mock.TurnResult;
+      try {
+        result = await mock.sendTurn({
+          companionId,
+          companionName: name,
+          personaKey,
+          content,
+          assistantTurnCount,
+          sessionTurnCount,
+          usage: { used: currentUsage.used, limit: currentUsage.limit },
+          isPremium,
+        });
+      } catch {
+        // The send never reached the server — keep the bubble, mark it failed
+        // so the thread offers a retry.
+        setMessageStatus(companionId, userMsgId, 'failed');
+        return { failed: true };
+      }
 
-      if (result.limitReached) return { limitReached: result.limitReached };
+      if (result.inputBlocked) {
+        // Moderation held the message back (MESSAGE_STATUS 'blocked') — no reply.
+        setMessageStatus(companionId, userMsgId, 'blocked');
+        return { blocked: true };
+      }
+
+      if (result.limitReached) {
+        // Server-side cap beat the client check — take the optimistic bubble
+        // back (the composer restores the draft).
+        removeMessage(companionId, userMsgId);
+        return { limitReached: result.limitReached };
+      }
 
       const assistant: Message = {
         id: localId(),
@@ -513,7 +586,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       return { assistant };
     },
-    [appendMessage],
+    [appendMessage, removeMessage, setMessageStatus],
   );
 
   const addVoiceSeconds = useCallback((seconds: number) => {
@@ -639,6 +712,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         restoreCompanion,
         getMessagesForCompanion,
         addMessage,
+        removeMessage,
         sendTurn,
         loadMemories,
         editMemory,

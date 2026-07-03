@@ -70,7 +70,8 @@ export function MessageBubble({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', marginVertical: SPACE.xs },
+  // sm vertical margin → 16pt between adjacent bubbles: the thread breathes.
+  row: { flexDirection: 'row', marginVertical: SPACE.sm },
   bubble: {
     maxWidth: '82%',
     paddingHorizontal: SPACE.lg,

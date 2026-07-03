@@ -32,7 +32,7 @@ import {
 import { CrisisSupport } from '@/components/CrisisSupport';
 import { PressableScale } from '@/components/motion';
 import { Toast } from '@/components/Toast';
-import { CHAT } from '@/constants/content';
+import { CHAT, SYSTEM } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { DURATION } from '@/constants/motion';
 import { type Message, useApp } from '@/context/AppContext';
@@ -41,6 +41,11 @@ import { reportMessage } from '@/lib/mock';
 
 // Recurring SB 243 line (client-owned copy; the server decides when it fires).
 const AI_NOTICE = 'Just a quiet reminder: {Companion} is an AI.';
+
+// History pagination — only the newest page loads with the screen; scrolling up
+// past the loaded window fetches the next page so history feels seamless.
+// WIRE SEAM: GET /api/companions/:id/messages?before=<cursor>&limit=PAGE_SIZE.
+const PAGE_SIZE = 30;
 
 /** Serif chapter label for a thread date. */
 function dayLabel(iso: string): string {
@@ -53,15 +58,22 @@ function dayLabel(iso: string): string {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
+// One rendered element per row — attachments (send-state captions, the AI
+// notice, the crisis card) are their own rows so the inverted list controls
+// their order (intra-cell sibling order is unreliable under inversion).
 type Row =
   | { kind: 'divider'; key: string; label: string }
-  | { kind: 'message'; key: string; msg: Message };
+  | { kind: 'message'; key: string; msg: Message }
+  | { kind: 'sendState'; key: string; msg: Message }
+  | { kind: 'notice'; key: string }
+  | { kind: 'crisis'; key: string };
 
 export default function ChatScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { id, starter } = useLocalSearchParams<{ id: string; starter?: string }>();
-  const { user, companions, getMessagesForCompanion, sendTurn, safetyState, setBreakReminder } = useApp();
+  const { user, companions, getMessagesForCompanion, sendTurn, removeMessage, safetyState, setBreakReminder } =
+    useApp();
 
   const companion = companions.find((c) => c.id === id) ?? companions[0];
   const cid = companion?.id ?? '';
@@ -103,22 +115,52 @@ export default function ChatScreen() {
     [stored, name],
   );
 
-  // Thread rows: serif date dividers between days, then the messages.
+  // Pagination window: only the newest PAGE_SIZE messages render on open;
+  // reaching the top of the loaded window pulls in the previous page.
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const hasOlder = messages.length > visibleCount;
+  const windowed = useMemo(() => messages.slice(-visibleCount), [messages, visibleCount]);
+
+  const loadOlder = () => {
+    if (!hasOlder || loadingOlder) return;
+    setLoadingOlder(true);
+    // WIRE SEAM: fetch the page before the oldest loaded message's cursor; the
+    // mock's history is already local, so this just widens the window.
+    setTimeout(() => {
+      setVisibleCount((c) => c + PAGE_SIZE);
+      setLoadingOlder(false);
+    }, DURATION.normal);
+  };
+
+  // Thread rows: serif date dividers between days, then the messages. The list
+  // renders INVERTED (opens anchored to the newest message), so the row array
+  // is reversed — double inversion keeps the visual order chronological.
   const rows: Row[] = useMemo(() => {
     const out: Row[] = [];
     let lastDay = '';
-    for (const msg of messages) {
+    for (const msg of windowed) {
       const label = dayLabel(msg.createdAt);
       if (label !== lastDay) {
         lastDay = label;
         out.push({ kind: 'divider', key: `day-${label}-${msg.id}`, label });
       }
       out.push({ kind: 'message', key: msg.id, msg });
+      if (msg.status === 'failed' || msg.status === 'blocked') {
+        out.push({ kind: 'sendState', key: `state-${msg.id}`, msg });
+      }
+      if (msg.role === 'assistant' && msg.aiDisclosure && msg.id !== revealId) {
+        out.push({ kind: 'notice', key: `notice-${msg.id}` });
+      }
+      if (msg.role === 'assistant' && msg.safetyFlagged && msg.id !== revealId) {
+        out.push({ kind: 'crisis', key: `crisis-${msg.id}` });
+      }
     }
-    return out;
-  }, [messages]);
+    return out.reverse();
+  }, [windowed, revealId]);
 
-  const scrollToEnd = (animated = true) => listRef.current?.scrollToEnd({ animated });
+  // Inverted list: offset 0 IS the bottom (the newest message).
+  const scrollToBottom = (animated = true) => listRef.current?.scrollToOffset({ offset: 0, animated });
 
   const isReportable = (m: Message) => m.role === 'assistant' && m.id !== 'greeting';
   const openReport = (messageId: string | null) => {
@@ -132,31 +174,41 @@ export default function ChatScreen() {
     setToast(true);
   };
 
+  const sendContent = async (content: string, opts?: { inputModality?: 'text' | 'voice'; audioUri?: string }) => {
+    setThinking(true);
+    sessionTurns.current += 1;
+    scrollToBottom();
+
+    const result = await sendTurn(cid, content, sessionTurns.current, opts);
+    setThinking(false);
+
+    if (result.limitReached) {
+      setLimit(result.limitReached);
+      setInput(content); // give the capped message back to the composer
+      return;
+    }
+    if (result.failed || result.blocked) return; // the thread renders the state inline
+    if (result.assistant) {
+      // The reveal is the payoff — a soft tick marks the reply landing.
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setRevealId(result.assistant.id);
+    }
+  };
+
   const send = async () => {
     const content = input.trim();
     if (!content || thinking) return;
     const draft = voiceDraft;
     setInput('');
     setVoiceDraft(null);
-    setThinking(true);
-    sessionTurns.current += 1;
+    await sendContent(content, { inputModality: draft ? 'voice' : 'text', audioUri: draft?.audioUri });
+  };
 
-    const result = await sendTurn(cid, content, sessionTurns.current, {
-      inputModality: draft ? 'voice' : 'text',
-      audioUri: draft?.audioUri,
-    });
-    setThinking(false);
-
-    if (result.limitReached) {
-      setLimit(result.limitReached);
-      setInput(content); // give the blocked message back to the composer
-      return;
-    }
-    if (result.assistant) {
-      // The reveal is the payoff — a soft tick marks the reply landing.
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setRevealId(result.assistant.id);
-    }
+  // Failed-send retry: take the failed bubble back and re-send its content.
+  const retry = (m: Message) => {
+    if (thinking) return;
+    removeMessage(cid, m.id);
+    void sendContent(m.content, { inputModality: m.inputModality, audioUri: m.audioUri });
   };
 
   const composerWrapStyle = useAnimatedStyle(() => ({
@@ -177,54 +229,88 @@ export default function ChatScreen() {
         <ChatHeader
           id={cid}
           name={name}
+          lookId={companion?.lookId}
           onBack={() => router.back()}
           onVoiceCall={() => router.push({ pathname: '/voice-call', params: { id: cid } })}
           onOverflow={() => setOverflowOpen(true)}
         />
       </View>
 
+      {/* First-session banner pinned under the header (not scrolled away with history). */}
+      {safetyState.showDisclosure ? (
+        <View style={styles.bannerWrap}>
+          <DisclosureBanner text={withName(CHAT.disclosureBanner)} />
+        </View>
+      ) : null}
+
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <FlatList
           ref={listRef}
           style={styles.flex}
+          // Inverted: the screen OPENS anchored to the newest message, and older
+          // pages load in at the visual top without any scroll jump.
+          inverted
           data={rows}
           keyExtractor={(r) => r.key}
           contentContainerStyle={styles.thread}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollToEnd()}
-          ListHeaderComponent={
-            safetyState.showDisclosure ? (
-              <DisclosureBanner text={withName(CHAT.disclosureBanner)} />
+          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          onEndReached={loadOlder}
+          onEndReachedThreshold={0.4}
+          // Inverted list: header = visual bottom, footer = visual top.
+          ListHeaderComponent={thinking ? <ThinkingIndicator /> : null}
+          ListFooterComponent={
+            loadingOlder ? (
+              <View style={styles.olderLoading}>
+                <ThinkingIndicator />
+              </View>
             ) : null
           }
           renderItem={({ item }) => {
             if (item.kind === 'divider') return <ThreadDivider label={item.label} />;
+            if (item.kind === 'notice') return <AiNotice text={withName(AI_NOTICE)} />;
+            if (item.kind === 'crisis') {
+              return (
+                <View style={styles.crisisWrap}>
+                  <CrisisSupport companion={name} />
+                </View>
+              );
+            }
+            if (item.kind === 'sendState') {
+              const failed = item.msg.status === 'failed';
+              return failed ? (
+                <PressableScale
+                  haptic="light"
+                  onPress={() => retry(item.msg)}
+                  accessibilityLabel={CHAT.sendFailed}
+                  style={styles.sendState}
+                >
+                  <Text style={[styles.sendStateText, { color: colors.error }]}>{CHAT.sendFailed}</Text>
+                </PressableScale>
+              ) : (
+                <View style={styles.sendState}>
+                  <Text style={[styles.sendStateText, { color: colors.textSecondary }]}>{SYSTEM.blocked}</Text>
+                </View>
+              );
+            }
             const m = item.msg;
             const revealing = m.id === revealId;
+            const held = m.status === 'failed' || m.status === 'blocked';
             return (
-              <>
+              <View style={held ? styles.heldBubble : null}>
                 <MessageBubble
                   role={m.role === 'user' ? 'user' : 'assistant'}
                   text={m.content}
                   audioUri={m.audioUri}
                   onLongPress={isReportable(m) ? () => openReport(m.id) : undefined}
                   reveal={revealing}
-                  onRevealProgress={() => scrollToEnd(false)}
+                  onRevealProgress={() => scrollToBottom(false)}
                   onRevealDone={() => setRevealId(null)}
                 />
-                {m.role === 'assistant' && m.aiDisclosure && !revealing ? (
-                  <AiNotice text={withName(AI_NOTICE)} />
-                ) : null}
-                {m.role === 'assistant' && m.safetyFlagged && !revealing ? (
-                  <View style={styles.crisisWrap}>
-                    <CrisisSupport companion={name} />
-                  </View>
-                ) : null}
-              </>
+              </View>
             );
           }}
-          ListFooterComponent={thinking ? <ThinkingIndicator /> : null}
         />
 
         {safetyState.breakReminder ? (
@@ -320,6 +406,12 @@ const styles = StyleSheet.create({
   // flexGrow: the content wrapper spans the full frame so the whole
   // header-to-composer area stays interactive even when under-filled.
   thread: { flexGrow: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
+  bannerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md },
+  olderLoading: { alignItems: 'center', paddingVertical: SPACE.sm },
+  // Failed/blocked sends stay visible but recede.
+  heldBubble: { opacity: 0.55 },
+  sendState: { alignSelf: 'flex-end', paddingVertical: SPACE.xs },
+  sendStateText: { ...TYPE.caption },
   crisisWrap: { marginVertical: SPACE.sm },
   banner: {
     flexDirection: 'row',

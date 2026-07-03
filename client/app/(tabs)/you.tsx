@@ -24,7 +24,7 @@ export default function YouScreen() {
   const [signOutOpen, setSignOutOpen] = useState(false);
 
   const isPremium = !!user?.isPremium;
-  const name = user?.name || 'Your account';
+  const name = [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'Your account';
   const handle = user?.email ? `@${user.email.split('@')[0]}` : '';
 
   const handleSignOut = () => {

@@ -52,7 +52,7 @@ export default function CreateCompanionScreen() {
       : { ...PERSONAS[editBase].traits },
   );
   const [name, setName] = useState(editing?.name ?? 'Aurora');
-  const [look, setLook] = useState(DEFAULT_LOOK_ID);
+  const [look, setLook] = useState(editing?.lookId ?? DEFAULT_LOOK_ID);
   const [lookOpen, setLookOpen] = useState(false);
 
   const selectBase = (p: PersonaName) => {
@@ -86,6 +86,7 @@ export default function CreateCompanionScreen() {
       updateCompanion(editing.id, {
         name: finalName,
         traits: [traits.warmth, traits.energy, traits.verbosity],
+        lookId: look,
       });
     } else {
       addCompanion({
@@ -94,6 +95,7 @@ export default function CreateCompanionScreen() {
         traits: [traits.warmth, traits.energy, traits.verbosity],
         colorFrom: LOGO_COLORS.wine,
         colorTo: LOGO_COLORS.honey,
+        lookId: look,
       });
     }
     router.back();

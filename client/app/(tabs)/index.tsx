@@ -31,7 +31,7 @@ export default function HomeScreen() {
   const { user, companions, primaryCompanionId, usage } = useApp();
   const active = companions.filter((c) => !c.archivedAt);
   const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
-  const firstName = friendlyFirstName(user?.name);
+  const firstName = friendlyFirstName(user?.firstName);
   const greeting = greetingFor(new Date().getHours());
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const isPremium = !!user?.isPremium;
@@ -74,6 +74,7 @@ export default function HomeScreen() {
             size={132}
             colorFrom={companion.colorFrom}
             colorTo={companion.colorTo}
+            lookId={companion.lookId}
           />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
           {/* Honesty cue is meaning-bearing — secondary, not fine-print tertiary (SC 1.4.3). */}

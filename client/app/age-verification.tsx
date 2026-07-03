@@ -110,11 +110,13 @@ export default function AgeVerificationScreen() {
   }, []);
 
   const handleContinue = () => {
+    // ISO date string — the backend shape (users.dateOfBirth), not a bare year.
+    const dobIso = `${year}-${String(month + 1).padStart(2, '0')}-${String(clampedDay).padStart(2, '0')}`;
     if (ok) {
-      updateUser({ birthYear: year, isMinor: false, ageVerified: true });
+      updateUser({ dateOfBirth: dobIso, isMinor: false, ageVerified: true });
       router.push('/ai-disclosure');
     } else {
-      updateUser({ birthYear: year, isMinor: true, ageVerified: false });
+      updateUser({ dateOfBirth: dobIso, isMinor: true, ageVerified: false });
       setShowUnder18(true);
     }
   };

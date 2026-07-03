@@ -108,6 +108,7 @@ export default function PaywallScreen() {
               size={104}
               colorFrom={companion.colorFrom}
               colorTo={companion.colorTo}
+              lookId={companion.lookId}
             />
           </Animated.View>
         ) : null}

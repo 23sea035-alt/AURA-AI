@@ -1,21 +1,17 @@
-// Companion avatar — the curated portrait for a known persona, or a warm initials fallback for
-// created companions. Pill radius, warm tonal (never a glowing orb).
+// Companion avatar — the curated portrait for a known persona (with its saved
+// "look" mood filter applied), or a warm initials fallback for created
+// companions. Pill radius, warm tonal (never a glowing orb).
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { View, Text, StyleSheet, type ImageSourcePropType } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
+import { avatarFor } from '@/components/companion/portraits';
 import { AVATAR_INITIAL_COLOR, FONTS } from '@/constants/design';
+import { DEFAULT_LOOK_ID } from '@/constants/looks';
 import { useTheme } from '@/hooks/useTheme';
 
-const AVATARS: Record<string, ImageSourcePropType> = {
-  aurora: require('../assets/avatars/aurora.png'),
-  orion: require('../assets/avatars/orion.png'),
-  lyra: require('../assets/avatars/lyra.png'),
-};
-
-export function avatarFor(id: string): ImageSourcePropType | undefined {
-  return AVATARS[id?.toLowerCase?.()];
-}
+export { avatarFor };
 
 // Fallback background (created companions, no portrait): a warm duotone from the companion's own
 // colorFrom→colorTo when given (so it reads branded, not a flat stock circle), else a single
@@ -28,6 +24,7 @@ export function Avatar({
   color,
   colorFrom,
   colorTo,
+  lookId,
 }: {
   id: string;
   name: string;
@@ -35,10 +32,15 @@ export function Avatar({
   color?: string;
   colorFrom?: string;
   colorTo?: string;
+  /** The companion's saved look (companions.appearance seam); default = untinted portrait. */
+  lookId?: string;
 }) {
   const { colors } = useTheme();
   const src = avatarFor(id);
   if (src) {
+    if (lookId && lookId !== DEFAULT_LOOK_ID) {
+      return <FilteredAvatar personaId={id} lookId={lookId} size={size} />;
+    }
     return <Image source={src} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
   }
 

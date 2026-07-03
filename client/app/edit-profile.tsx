@@ -25,8 +25,8 @@ export default function EditProfileScreen() {
   const { user, updateUser } = useApp();
   const a = ACCOUNT.editProfile;
 
-  const initialFirst = user?.name?.trim().split(' ')[0] ?? '';
-  const initialLast = user?.name?.trim().split(' ').slice(1).join(' ') ?? '';
+  const initialFirst = user?.firstName ?? '';
+  const initialLast = user?.lastName ?? '';
   const initialColor = user?.avatarColor ?? AVATAR_TONES[0];
   const [first, setFirst] = useState(initialFirst);
   const [last, setLast] = useState(initialLast);
@@ -37,7 +37,7 @@ export default function EditProfileScreen() {
 
   const firstEmpty = first.trim().length === 0;
   const dirty = first !== initialFirst || last !== initialLast || avatarColor !== initialColor;
-  const displayName = `${first} ${last}`.trim() || user?.name || 'You';
+  const displayName = `${first} ${last}`.trim() || user?.firstName || 'You';
 
   const handleSave = () => {
     if (firstEmpty) {
@@ -45,7 +45,7 @@ export default function EditProfileScreen() {
       return;
     }
     setSaving(true);
-    updateUser({ name: `${first.trim()} ${last.trim()}`.trim(), avatarColor });
+    updateUser({ firstName: first.trim(), lastName: last.trim(), avatarColor });
     setTimeout(() => {
       setSaving(false);
       setToast(true);

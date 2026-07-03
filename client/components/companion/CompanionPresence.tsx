@@ -25,6 +25,8 @@ interface CompanionPresenceProps {
   size?: number;
   colorFrom?: string;
   colorTo?: string;
+  /** The companion's saved look (companions.appearance seam). */
+  lookId?: string;
   /** Ambient breath on/off (default on). Utility contexts pass false. */
   breathing?: boolean;
 }
@@ -35,6 +37,7 @@ export function CompanionPresence({
   size = 132,
   colorFrom,
   colorTo,
+  lookId,
   breathing = true,
 }: CompanionPresenceProps) {
   const { mode, shadows } = useTheme();
@@ -63,7 +66,7 @@ export function CompanionPresence({
         <View style={[StyleSheet.absoluteFill, { borderRadius: washSize / 2, backgroundColor: tone.wash }]} />
       ) : null}
       <Animated.View style={[breathStyle, shadows.e2, styles.portrait, { borderRadius: size / 2 }]}>
-        <Avatar id={id} name={name} size={size} colorFrom={colorFrom} colorTo={colorTo} />
+        <Avatar id={id} name={name} size={size} colorFrom={colorFrom} colorTo={colorTo} lookId={lookId} />
       </Animated.View>
     </View>
   );

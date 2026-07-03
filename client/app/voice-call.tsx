@@ -195,6 +195,7 @@ export default function VoiceCallScreen() {
               size={PRESENCE_SIZE}
               colorFrom={companion?.colorFrom}
               colorTo={companion?.colorTo}
+              lookId={companion?.lookId}
             />
             <Animated.View entering={FadeIn.duration(DURATION.normal)} style={styles.limitBlock}>
               <Text style={[styles.limitTitle, { color: colors.textPrimary }]}>{CHAT.voiceLimit.title}</Text>
@@ -226,6 +227,7 @@ export default function VoiceCallScreen() {
                 size={PRESENCE_SIZE}
                 colorFrom={companion?.colorFrom}
                 colorTo={companion?.colorTo}
+                lookId={companion?.lookId}
               />
             </View>
 
