@@ -47,7 +47,7 @@ export default function YouScreen() {
 
         {/* Header card */}
         <View style={[styles.header, { backgroundColor: colors.raised }, shadows.e2]}>
-          <Avatar id="" name={name} size={56} />
+          <Avatar id="" name={name} size={56} color={user?.avatarColor} />
           <View style={styles.headerText}>
             <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
               {name}
@@ -88,6 +88,7 @@ export default function YouScreen() {
             onPress={() => router.push(isPremium ? '/subscription' : '/premium')}
           />
           <ListRow label="Notifications" onPress={() => router.push('/notifications')} />
+          <ListRow label="Voice" onPress={() => router.push('/voice-preferences')} />
         </ListGroup>
 
         <ListGroup label="Privacy & Safety">

@@ -57,7 +57,8 @@ export default function RegisterScreen() {
     try {
       const placeholderName = email.trim().split('@')[0];
       await register(placeholderName, email.trim(), password, new Date().getFullYear() - 18);
-      router.replace('/onboarding');
+      // Email sign-ups verify their address first (Clerk sends the code).
+      router.replace({ pathname: '/(auth)/verify-email', params: { email: email.trim() } });
     } catch {
       setError(a.errors.emailTaken);
     } finally {

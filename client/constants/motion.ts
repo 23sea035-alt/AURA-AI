@@ -49,8 +49,21 @@ export const EASING = {
 export const DISTANCE = { xs: 4, sm: 8, md: 16, lg: 24, xl: 48 } as const;
 
 // ── Scale factors ───────────────────────────────────────────────────────────
-// press=0.96 tactile press-in · pop=subtle emphasis · bump=success-confirm pop.
-export const SCALE = { subtle: 0.98, press: 0.96, pop: 1.04, bump: 1.2 } as const;
+// press=0.96 tactile press-in · pop=subtle emphasis · bump=success-confirm pop ·
+// breath=the companion presence's ambient inhale ceiling (pair with
+// DURATION.ambient; reduce-motion holds still).
+export const SCALE = { subtle: 0.98, press: 0.96, pop: 1.04, bump: 1.2, breath: 1.02 } as const;
+
+// ── Typing reveal · the signature reply moment ──────────────────────────────
+// The assistant's reply writes itself in word-by-word, like calm handwriting —
+// never a frenetic token stream. thinkMs = the held beat before the first word
+// (the companion "considering"); wordMs = cadence per word; sentencePauseMs =
+// extra breath after . ! ? …  Reduce-motion: snap the full text in at once.
+export const TYPING = {
+  thinkMs: 900,
+  wordMs: 65,
+  sentencePauseMs: 260,
+} as const;
 
 // ── Spring presets · withSpring configs ─────────────────────────────────────
 // snappy=default UI · gentle=cards/panels landing · bouncy=playful ·

@@ -15,12 +15,9 @@ import { Toast } from '@/components/Toast';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { ACCOUNT } from '@/constants/content';
-import { FONTS, SPACE } from '@/constants/design';
+import { AVATAR_INITIAL_COLOR, AVATAR_TONES, FONTS, SPACE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-
-// Curated, no-UGC monogram tones (never a photo picker).
-const MONO_TONES = ['#C77B57', '#A9683F', '#5E7B6A', '#7A6CA8', '#B58A4A', '#6E6E78'];
 
 export default function EditProfileScreen() {
   const { colors, mode } = useTheme();
@@ -30,7 +27,7 @@ export default function EditProfileScreen() {
 
   const initialFirst = user?.name?.trim().split(' ')[0] ?? '';
   const initialLast = user?.name?.trim().split(' ').slice(1).join(' ') ?? '';
-  const initialColor = user?.avatarColor ?? MONO_TONES[0];
+  const initialColor = user?.avatarColor ?? AVATAR_TONES[0];
   const [first, setFirst] = useState(initialFirst);
   const [last, setLast] = useState(initialLast);
   const [avatarColor, setAvatarColor] = useState(initialColor);
@@ -69,7 +66,7 @@ export default function EditProfileScreen() {
             <Avatar id="" name={displayName} size={88} color={avatarColor} />
             {/* Change color — curated monogram tones; selecting one dirties the form. */}
             <View style={styles.swatches}>
-              {MONO_TONES.map((tone) => {
+              {AVATAR_TONES.map((tone) => {
                 const sel = avatarColor === tone;
                 return (
                   <PressableScale
@@ -81,7 +78,7 @@ export default function EditProfileScreen() {
                     accessibilityState={{ selected: sel }}
                     style={[styles.swatch, { backgroundColor: tone, borderColor: sel ? colors.textPrimary : 'transparent' }]}
                   >
-                    {sel ? <Ionicons name="checkmark" size={14} color="#FFFCF6" /> : null}
+                    {sel ? <Ionicons name="checkmark" size={14} color={AVATAR_INITIAL_COLOR} /> : null}
                   </PressableScale>
                 );
               })}

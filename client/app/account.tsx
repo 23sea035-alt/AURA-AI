@@ -22,13 +22,25 @@ const DEMO_EMAIL = 'maya.chen@example.com';
 export default function AccountScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, logout } = useApp();
+  const { user, logout, softDelete, requestExport } = useApp();
   const a = ACCOUNT.accountMgmt;
   const email = user?.email || DEMO_EMAIL;
   const [exportToast, setExportToast] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  const handleDelete = () => {
+  const handleExport = () => {
+    // POST /api/account/export — fire-and-forget; the server emails the link.
+    void requestExport();
+    setExportToast(true);
+  };
+
+  const handleDelete = async () => {
+    // DELETE /api/account — soft-delete (30-day grace), then out to Welcome.
+    // Signing back in within the window offers reactivation (see login.tsx).
+    setDeleting(true);
+    await softDelete();
+    setDeleting(false);
     setConfirmDelete(false);
     logout();
     router.replace('/welcome');
@@ -45,7 +57,7 @@ export default function AccountScreen() {
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.export.line}</Text>
           <ListGroup>
-            <ListRow first label={a.export.cta} onPress={() => setExportToast(true)} />
+            <ListRow first label={a.export.cta} onPress={handleExport} />
           </ListGroup>
         </View>
 
@@ -75,7 +87,8 @@ export default function AccountScreen() {
         confirmLabel={a.delete.cta}
         cancelLabel={a.delete.cancel}
         destructive
-        onConfirm={handleDelete}
+        loading={deleting}
+        onConfirm={() => void handleDelete()}
       />
       <Toast
         visible={exportToast}

@@ -36,7 +36,9 @@ export function ChatComposer({ value, onChangeText, onSend, placeholder, onVoice
   const { colors } = useTheme();
   const canSend = value.trim().length > 0;
   const cap = CHAT.characterLimit;
-  const count = value.length;
+  // Count code points, not UTF-16 units — an emoji is one character, and the
+  // server (MAX_MESSAGE_CHARS) counts the same way.
+  const count = [...value].length;
   const showCounter = count >= cap * COUNTER_SHOW_AT;
   const nearCap = count >= cap * COUNTER_ACCENT_AT;
   const baseRef = useRef('');

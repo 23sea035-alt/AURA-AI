@@ -37,18 +37,21 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default function CreateCompanionScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, addCompanion } = useApp();
-  const params = useLocalSearchParams<{ mode?: string }>();
+  const { user, companions, addCompanion, updateCompanion } = useApp();
+  const params = useLocalSearchParams<{ mode?: string; id?: string }>();
   const isEdit = params.mode === 'edit';
+  const editing = isEdit ? companions.find((c) => c.id === params.id) : undefined;
   const locked = !user?.isPremium;
 
-  const [base, setBase] = useState<PersonaName>('Aurora');
-  const [traits, setTraits] = useState<{ warmth: string; energy: string; verbosity: string }>({
-    warmth: PERSONAS.Aurora.traits.warmth,
-    energy: PERSONAS.Aurora.traits.energy,
-    verbosity: PERSONAS.Aurora.traits.verbosity,
-  });
-  const [name, setName] = useState('Aurora');
+  // Editing opens on the companion's current identity; creating starts from Aurora.
+  const editBase = (ORDER.find((p) => p.toLowerCase() === editing?.id) ?? 'Aurora') as PersonaName;
+  const [base, setBase] = useState<PersonaName>(editBase);
+  const [traits, setTraits] = useState<{ warmth: string; energy: string; verbosity: string }>(() =>
+    editing && editing.traits.length === 3
+      ? { warmth: editing.traits[0], energy: editing.traits[1], verbosity: editing.traits[2] }
+      : { ...PERSONAS[editBase].traits },
+  );
+  const [name, setName] = useState(editing?.name ?? 'Aurora');
   const [look, setLook] = useState(DEFAULT_LOOK_ID);
   const [lookOpen, setLookOpen] = useState(false);
 
@@ -61,18 +64,38 @@ export default function CreateCompanionScreen() {
 
   const voicePreview = `${cap(traits.warmth)} · ${traits.energy} · ${traits.verbosity}. ${PERSONAS[base].voice}`;
 
+  // A second "Aurora" auto-numbers to "Aurora 2" (then 3, 4 …) so names stay
+  // distinct without blocking the save.
+  const autoNumber = (requested: string): string => {
+    const taken = new Set(
+      companions.filter((c) => c.id !== editing?.id).map((c) => c.name.toLowerCase()),
+    );
+    if (!taken.has(requested.toLowerCase())) return requested;
+    let n = 2;
+    while (taken.has(`${requested.toLowerCase()} ${n}`)) n += 1;
+    return `${requested} ${n}`;
+  };
+
   const handleSave = () => {
     if (locked) {
       router.push('/premium');
       return;
     }
-    addCompanion({
-      name: name.trim() || base,
-      persona: PERSONAS[base].voice,
-      traits: [traits.warmth, traits.energy, traits.verbosity],
-      colorFrom: LOGO_COLORS.wine,
-      colorTo: LOGO_COLORS.honey,
-    });
+    const finalName = autoNumber(name.trim() || base);
+    if (editing) {
+      updateCompanion(editing.id, {
+        name: finalName,
+        traits: [traits.warmth, traits.energy, traits.verbosity],
+      });
+    } else {
+      addCompanion({
+        name: finalName,
+        persona: PERSONAS[base].voice,
+        traits: [traits.warmth, traits.energy, traits.verbosity],
+        colorFrom: LOGO_COLORS.wine,
+        colorTo: LOGO_COLORS.honey,
+      });
+    }
     router.back();
   };
 

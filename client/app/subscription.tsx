@@ -3,26 +3,35 @@
 // premium users see renewal + App Store management.
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { ListGroup, ListRow } from '@/components/ListGroup';
+import { Toast } from '@/components/Toast';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { SYSTEM } from '@/constants/content';
+import { DEMO } from '@/constants/demo';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
-const RENEW_DATE = 'Jul 14, 2026'; // demo; the real app reads this from the store
+const RENEW_DATE = DEMO.renewDate; // demo; the real app reads this from the store
 
 export default function SubscriptionScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user } = useApp();
+  const { user, restorePurchases } = useApp();
   const isPremium = !!user?.isPremium;
+  const [toast, setToast] = useState<string | null>(null);
+
+  const handleRestore = async () => {
+    // RevenueCat drop-in point: Purchases.restorePurchases().
+    const restored = await restorePurchases();
+    setToast(restored ? SYSTEM.restoreResult.found : SYSTEM.restoreResult.none);
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -48,7 +57,7 @@ export default function SubscriptionScreen() {
                 label="Manage in App Store"
                 onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {})}
               />
-              <ListRow label={SYSTEM.restorePurchases} onPress={() => {}} />
+              <ListRow label={SYSTEM.restorePurchases} onPress={() => void handleRestore()} />
             </ListGroup>
             <Text style={[styles.helper, { color: colors.textTertiary }]}>
               Billing is managed by the App Store; changes happen there.
@@ -63,12 +72,14 @@ export default function SubscriptionScreen() {
               Upgrade for unlimited messages, your own custom companions, and more.
             </Text>
             <Button label="Upgrade to Premium" variant="tinted" onPress={() => router.push('/premium')} />
-            <PressableScale haptic="light" onPress={() => {}} style={styles.linkBtn}>
+            <PressableScale haptic="light" onPress={() => void handleRestore()} style={styles.linkBtn}>
               <Text style={[styles.link, { color: colors.textSecondary }]}>{SYSTEM.restorePurchases}</Text>
             </PressableScale>
           </>
         )}
       </ScrollView>
+
+      <Toast visible={toast !== null} message={toast ?? ''} onHide={() => setToast(null)} />
     </View>
   );
 }

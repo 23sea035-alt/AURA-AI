@@ -8,36 +8,65 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
+import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { Skeleton } from '@/components/Skeleton';
+import { Toast } from '@/components/Toast';
 import { PressableScale, enterUp } from '@/components/motion';
 import { PAYWALL, SYSTEM, withAppName } from '@/constants/content';
+import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { fetchStorePrice } from '@/lib/mock';
 
-const RENEW_DATE = 'Jul 14, 2026'; // demo; the real app reads this from the store
+const RENEW_DATE = DEMO.renewDate; // demo; the real app reads this from the store
 
 export default function PaywallScreen() {
   const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, companions, primaryCompanionId, updateUser } = useApp();
+  const { user, companions, primaryCompanionId, purchasePremium, restorePurchases } = useApp();
   const owned = !!user?.isPremium;
 
   const active = companions.filter((c) => !c.archivedAt);
   const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
   const name = companion?.name ?? '';
 
-  // UI shell: real purchase is RevenueCat-wired later; here it simulates the upgrade.
-  const handleSubscribe = () => {
-    updateUser({ isPremium: true });
+  // Store-price seam: RevenueCat resolves the localized price; the mock returns
+  // null so the placeholder slot renders (the price is NEVER hardcoded).
+  const [price, setPrice] = useState<string | null | undefined>(undefined); // undefined = loading
+  const [busy, setBusy] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetchStorePrice().then((p) => {
+      if (live) setPrice(p);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const handleSubscribe = async () => {
+    // RevenueCat drop-in point: Purchases.purchasePackage(offering.monthly).
+    setBusy(true);
+    await purchasePremium();
+    setBusy(false);
     router.back();
+  };
+
+  const handleRestore = async () => {
+    // RevenueCat drop-in point: Purchases.restorePurchases().
+    setBusy(true);
+    const restored = await restorePurchases();
+    setBusy(false);
+    setToast(restored ? SYSTEM.restoreResult.found : SYSTEM.restoreResult.none);
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));
@@ -73,9 +102,13 @@ export default function PaywallScreen() {
         {/* Companion-led hero — the primary companion presents; premium = more time with them. */}
         {companion ? (
           <Animated.View entering={enterUp(0)} style={styles.hero}>
-            <View style={[styles.avatarWrap, shadows.e2]}>
-              <Avatar id={companion.id} name={name} size={104} colorFrom={companion.colorFrom} colorTo={companion.colorTo} />
-            </View>
+            <CompanionPresence
+              id={companion.id}
+              name={name}
+              size={104}
+              colorFrom={companion.colorFrom}
+              colorTo={companion.colorTo}
+            />
           </Animated.View>
         ) : null}
 
@@ -110,10 +143,17 @@ export default function PaywallScreen() {
             <Text style={[styles.renews, { color: colors.textSecondary }]}>
               {PAYWALL.renewsTemplate.replace('{renewDate}', RENEW_DATE)}
             </Text>
+          ) : price === undefined ? (
+            // Store price resolving — never a hardcoded figure.
+            <Skeleton width={130} height={30} />
           ) : (
             <>
-              <Skeleton width={130} height={30} />
-              <Text style={[styles.priceNote, { color: colors.textTertiary }]}>{SYSTEM.storePriceNote}</Text>
+              <Text style={[styles.price, { color: colors.textPrimary }]}>
+                {SYSTEM.storePriceSlot.replace('{storePrice}', price ?? '—')}
+              </Text>
+              {price === null ? (
+                <Text style={[styles.priceNote, { color: colors.textTertiary }]}>{SYSTEM.storePriceNote}</Text>
+              ) : null}
             </>
           )}
         </View>
@@ -121,15 +161,16 @@ export default function PaywallScreen() {
         <View style={styles.action}>
           <Button
             label={owned ? PAYWALL.currentPlanCta : PAYWALL.subscribeCta}
-            onPress={handleSubscribe}
+            onPress={() => void handleSubscribe()}
             disabled={owned}
+            loading={busy}
           />
           {owned ? (
             <PressableScale haptic="light" onPress={() => router.push('/subscription')} style={styles.linkBtn}>
               <Text style={[styles.link, { color: colors.accent }]}>{PAYWALL.manageSubscription}</Text>
             </PressableScale>
           ) : (
-            <PressableScale haptic="light" onPress={() => {}} style={styles.linkBtn}>
+            <PressableScale haptic="light" onPress={() => void handleRestore()} style={styles.linkBtn}>
               <Text style={[styles.link, { color: colors.textSecondary }]}>{SYSTEM.restorePurchases}</Text>
             </PressableScale>
           )}
@@ -145,6 +186,8 @@ export default function PaywallScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <Toast visible={toast !== null} message={toast ?? ''} onHide={() => setToast(null)} />
     </View>
   );
 }
@@ -167,7 +210,6 @@ const styles = StyleSheet.create({
   },
   content: { flexGrow: 1, gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.xxl },
   hero: { alignItems: 'center', marginBottom: SPACE.xs },
-  avatarWrap: { width: 104, height: 104, borderRadius: 52 },
   headline: { ...TYPE.headline, textAlign: 'center' },
   subline: { ...TYPE.body, textAlign: 'center', marginBottom: SPACE.sm },
   valueCard: { borderRadius: RADIUS.card, paddingHorizontal: SPACE.lg, marginTop: SPACE.sm },
@@ -176,6 +218,7 @@ const styles = StyleSheet.create({
   freeBaseline: { ...TYPE.caption, textAlign: 'center' },
   priceBlock: { gap: SPACE.xs, marginVertical: SPACE.sm, alignItems: 'center' },
   renews: { fontFamily: FONTS.body.regular, fontSize: 15 },
+  price: { ...TYPE.title },
   priceNote: { ...TYPE.caption },
   action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
   linkBtn: { alignItems: 'center', paddingVertical: SPACE.sm },

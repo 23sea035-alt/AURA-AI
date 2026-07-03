@@ -9,23 +9,41 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
+import ConfirmSheet from '@/components/ConfirmSheet';
 import { Field } from '@/components/Field';
 import { SsoButtons } from '@/components/SsoButtons';
 import { PressableScale, enterUp } from '@/components/motion';
-import { ONBOARDING, withAppName } from '@/constants/content';
+import { ACCOUNT, ONBOARDING, withAppName } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { fetchAccountStatus } from '@/lib/mock';
+
+const GRACE_DAYS = 30;
 
 export default function LoginScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { login } = useApp();
+  const { login, logout, reactivate } = useApp();
   const a = ONBOARDING.auth;
+  const r = ACCOUNT.accountMgmt.reactivate;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Set when the signed-in account is soft-deleted: the reactivate offer.
+  const [purgeDate, setPurgeDate] = useState<string | null>(null);
+
+  // Soft-deleted accounts get the reactivate offer instead of going straight in.
+  const proceed = async () => {
+    const status = await fetchAccountStatus();
+    if (status.status === 'deactivated' && status.deletedAt) {
+      const purge = new Date(new Date(status.deletedAt).getTime() + GRACE_DAYS * 86400000);
+      setPurgeDate(purge.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }));
+      return;
+    }
+    router.replace('/(tabs)');
+  };
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -36,7 +54,7 @@ export default function LoginScreen() {
     setSubmitting(true);
     try {
       await login(email.trim(), password);
-      router.replace('/(tabs)');
+      await proceed();
     } catch {
       setError(a.errors.badCredentials);
     } finally {
@@ -45,7 +63,19 @@ export default function LoginScreen() {
   };
 
   // UI shell; real OAuth is Clerk-wired later.
-  const handleSso = () => router.replace('/(tabs)');
+  const handleSso = () => void proceed();
+
+  const handleReactivate = async () => {
+    // PATCH /api/account/reactivate — clears the tombstone, back to active.
+    await reactivate();
+    setPurgeDate(null);
+    router.replace('/(tabs)');
+  };
+
+  const declineReactivate = () => {
+    setPurgeDate(null);
+    logout();
+  };
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -113,6 +143,17 @@ export default function LoginScreen() {
             </PressableScale>
           </Animated.View>
         </ScrollView>
+
+        {/* Reactivate offer for a soft-deleted account — warm, never alarmed. */}
+        <ConfirmSheet
+          visible={purgeDate !== null}
+          onClose={declineReactivate}
+          title={r.title}
+          message={r.body.replace('{date}', purgeDate ?? '')}
+          confirmLabel={r.cta}
+          cancelLabel={r.dismiss}
+          onConfirm={() => void handleReactivate()}
+        />
       </View>
     </KeyboardAvoidingView>
   );

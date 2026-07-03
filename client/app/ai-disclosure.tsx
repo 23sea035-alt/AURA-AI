@@ -34,7 +34,8 @@ export default function AIDisclosureScreen() {
 
   const handleContinue = () => {
     updateUser({ aiDisclosureAccepted: true });
-    router.push('/profile');
+    // Next: the unbundled third-party-AI consent (Apple 5.1.2(i)) — its own moment.
+    router.push('/ai-consent');
   };
 
   return (

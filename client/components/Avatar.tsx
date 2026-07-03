@@ -4,7 +4,7 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
 import { View, Text, StyleSheet, type ImageSourcePropType } from 'react-native';
-import { FONTS } from '@/constants/design';
+import { AVATAR_INITIAL_COLOR, FONTS } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
 const AVATARS: Record<string, ImageSourcePropType> = {
@@ -46,7 +46,12 @@ export function Avatar({
   const round = { width: size, height: size, borderRadius: size / 2 };
   // a light cream initial reads on every warm monogram tone / duotone
   const initial = (
-    <Text style={[styles.initial, { color: color || duotone ? '#FFFCF6' : colors.avatarText, fontSize: size * 0.4 }]}>
+    <Text
+      style={[
+        styles.initial,
+        { color: color || duotone ? AVATAR_INITIAL_COLOR : colors.avatarText, fontSize: size * 0.4 },
+      ]}
+    >
       {name?.[0]?.toUpperCase() ?? '?'}
     </Text>
   );

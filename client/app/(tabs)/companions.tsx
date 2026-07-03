@@ -28,11 +28,15 @@ import { useTheme } from '@/hooks/useTheme';
 
 const BASE_IDS = ['aurora', 'orion', 'lyra']; // the 3 base personas — always free-accessible
 
-function voiceFor(name: string): string {
-  return (PERSONAS as Record<string, { voice: string }>)[name]?.voice ?? '';
+// Canonical personas carry their picker voice line; custom companions restate
+// their trait tuning ("warm · playful · expansive") so every card has a voice.
+function voiceFor(c: Companion): string {
+  const canon = (PERSONAS as Record<string, { voice: string }>)[c.name]?.voice;
+  return canon ?? c.traits.join(' · ');
 }
 
-const editCompanion = () => router.push({ pathname: '/companion/create', params: { mode: 'edit' } });
+const editCompanion = (id: string) =>
+  router.push({ pathname: '/companion/create', params: { mode: 'edit', id } });
 
 export default function CompanionsScreen() {
   const { colors, shadows, mode } = useTheme();
@@ -192,7 +196,7 @@ export default function CompanionsScreen() {
                       ) : null}
                     </View>
                     <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
-                      {voiceFor(c.name)}
+                      {voiceFor(c)}
                     </Text>
                     <Text style={[styles.preview, { color: colors.textTertiary }]} numberOfLines={1}>
                       {locked ? COMPANIONS.lockedCompanion : c.lastMessage ?? ''}
@@ -219,7 +223,7 @@ export default function CompanionsScreen() {
                     {c.name}
                   </Text>
                   <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {voiceFor(c.name)}
+                    {voiceFor(c)}
                   </Text>
                 </View>
                 <PressableScale
@@ -254,7 +258,7 @@ export default function CompanionsScreen() {
               label={COMPANIONS.actionSheet.edit}
               onPress={() => {
                 setSheetFor(null);
-                editCompanion();
+                editCompanion(sheetCompanion.id);
               }}
             />
             <SheetRow
@@ -295,10 +299,11 @@ function ActionPanel({
   label: string;
   onPress: () => void;
 }) {
+  const { colors } = useTheme();
   return (
     <Pressable onPress={onPress} style={[styles.actionPanel, { backgroundColor: color }]}>
-      <Ionicons name={icon} size={20} color="#fff" />
-      <Text style={styles.actionLabel}>{label}</Text>
+      <Ionicons name={icon} size={20} color={colors.onAccent} />
+      <Text style={[styles.actionLabel, { color: colors.onAccent }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -411,7 +416,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 4,
   },
-  actionLabel: { fontFamily: FONTS.body.semibold, fontSize: 12, color: '#fff' },
+  actionLabel: { fontFamily: FONTS.body.semibold, fontSize: 12 },
   archivedCard: {
     flexDirection: 'row',
     alignItems: 'center',

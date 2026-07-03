@@ -36,6 +36,7 @@ function RootLayoutNav() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="age-verification" />
       <Stack.Screen name="ai-disclosure" />
+      <Stack.Screen name="ai-consent" />
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen

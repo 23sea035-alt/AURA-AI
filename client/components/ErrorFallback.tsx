@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { FONTS } from "@/constants/design";
 import { useTheme } from "@/hooks/useTheme";
 
 export type ErrorFallbackProps = {
@@ -84,7 +85,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
         </Text>
 
         <Text style={[styles.message, { color: colors.mutedForeground }]}>
-          Please reload the app to continue.
+          Reload the app to keep going. Your conversations are safe.
         </Text>
 
         <Pressable
@@ -104,7 +105,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
               { color: colors.primaryForeground },
             ]}
           >
-            Try Again
+            Try again
           </Text>
         </Pressable>
       </View>
@@ -198,12 +199,13 @@ const styles = StyleSheet.create({
     maxWidth: 600,
   },
   title: {
+    fontFamily: FONTS.display.semibold,
     fontSize: 28,
-    fontWeight: "700",
     textAlign: "center",
-    lineHeight: 40,
+    lineHeight: 36,
   },
   message: {
+    fontFamily: FONTS.body.regular,
     fontSize: 16,
     textAlign: "center",
     lineHeight: 24,
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   buttonText: {
-    fontWeight: "600",
+    fontFamily: FONTS.body.semibold,
     textAlign: "center",
     fontSize: 16,
   },

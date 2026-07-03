@@ -1,9 +1,12 @@
-// Memory — the per-companion remembered facts, grouped by category. Each fact is editable/deletable
-// (••• -> action sheet; Delete confirms first). Pushed from Companions or the Chat overflow.
+// Memory — what the companion remembers about you, grouped by category. Every
+// fact is the user's to control: edit in place, or remove with a graceful
+// confirm. Backed by the memory API seam (GET /companions/:id/memories,
+// PATCH /memories/:id, DELETE /memories/:id) through AppContext; the list
+// carries real loading (skeleton) and zero states.
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,40 +15,46 @@ import BottomSheet from '@/components/BottomSheet';
 import ConfirmSheet from '@/components/ConfirmSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { ListGroup } from '@/components/ListGroup';
+import { Skeleton } from '@/components/Skeleton';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale, enterUp } from '@/components/motion';
-import { MEMORY, PERSONAS } from '@/constants/content';
-import { DEMO } from '@/constants/demo';
+import { MEMORY } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { type MemoryRow, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-
-type Mem = { id: string; category: string; fact: string };
 
 export default function MemoryScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ companion?: string }>();
-  const companion =
-    typeof params.companion === 'string' && params.companion in PERSONAS
-      ? params.companion
-      : DEMO.primaryCompanion;
+  const { companions, primaryCompanionId, memories, loadMemories, editMemory, removeMemory } = useApp();
 
-  const [memories, setMemories] = useState<Mem[]>(
-    DEMO.memories.map((m, i) => ({ id: String(i), category: m.category, fact: m.fact })),
-  );
-  const [actionFor, setActionFor] = useState<Mem | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState<Mem | null>(null);
+  // Pushed with a companion id from Chat/Companions; falls back to the Home companion.
+  const companion =
+    companions.find((c) => c.id === params.companion) ??
+    companions.find((c) => c.id === primaryCompanionId) ??
+    companions[0];
+  const cid = companion?.id ?? '';
+  const name = companion?.name ?? 'Your companion';
+
+  const rows = memories[cid]; // undefined = loading
+  const [actionFor, setActionFor] = useState<MemoryRow | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<MemoryRow | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
 
-  const startEdit = (m: Mem) => {
+  useEffect(() => {
+    if (cid) void loadMemories(cid);
+  }, [cid, loadMemories]);
+
+  const startEdit = (m: MemoryRow) => {
     setActionFor(null);
     setEditingId(m.id);
     setEditText(m.fact);
   };
   const saveEdit = () => {
     const text = editText.trim();
-    if (editingId && text) setMemories((ms) => ms.map((x) => (x.id === editingId ? { ...x, fact: text } : x)));
+    if (editingId && text) void editMemory(cid, editingId, text);
     setEditingId(null);
     setEditText('');
   };
@@ -55,7 +64,7 @@ export default function MemoryScreen() {
   };
 
   const grouped = MEMORY.categories
-    .map((cat) => ({ cat, items: memories.filter((m) => m.category === cat) }))
+    .map((cat) => ({ cat, items: (rows ?? []).filter((m) => m.category === cat) }))
     .filter((g) => g.items.length > 0);
 
   return (
@@ -67,14 +76,21 @@ export default function MemoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.Text entering={enterUp(0)} style={[styles.title, { color: colors.textPrimary }]}>
-          {MEMORY.title.replace('{Companion}', companion)}
+          {MEMORY.title.replace('{Companion}', name)}
         </Animated.Text>
         <Animated.Text entering={enterUp(1)} style={[styles.subline, { color: colors.textSecondary }]}>
           {MEMORY.subline}
         </Animated.Text>
 
-        {memories.length === 0 ? (
-          <EmptyState emoji="🪷" title={MEMORY.emptyTitle} body={MEMORY.empty.replace('{Companion}', companion)} />
+        {rows === undefined ? (
+          // Loading — three ghost rows in a ghost group, matching the loaded rhythm.
+          <View style={styles.skeletons}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} height={52} radius={RADIUS.soft} />
+            ))}
+          </View>
+        ) : rows.length === 0 ? (
+          <EmptyState emoji="🪷" title={MEMORY.emptyTitle} body={MEMORY.empty.replace('{Companion}', name)} />
         ) : (
           grouped.map((g, gi) => (
             <Animated.View key={g.cat} entering={enterUp(gi + 2)}>
@@ -96,19 +112,40 @@ export default function MemoryScreen() {
                             onChangeText={setEditText}
                             autoFocus
                             multiline
-                            style={[styles.factInput, { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg }]}
+                            style={[
+                              styles.factInput,
+                              { color: colors.textPrimary, borderColor: colors.border, backgroundColor: colors.bg },
+                            ]}
                           />
-                          <PressableScale haptic="light" hitSlop={8} onPress={saveEdit} style={styles.more}>
+                          <PressableScale
+                            haptic="light"
+                            hitSlop={8}
+                            onPress={saveEdit}
+                            style={styles.more}
+                            accessibilityLabel="Save memory"
+                          >
                             <Ionicons name="checkmark" size={20} color={colors.accent} />
                           </PressableScale>
-                          <PressableScale haptic="light" hitSlop={8} onPress={cancelEdit} style={styles.more}>
+                          <PressableScale
+                            haptic="light"
+                            hitSlop={8}
+                            onPress={cancelEdit}
+                            style={styles.more}
+                            accessibilityLabel="Cancel editing"
+                          >
                             <Ionicons name="close" size={20} color={colors.textTertiary} />
                           </PressableScale>
                         </>
                       ) : (
                         <>
                           <Text style={[styles.fact, { color: colors.textPrimary }]}>{m.fact}</Text>
-                          <PressableScale haptic="light" hitSlop={8} onPress={() => setActionFor(m)} style={styles.more}>
+                          <PressableScale
+                            haptic="light"
+                            hitSlop={8}
+                            onPress={() => setActionFor(m)}
+                            style={styles.more}
+                            accessibilityLabel={`Edit or remove: ${m.fact}`}
+                          >
                             <Ionicons name="ellipsis-horizontal" size={18} color={colors.textTertiary} />
                           </PressableScale>
                         </>
@@ -145,12 +182,12 @@ export default function MemoryScreen() {
         visible={!!confirmDelete}
         onClose={() => setConfirmDelete(null)}
         title={MEMORY.deleteConfirm.title}
-        message={MEMORY.deleteConfirm.body.replace('{Companion}', companion)}
+        message={MEMORY.deleteConfirm.body.replace('{Companion}', name)}
         confirmLabel={MEMORY.deleteConfirm.confirmLabel}
         cancelLabel={MEMORY.deleteConfirm.cancelLabel}
         destructive
         onConfirm={() => {
-          setMemories((ms) => ms.filter((x) => x.id !== confirmDelete?.id));
+          if (confirmDelete) void removeMemory(cid, confirmDelete.id);
           setConfirmDelete(null);
         }}
       />
@@ -163,7 +200,14 @@ const styles = StyleSheet.create({
   content: { gap: SPACE.md, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   title: { ...TYPE.headline },
   subline: { ...TYPE.body, marginBottom: SPACE.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingHorizontal: SPACE.lg, paddingVertical: SPACE.md },
+  skeletons: { gap: SPACE.sm, marginTop: SPACE.sm },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.md,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: SPACE.md,
+  },
   fact: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
   factInput: {
     flex: 1,

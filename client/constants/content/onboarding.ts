@@ -111,14 +111,35 @@ export const ONBOARDING = {
         body: 'Aura shares real resources like 988, and you can always reach them.',
       },
       {
+        // Honest framing per Apple 5.1.2(i): "private" means never sold and never
+        // visible to other users, NOT "never leaves the app" (AI providers process
+        // messages so Aura works; the dedicated consent screen covers that).
         head: 'Your conversations are private',
-        body: "They're yours to export or delete anytime.",
+        body: "Never sold, never visible to other users, and yours to export or delete anytime.",
       },
     ],
     // AI-understanding acknowledgment (NOT a ToS re-agreement; legal terms are
     // accepted at signup). The deliberate transparency affirmation.
     consent: 'I understand my companion is an AI, not a real person or a substitute for professional care.',
     cta: 'Continue',
+  },
+
+  // Apple 5.1.2(i) third-party-AI consent — its own screen, deliberately UNBUNDLED
+  // from the AI-nature acknowledgment above and from the Terms accept at signup.
+  // Spec: docs/compliance/apple-third-party-ai-consent.md. `[LEGAL-REVIEW]` pending.
+  aiConsent: {
+    title: 'How your messages work',
+    body:
+      'To reply and to keep you safe, your messages are processed by trusted AI providers. We never sell your conversations, and other users can never see them.',
+    rows: [
+      { head: 'Replies', body: 'An AI service generates what your companion says.' },
+      { head: 'Safety', body: 'An AI service checks conversations for harmful content.' },
+      { head: 'Voice', body: 'If you use voice, audio is transcribed and spoken by AI services.' },
+    ],
+    consent:
+      'I agree that my messages can be processed by third-party AI providers to operate {AppName}, as described in the Privacy Policy.', // wrap with withAppName()
+    privacyLink: 'See who processes your messages',
+    cta: 'Agree and continue',
   },
 
   profile: {

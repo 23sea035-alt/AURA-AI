@@ -49,6 +49,14 @@ export const ACCOUNT = {
       explainer:
         'Your account is deactivated now and permanently deleted after 30 days. Sign back in within 30 days to cancel.',
       cancel: 'Cancel',
+      confirmToast: 'Your account is deactivated. Sign back in within 30 days to restore it.',
+    },
+    // Soft-deleted account signing back in within the grace window.
+    reactivate: {
+      title: 'Welcome back',
+      body: 'Your account is deactivated and will be permanently deleted on {date}. Reactivate it to pick up right where you left off.',
+      cta: 'Reactivate account',
+      dismiss: 'Not now',
     },
   },
 

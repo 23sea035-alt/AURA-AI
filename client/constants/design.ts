@@ -21,8 +21,8 @@ import type { ViewStyle } from 'react-native';
 export type ThemeMode = 'light' | 'dark';
 
 // ── Type families ──────────────────────────────────────────────────────────
-// TODO(fonts): add @expo-google-fonts/newsreader + @expo-google-fonts/hanken-grotesk
-// and load these weights in app/_layout.tsx before first paint.
+// Loaded in app/_layout.tsx (@expo-google-fonts/newsreader + hanken-grotesk)
+// before first paint.
 export const FONTS = {
   display: {
     regular: 'Newsreader_400Regular',
@@ -113,6 +113,55 @@ export const COLORS: Record<ThemeMode, ThemeColors> = {
     crisis: '#6FA08C', crisisBg: '#233A33', crisisText: '#CDE5DB', crisisText2: '#9FC3B5',
   },
 };
+
+// ── Persona whisper-tones (both themes) ─────────────────────────────────────
+// Each companion carries a barely-there wash of its "theme feel" (personas.md:
+// Aurora dawn/amber-rose · Orion dusk/deep-clay · Lyra sunlit/honey). `wash` is a
+// near-bg surface tint used behind the companion presence and on persona cards —
+// atmosphere, not decoration. `deep` is the matching strong tone for large
+// decorative marks/rings only (never body text — contrast is not AA-checked for
+// small sizes). Custom companions have no tone: fall back to the neutral avatar
+// tokens.
+export type PersonaKey = 'aurora' | 'orion' | 'lyra';
+
+export interface PersonaTone {
+  wash: string;
+  deep: string;
+}
+
+export const PERSONA_TONES: Record<ThemeMode, Record<PersonaKey, PersonaTone>> = {
+  light: {
+    aurora: { wash: '#F6E8E0', deep: '#9A5B4C' },
+    orion: { wash: '#EFE4D8', deep: '#77563E' },
+    lyra: { wash: '#F6ECD6', deep: '#8F6D2E' },
+  },
+  dark: {
+    aurora: { wash: '#251C18', deep: '#DBA48F' },
+    orion: { wash: '#231C15', deep: '#C89B72' },
+    lyra: { wash: '#262013', deep: '#D6B168' },
+  },
+};
+
+/** Whisper-tone for a companion id, or null for custom companions (use neutral avatar tokens). */
+export function personaToneFor(mode: ThemeMode, id: string): PersonaTone | null {
+  const key = id?.toLowerCase?.() as PersonaKey;
+  return key === 'aurora' || key === 'orion' || key === 'lyra' ? PERSONA_TONES[mode][key] : null;
+}
+
+// ── User monogram tones (theme-independent, curated) ────────────────────────
+// The avatar-color picker's palette (edit-profile). Warm, muted, all read with a
+// cream initial. Backed by users.avatarColor once the API lands.
+export const AVATAR_TONES = [
+  '#C77B57', // terracotta
+  '#A9683F', // clay
+  '#5E7B6A', // moss
+  '#7A6CA8', // heather
+  '#B58A4A', // honey
+  '#6E6E78', // slate
+] as const;
+
+/** Cream initial used on every monogram/duotone avatar tone. */
+export const AVATAR_INITIAL_COLOR = '#FFFCF6';
 
 // ── Brand mark · app icon (fixed, theme-independent) ────────────────────────
 // The abstract app-icon mark is two organic shapes on a cream ground. `wine` and

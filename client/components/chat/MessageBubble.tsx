@@ -1,10 +1,13 @@
 // A single chat bubble. Companion (left): warm-paper sheet + soft shadow, softened asymmetric
-// radius. User (right): wine-tinted bubble. Hanken inside, capped ~82% width for a comfy measure.
-// A dictated/voice message also shows a VoiceNote (play + scrubber) above its transcript.
+// radius. User (right): wine-tinted bubble. Hanken at the approved chat measure (TYPE.body),
+// capped ~82% width. A dictated/voice message also shows a VoiceNote (play + scrubber) above its
+// transcript. `reveal` hands the text to RevealingText — the newest assistant turn writes itself in.
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+
+import { RevealingText } from '@/components/chat/RevealingText';
 import { VoiceNote } from '@/components/chat/VoiceNote';
-import { FONTS, SPACE } from '@/constants/design';
+import { RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
 
 interface MessageBubbleProps {
@@ -13,17 +16,30 @@ interface MessageBubbleProps {
   audioUri?: string;
   /** When set, long-pressing the bubble fires this (used to open the report sheet on AI messages). */
   onLongPress?: () => void;
+  /** Word-by-word typing reveal (the newest assistant reply only). */
+  reveal?: boolean;
+  onRevealProgress?: () => void;
+  onRevealDone?: () => void;
 }
 
-export function MessageBubble({ role, text, audioUri, onLongPress }: MessageBubbleProps) {
+export function MessageBubble({
+  role,
+  text,
+  audioUri,
+  onLongPress,
+  reveal,
+  onRevealProgress,
+  onRevealDone,
+}: MessageBubbleProps) {
   const { colors, shadows } = useTheme();
   const isUser = role === 'user';
   const bubbleStyle = [
     styles.bubble,
     isUser
-      ? { backgroundColor: colors.bubbleBg, borderBottomRightRadius: 6 }
-      : { backgroundColor: colors.sheet, borderBottomLeftRadius: 6, ...shadows.e1 },
+      ? { backgroundColor: colors.bubbleBg, borderBottomRightRadius: RADIUS.tight }
+      : { backgroundColor: colors.sheet, borderBottomLeftRadius: RADIUS.tight, ...shadows.e1 },
   ];
+  const textStyle = [styles.text, { color: isUser ? colors.bubbleText : colors.textPrimary }];
   const content = (
     <>
       {audioUri ? (
@@ -33,7 +49,11 @@ export function MessageBubble({ role, text, audioUri, onLongPress }: MessageBubb
           trackColor={isUser ? `${colors.bubbleText}33` : colors.divider}
         />
       ) : null}
-      <Text style={[styles.text, { color: isUser ? colors.bubbleText : colors.textPrimary }]}>{text}</Text>
+      {reveal && !isUser ? (
+        <RevealingText text={text} style={textStyle} onProgress={onRevealProgress} onDone={onRevealDone} />
+      ) : (
+        <Text style={textStyle}>{text}</Text>
+      )}
     </>
   );
   return (
@@ -55,7 +75,7 @@ const styles = StyleSheet.create({
     maxWidth: '82%',
     paddingHorizontal: SPACE.lg,
     paddingVertical: SPACE.md,
-    borderRadius: 18,
+    borderRadius: RADIUS.card,
   },
-  text: { fontFamily: FONTS.body.regular, fontSize: 16, lineHeight: 23 },
+  text: { ...TYPE.body },
 });

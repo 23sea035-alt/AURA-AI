@@ -15,13 +15,21 @@ interface ChatHeaderProps {
   name: string;
   onBack: () => void;
   onOverflow?: () => void;
+  /** Opens the voice call — the header is its one entry point. */
+  onVoiceCall?: () => void;
 }
 
-export function ChatHeader({ id, name, onBack, onOverflow }: ChatHeaderProps) {
+export function ChatHeader({ id, name, onBack, onOverflow, onVoiceCall }: ChatHeaderProps) {
   const { colors } = useTheme();
   return (
     <View style={[styles.header, { borderBottomColor: colors.divider }]}>
-      <PressableScale onPress={onBack} hitSlop={8} haptic="light" style={styles.iconBtn}>
+      <PressableScale
+        onPress={onBack}
+        hitSlop={8}
+        haptic="light"
+        style={styles.iconBtn}
+        accessibilityLabel="Back"
+      >
         <Ionicons name="chevron-back" size={26} color={colors.textPrimary} />
       </PressableScale>
       <Avatar id={id} name={name} size={38} />
@@ -31,7 +39,24 @@ export function ChatHeader({ id, name, onBack, onOverflow }: ChatHeaderProps) {
         </Text>
         <Text style={[styles.marker, { color: colors.textTertiary }]}>{CHAT.aiMarker}</Text>
       </View>
-      <PressableScale onPress={onOverflow} hitSlop={8} haptic="light" style={styles.iconBtn}>
+      {onVoiceCall ? (
+        <PressableScale
+          onPress={onVoiceCall}
+          hitSlop={8}
+          haptic="light"
+          style={styles.iconBtn}
+          accessibilityLabel={`Start a voice call with ${name}`}
+        >
+          <Ionicons name="call-outline" size={21} color={colors.textSecondary} />
+        </PressableScale>
+      ) : null}
+      <PressableScale
+        onPress={onOverflow}
+        hitSlop={8}
+        haptic="light"
+        style={styles.iconBtn}
+        accessibilityLabel="More options"
+      >
         <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
       </PressableScale>
     </View>

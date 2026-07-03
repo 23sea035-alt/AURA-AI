@@ -1,9 +1,12 @@
-// First conversation — onboarding ENDS here, in the real chat (not a dashboard). The chosen
-// companion greets the user warmly by name, with a dismissible disclosure banner above the
-// thread and the input dock below. Builds + uses the reusable chat chrome (@/components/chat).
+// First conversation — onboarding ENDS here, in the real chat (not a dashboard).
+// The payoff is choreographed: a held beat, then the chosen companion's greeting
+// writes itself in (the typing reveal's first appearance), and the first real
+// reply lands the same way. Messages stay local — the persisted relationship
+// starts on the Home/Chat surfaces; this screen is the doorway.
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, Platform } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 // See chat/[id].tsx for why: keyboard-controller's KeyboardAvoidingView syncs via Reanimated with
@@ -11,13 +14,15 @@ import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-na
 import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { ChatHeader, MessageBubble, DisclosureBanner, ChatComposer } from '@/components/chat';
+import { ChatHeader, MessageBubble, DisclosureBanner, ChatComposer, ThinkingIndicator } from '@/components/chat';
 import { CHAT, ONBOARDING, PERSONAS } from '@/constants/content';
 import { SPACE } from '@/constants/design';
+import { TYPING } from '@/constants/motion';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { sendTurn } from '@/lib/mock';
 
-type Msg = { role: 'user' | 'assistant'; text: string };
+type Msg = { id: string; role: 'user' | 'assistant'; text: string };
 
 export default function FirstChatScreen() {
   const { colors, mode } = useTheme();
@@ -33,11 +38,26 @@ export default function FirstChatScreen() {
   const banner = CHAT.disclosureBanner.replace('{Companion}', companion);
   const placeholder = CHAT.inputPlaceholder.replace('{Companion}', companion);
 
-  const [messages, setMessages] = useState<Msg[]>([{ role: 'assistant', text: greeting }]);
+  // The greeting arrives after a held "considering" beat — the companion
+  // noticed you walked in.
+  const [messages, setMessages] = useState<Msg[]>([]);
+  const [thinking, setThinking] = useState(true);
+  const [revealId, setRevealId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
-  // See chat/[id].tsx: composer's own safe-area padding eases out over the same continuous signal
-  // that drives KeyboardAvoidingView's push, instead of staying constant and double-padding above
-  // an already-open keyboard.
+  const turnCount = useRef(0);
+  const scrollRef = useRef<ScrollView>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setThinking(false);
+      setMessages([{ id: 'greeting', role: 'assistant', text: greeting }]);
+      setRevealId('greeting');
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }, TYPING.thinkMs);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
   const composerWrapStyle = useAnimatedStyle(() => ({
     paddingBottom: interpolate(
@@ -52,12 +72,35 @@ export default function FirstChatScreen() {
     if (!user?.onboardingDone) updateUser({ onboardingDone: true });
   };
 
-  const handleSend = () => {
+  const scrollToEnd = (animated = true) => scrollRef.current?.scrollToEnd({ animated });
+
+  const handleSend = async () => {
     const text = draft.trim();
-    if (!text) return;
-    setMessages((m) => [...m, { role: 'user', text }]);
+    if (!text || thinking) return;
     setDraft('');
+    setMessages((m) => [...m, { id: `u-${m.length}`, role: 'user', text }]);
     finishOnboarding();
+
+    setThinking(true);
+    // Local-only first exchange through the same mock reply engine as Chat.
+    const result = await sendTurn({
+      companionId: companion.toLowerCase(),
+      companionName: companion,
+      personaKey: companion.toLowerCase(),
+      content: text,
+      assistantTurnCount: turnCount.current,
+      sessionTurnCount: turnCount.current + 1,
+      usage: { used: 0, limit: 30 },
+      isPremium: false,
+    });
+    turnCount.current += 1;
+    setThinking(false);
+    if (result.reply) {
+      const id = `a-${turnCount.current}`;
+      setMessages((m) => [...m, { id, role: 'assistant', text: result.reply! }]);
+      setRevealId(id);
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
   };
 
   const handleDone = () => {
@@ -73,11 +116,25 @@ export default function FirstChatScreen() {
       </View>
       {/* No keyboardVerticalOffset — see chat/[id].tsx for why (plain flow sibling, self-measures). */}
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.flex} contentContainerStyle={styles.thread} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.flex}
+          contentContainerStyle={styles.thread}
+          showsVerticalScrollIndicator={false}
+          onContentSizeChange={() => scrollToEnd()}
+        >
           <DisclosureBanner text={banner} />
-          {messages.map((m, i) => (
-            <MessageBubble key={i} role={m.role} text={m.text} />
+          {messages.map((m) => (
+            <MessageBubble
+              key={m.id}
+              role={m.role}
+              text={m.text}
+              reveal={m.id === revealId}
+              onRevealProgress={() => scrollToEnd(false)}
+              onRevealDone={() => setRevealId(null)}
+            />
           ))}
+          {thinking ? <ThinkingIndicator /> : null}
         </ScrollView>
         <Animated.View style={[styles.composerWrap, composerWrapStyle]}>
           <ChatComposer value={draft} onChangeText={setDraft} onSend={handleSend} placeholder={placeholder} />

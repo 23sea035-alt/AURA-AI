@@ -1,7 +1,9 @@
 // Notifications — transactional only (no marketing). One push toggle for "companion replied", on by
-// default, with explanatory copy. Replaces the cosmic notifications screen.
+// default, with explanatory copy. Persisted locally; WIRE SEAM: enabling registers
+// the APNs device token (POST /api/devices), disabling unregisters it.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,12 +14,25 @@ import { SPACE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
+const KEY = 'pushRepliesEnabled';
+
 export default function NotificationsScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { companions } = useApp();
   const companion = companions[0]?.name ?? 'Aurora';
   const [on, setOn] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(KEY).then((v) => {
+      if (v !== null) setOn(v === 'true');
+    });
+  }, []);
+
+  const handleToggle = (value: boolean) => {
+    setOn(value);
+    AsyncStorage.setItem(KEY, String(value)).catch(() => {});
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -32,7 +47,7 @@ export default function NotificationsScreen() {
             first
             label={ACCOUNT.notifications.toggleLabel.replace('{Companion}', companion)}
             sub={ACCOUNT.notifications.sub}
-            toggle={{ value: on, onValueChange: setOn }}
+            toggle={{ value: on, onValueChange: handleToggle }}
           />
         </ListGroup>
       </ScrollView>

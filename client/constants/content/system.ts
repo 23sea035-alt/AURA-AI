@@ -16,6 +16,10 @@ export const SYSTEM = {
   storePriceSlot: '{storePrice}/mo',
   storePriceNote: 'The app injects the localized store price here.',
   restorePurchases: 'Restore Purchases',
+  restoreResult: {
+    found: 'Premium restored. Welcome back.',
+    none: 'No previous purchases found for this Apple ID.',
+  },
   autoRenew:
     'Subscription renews automatically until canceled. Manage or cancel anytime in App Store settings.',
   termsLink: 'Terms of Service',
