@@ -17,6 +17,7 @@ import { CHAT, HOME } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { friendlyFirstName } from '@/utils/name';
 
 function greetingFor(hour: number): string {
   if (hour < 12) return HOME.greetings.morning;
@@ -30,7 +31,7 @@ export default function HomeScreen() {
   const { user, companions, primaryCompanionId, usage } = useApp();
   const active = companions.filter((c) => !c.archivedAt);
   const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
-  const firstName = user?.name?.trim().split(' ')[0] || 'there';
+  const firstName = friendlyFirstName(user?.name);
   const greeting = greetingFor(new Date().getHours());
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const isPremium = !!user?.isPremium;
@@ -75,7 +76,8 @@ export default function HomeScreen() {
             colorTo={companion.colorTo}
           />
           <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
-          <Text style={[styles.marker, { color: colors.textTertiary }]}>{CHAT.aiMarker.toUpperCase()}</Text>
+          {/* Honesty cue is meaning-bearing — secondary, not fine-print tertiary (SC 1.4.3). */}
+          <Text style={[styles.marker, { color: colors.textSecondary }]}>{CHAT.aiMarker.toUpperCase()}</Text>
           {isEmpty ? (
             <Text style={[styles.emptyLine, { color: colors.textSecondary }]}>{withName(HOME.empty.line)}</Text>
           ) : null}
@@ -109,7 +111,9 @@ export default function HomeScreen() {
               key={s}
               haptic="light"
               onPress={() => openChat(withName(s))}
-              style={[styles.starter, { borderColor: colors.border }]}
+              // Tonal fill + soft shadow (like every tappable card) — the old
+              // hairline-only pill measured 1.17:1 and read as stray text (SC 1.4.11).
+              style={[styles.starter, { backgroundColor: colors.raised }, shadows.e1]}
             >
               <Text style={[styles.starterText, { color: colors.textSecondary }]}>{withName(s)}</Text>
             </PressableScale>
@@ -120,8 +124,8 @@ export default function HomeScreen() {
 
         {!isPremium && !isEmpty ? (
           <Animated.View entering={FadeIn.delay(340)} style={styles.usage}>
-            <View style={[styles.usageDot, { backgroundColor: atCap ? colors.accent : colors.textDisabled }]} />
-            <Text style={[styles.usageText, { color: atCap ? colors.accent : colors.textTertiary }]}>
+            <View style={[styles.usageDot, { backgroundColor: atCap ? colors.accent : colors.textTertiary }]} />
+            <Text style={[styles.usageText, { color: atCap ? colors.accent : colors.textSecondary }]}>
               {HOME.usageTemplate.replace('{used}', String(usage.used)).replace('{limit}', String(usage.limit))}
             </Text>
           </Animated.View>
@@ -157,7 +161,6 @@ const styles = StyleSheet.create({
   cta: { marginTop: SPACE.lg },
   starters: { gap: SPACE.sm, marginTop: SPACE.md },
   starter: {
-    borderWidth: StyleSheet.hairlineWidth,
     borderRadius: RADIUS.soft,
     paddingHorizontal: SPACE.lg,
     paddingVertical: SPACE.md,

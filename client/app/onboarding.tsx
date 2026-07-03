@@ -69,10 +69,23 @@ export default function CarouselScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
-      <View style={styles.progress}>
-        {copy.slides.map((_, i) => (
-          <View key={i} style={[styles.segment, { backgroundColor: i <= index ? colors.accent : colors.border }]} />
-        ))}
+      {/* Skip lives quietly beside the progress rail (standard top-corner spot),
+          leaving the footer to a single full-width Continue. */}
+      <View style={styles.topRow}>
+        <View style={styles.progress}>
+          {copy.slides.map((_, i) => (
+            <View key={i} style={[styles.segment, { backgroundColor: i <= index ? colors.accent : colors.border }]} />
+          ))}
+        </View>
+        <PressableScale
+          onPress={() => router.push('/age-verification')}
+          haptic="light"
+          hitSlop={10}
+          accessibilityLabel="Skip introduction"
+          style={styles.skip}
+        >
+          <Text style={[styles.skipText, { color: colors.textSecondary }]}>{copy.skip}</Text>
+        </PressableScale>
       </View>
 
       <GestureDetector gesture={swipe}>
@@ -108,12 +121,7 @@ export default function CarouselScreen() {
       </GestureDetector>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + SPACE.lg }]}>
-        <PressableScale onPress={() => router.push('/age-verification')} haptic="light" style={styles.skip}>
-          <Text style={[styles.skipText, { color: colors.textSecondary }]}>{copy.skip}</Text>
-        </PressableScale>
-        <View style={styles.cta}>
-          <Button label={`${copy.next} →`} onPress={goNext} />
-        </View>
+        <Button label={`${copy.next} →`} onPress={goNext} />
       </View>
     </View>
   );
@@ -121,7 +129,14 @@ export default function CarouselScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  progress: { flexDirection: 'row', gap: SPACE.xs, paddingHorizontal: SPACE.xl, marginBottom: SPACE.md },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.lg,
+    paddingHorizontal: SPACE.xl,
+    marginBottom: SPACE.md,
+  },
+  progress: { flex: 1, flexDirection: 'row', gap: SPACE.xs },
   segment: { flex: 1, height: 3, borderRadius: 2 },
   slide: { flex: 1, position: 'relative' },
   slideInner: {
@@ -138,13 +153,9 @@ const styles = StyleSheet.create({
   headline: { ...TYPE.headline, textAlign: 'center' },
   support: { ...TYPE.body, textAlign: 'center', maxWidth: 320 },
   footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACE.lg,
     paddingHorizontal: SPACE.xl,
     paddingTop: SPACE.md,
   },
-  skip: { paddingVertical: SPACE.sm },
+  skip: { paddingVertical: SPACE.xs, paddingHorizontal: SPACE.xs },
   skipText: { fontFamily: FONTS.body.medium, fontSize: 15 },
-  cta: { flex: 1 },
 });

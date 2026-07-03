@@ -11,6 +11,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 
 import { PERSONAS } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
@@ -78,6 +79,13 @@ export interface Usage {
   day: string;
 }
 
+export interface VoiceUsage {
+  /** Seconds of voice-call time used this month (server meters this — GET /api/voice/usage). */
+  seconds: number;
+  /** YYYY-MM the meter belongs to; a new month resets it. */
+  month: string;
+}
+
 /** What a completed send gives the chat screen (the reveal is presentation, state is here). */
 export interface SendResult {
   assistant?: Message;
@@ -93,6 +101,9 @@ interface AppContextType {
   isLoading: boolean;
   messages: Record<string, Message[]>;
   usage: Usage;
+  voiceUsage: VoiceUsage;
+  /** Add elapsed call seconds to this month's voice meter (mock of server-side metering). */
+  addVoiceSeconds: (seconds: number) => void;
   /** Per-companion remembered facts. undefined = not loaded yet (show skeleton); [] = real zero state. */
   memories: Record<string, mock.MemoryRow[] | undefined>;
   accountStatus: mock.AccountStatus;
@@ -144,6 +155,7 @@ const AppContext = createContext<AppContextType | null>(null);
 const FREE_DAILY_LIMIT = 30;
 
 const today = () => new Date().toISOString().slice(0, 10);
+const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 // First run tells Maya's canonical story (18/30 used); later days reset honestly.
 const SEED_USAGE: Usage = { used: DEMO.user.usage.used, limit: FREE_DAILY_LIMIT, day: today() };
@@ -213,6 +225,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [usage, setUsage] = useState<Usage>(SEED_USAGE);
+  const [voiceUsage, setVoiceUsage] = useState<VoiceUsage>({ seconds: 0, month: thisMonth() });
   const [memories, setMemories] = useState<Record<string, mock.MemoryRow[] | undefined>>({});
   const [accountStatus, setAccountStatus] = useState<mock.AccountStatus>({ status: 'active', deletedAt: null });
   const [safetyState, setSafetyState] = useState<SafetyState>({
@@ -273,6 +286,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setUsage(parsed.day === today() ? parsed : { ...parsed, used: 0, day: today() });
       } else {
         AsyncStorage.setItem('usage', JSON.stringify(SEED_USAGE)).catch(() => {});
+      }
+
+      const storedVoice = await AsyncStorage.getItem('voiceUsage');
+      if (storedVoice) {
+        const parsed = JSON.parse(storedVoice) as VoiceUsage;
+        // New month → fresh voice meter (the server resets the monthly cap).
+        setVoiceUsage(parsed.month === thisMonth() ? parsed : { seconds: 0, month: thisMonth() });
       }
 
       setAccountStatus(await mock.fetchAccountStatus());
@@ -496,6 +516,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [appendMessage],
   );
 
+  const addVoiceSeconds = useCallback((seconds: number) => {
+    if (seconds <= 0) return;
+    setVoiceUsage((prev) => {
+      const next: VoiceUsage =
+        prev.month === thisMonth()
+          ? { seconds: prev.seconds + Math.round(seconds), month: prev.month }
+          : { seconds: Math.round(seconds), month: thisMonth() };
+      AsyncStorage.setItem('voiceUsage', JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  }, []);
+
   // ── Memories ──────────────────────────────────────────────────────────────
 
   const loadMemories = useCallback(async (companionId: string) => {
@@ -550,10 +582,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [updateUser]);
 
   const refreshEntitlements = useCallback(async () => {
-    // GET /api/payments/entitlements — call on app foreground to reconcile staleness.
+    // GET /api/payments/entitlements — called on app foreground to reconcile staleness.
     const { isPremium } = await mock.fetchEntitlements();
     if (userRef.current && !!userRef.current.isPremium !== isPremium) updateUser({ isPremium });
   }, [updateUser]);
+
+  // Reconcile isPremium whenever the app returns to the foreground (the backend
+  // fires its DB expiry check server-side on this call).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void refreshEntitlements();
+    });
+    return () => sub.remove();
+  }, [refreshEntitlements]);
 
   // ── Safety chrome ─────────────────────────────────────────────────────────
 
@@ -582,6 +623,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         messages,
         usage,
+        voiceUsage,
+        addVoiceSeconds,
         memories,
         accountStatus,
         safetyState,

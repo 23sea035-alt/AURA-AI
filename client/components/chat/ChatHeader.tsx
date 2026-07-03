@@ -37,7 +37,8 @@ export function ChatHeader({ id, name, onBack, onOverflow, onVoiceCall }: ChatHe
         <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={[styles.marker, { color: colors.textTertiary }]}>{CHAT.aiMarker}</Text>
+        {/* Honesty cue is meaning-bearing — secondary, not fine-print tertiary. */}
+        <Text style={[styles.marker, { color: colors.textSecondary }]}>{CHAT.aiMarker}</Text>
       </View>
       {onVoiceCall ? (
         <PressableScale

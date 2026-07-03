@@ -13,15 +13,28 @@ import { Segmented } from '@/components/Segmented';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { VOICE_OPTIONS, useVoicePrefs, type VoicePrefs } from '@/hooks/useVoicePrefs';
+import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/mock';
 
 const PACES: VoicePrefs['pace'][] = ['relaxed', 'natural', 'brisk'];
+
+function fmtVoice(seconds: number): string {
+  if (seconds < 60) return `${seconds} sec`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  const h = seconds / 3600;
+  return `${h < 10 ? h.toFixed(1) : Math.round(h)} h`;
+}
 
 export default function VoicePreferencesScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { prefs, update } = useVoicePrefs();
+  // Monthly voice meter (the paywall promise) — server-side this is GET /api/voice/usage.
+  const { user, voiceUsage } = useApp();
+  const isPremium = !!user?.isPremium;
+  const cap = isPremium ? VOICE_PREMIUM_SECONDS : VOICE_FREE_SECONDS;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -57,7 +70,7 @@ export default function VoicePreferencesScreen() {
                     styles.radio,
                     selected
                       ? { borderColor: colors.accent, backgroundColor: colors.accent }
-                      : { borderColor: colors.border, backgroundColor: 'transparent' },
+                      : { borderColor: colors.outline, backgroundColor: 'transparent' },
                   ]}
                 >
                   {selected ? <Ionicons name="checkmark" size={12} color={colors.onAccent} /> : null}
@@ -65,6 +78,17 @@ export default function VoicePreferencesScreen() {
               </PressableScale>
             );
           })}
+        </ListGroup>
+
+        <ListGroup
+          label="This month"
+          footnote={
+            isPremium
+              ? 'Premium includes 10 hours of voice a month.'
+              : 'Free includes 20 minutes of voice a month. Premium includes 10 hours.'
+          }
+        >
+          <ListRow first label="Voice time used" detail={`${fmtVoice(voiceUsage.seconds)} of ${fmtVoice(cap)}`} />
         </ListGroup>
 
         <ListGroup label="Captions">

@@ -30,9 +30,11 @@ export default function TabLayout() {
         tabBarLabelStyle: { fontFamily: FONTS.body.medium, fontSize: 11 },
         tabBarStyle: {
           position: 'absolute',
-          bottom: insets.bottom + SPACE.sm,
-          left: SPACE.xl,
-          right: SPACE.xl,
+          // Sits right on the home-indicator safe area (not floated above it),
+          // and narrower than the content column so it reads as a pill.
+          bottom: insets.bottom,
+          left: SPACE.xxxl,
+          right: SPACE.xxxl,
           height: 64,
           borderRadius: RADIUS.pill,
           backgroundColor: colors.navBg,

@@ -21,6 +21,7 @@ import { TYPING } from '@/constants/motion';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { sendTurn } from '@/lib/mock';
+import { friendlyFirstName } from '@/utils/name';
 
 type Msg = { id: string; role: 'user' | 'assistant'; text: string };
 
@@ -32,7 +33,7 @@ export default function FirstChatScreen() {
   const companion = (
     typeof params.companion === 'string' && params.companion in PERSONAS ? params.companion : 'Aurora'
   ) as keyof typeof PERSONAS;
-  const firstName = user?.name?.trim().split(' ')[0] || 'there';
+  const firstName = friendlyFirstName(user?.name);
 
   const greeting = ONBOARDING.firstChat.greetingTemplate.replace('{firstName}', firstName);
   const banner = CHAT.disclosureBanner.replace('{Companion}', companion);

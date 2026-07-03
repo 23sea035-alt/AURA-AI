@@ -189,6 +189,37 @@ system + sentence case (its dev-only stack-trace modal kept as-is).
 6. **AI-notice cadence compressed in mock** (every 8 turns vs the server's ~50) so reviewers can
    actually see it. One constant (`DISCLOSURE_EVERY`) to change.
 
+## Post-audit implementation round (2026-07-03, second pass)
+
+Implemented after the full-app audit (rubric: `audit-rubric-supplement.md`), all re-verified on-sim:
+
+- **Navigation grammar made deliberate**: root stack default is now `slide_from_right` with
+  `fullScreenGestureEnabled` (back-swipe works from anywhere on a pushed screen — verified); `fade`
+  only at boot/identity boundaries (index, welcome, entering tabs); heroes rise from the bottom;
+  the paywall remains the one modal. The old all-`fade` stack silently disabled the iOS pop gesture
+  on every You-cluster screen.
+- **Floating tab bar**: narrower (`SPACE.xxxl` side insets) and lowered onto the safe area.
+- **Home starter chips**: tonal `raised` + `e1` (were a 1.17:1 hairline that read as stray text).
+- **Legal split**: `/terms-of-service` = Terms only; `/privacy` = the Privacy Policy — both
+  condensed from `docs/compliance/*-draft.md` (incl. the "Who processes your information" section
+  the AI-consent screen links to). The old combined screen and the contradictory "no third
+  parties" plain-summary copy are gone.
+- **Voice minutes now honor the paywall promise** (20 min/mo free · 10 h/mo premium): monthly
+  meter in AppContext (`voiceUsage`, `addVoiceSeconds` — GET /api/voice/usage seam), calm cutoff
+  mid-call + out-of-time state on the call screen (verified live: call capped at the staged
+  boundary), and a "This month" usage row in voice preferences.
+- **New `outline` token** (≥3:1 on bg + raised, both themes — SC 1.4.11) for idle interactive
+  controls: toggle-off track, unchecked checkbox, unselected radio rings, idle code cells.
+- Meaning-bearing captions (AI-companion markers, usage counter) moved tertiary → secondary;
+  greetings humanized via `friendlyFirstName` ("maya.chen" → "Maya") pending Clerk names;
+  entitlements refresh on app-foreground (AppState listener); premium-state Restore Purchases is a
+  link action, not a chevron row; carousel redesigned (Skip beside the progress rail, single
+  full-width Continue).
+- **Capture-tooling guardrail** documented in the audit skill: deep-link batches stack on top of
+  modals and fake a "everything is a modal" look with garbage back-paths — reset between batches,
+  modals last, never grade presentation from a deep-linked stack. (Only `premium` is actually
+  modal; verified by config grep.)
+
 ## Seams index (grep for `WIRE SEAM` / `drop-in point`)
 - `client/lib/mock.ts` — every endpoint stand-in (header comment maps them).
 - `client/context/AppContext.tsx` — Clerk session shell (`login`/`register`/`logout`),

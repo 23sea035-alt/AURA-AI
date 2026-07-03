@@ -1,5 +1,7 @@
-// Privacy / legal — a calm reading layout: a plain-language retention summary card above the formal
-// (sectioned) policy text + a link to full Terms. Utility, still, ink-on-paper (no accent flourish).
+// Privacy Policy — plain-language summary card up top, then the full policy
+// (condensed from docs/compliance/privacy-policy-draft.md, including the
+// "Who processes your information" section the AI-consent screen links to),
+// and a link to the separate Terms of service. Utility, still, ink-on-paper.
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React from 'react';
@@ -8,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ListGroup, ListRow } from '@/components/ListGroup';
 import { TopBar } from '@/components/TopBar';
-import { LEGAL } from '@/constants/content';
+import { LEGAL, PRIVACY_POLICY_FULL, withAppName } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
@@ -35,14 +37,16 @@ export default function PrivacyScreen() {
           </Text>
         </View>
 
-        {LEGAL.sections.map((section) => (
+        <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>
+          {PRIVACY_POLICY_FULL.lastUpdated}
+        </Text>
+
+        {PRIVACY_POLICY_FULL.sections.map((section) => (
           <View key={section.title} style={styles.section}>
-            <Text style={[styles.sectionHead, { color: colors.textPrimary }]}>{section.title}</Text>
-            <Text style={[styles.body, { color: colors.textSecondary }]}>{section.body}</Text>
+            <Text style={[styles.sectionHead, { color: colors.textPrimary }]}>{withAppName(section.title)}</Text>
+            <Text style={[styles.body, { color: colors.textSecondary }]}>{withAppName(section.body)}</Text>
           </View>
         ))}
-
-        <Text style={[styles.lastUpdated, { color: colors.textTertiary }]}>{LEGAL.lastUpdated}</Text>
 
         <ListGroup>
           <ListRow first label={LEGAL.fullTerms} onPress={() => router.push('/terms-of-service')} />
@@ -62,11 +66,11 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.edit,
     borderWidth: StyleSheet.hairlineWidth,
     padding: SPACE.lg,
-    marginBottom: SPACE.sm,
   },
   summaryText: { fontFamily: FONTS.body.medium, fontSize: 15, lineHeight: 22 },
-  section: { gap: SPACE.xs },
-  sectionHead: { fontFamily: FONTS.display.semibold, fontSize: 18, marginTop: SPACE.sm },
+  lastUpdated: { ...TYPE.caption },
+  section: { gap: SPACE.xs, marginTop: SPACE.xs },
+  sectionHead: { fontFamily: FONTS.display.semibold, fontSize: 18 },
   body: { ...TYPE.body },
-  lastUpdated: { ...TYPE.caption, marginTop: SPACE.xs },
+  // bottom link group gets breathing room from the last section
 });

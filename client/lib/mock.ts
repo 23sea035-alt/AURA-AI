@@ -147,6 +147,12 @@ export function mockVoiceReply(personaKey: string, turnIndex: number): string {
   return bank[turnIndex % bank.length];
 }
 
+// ── Voice metering (the paywall promise: 20 min/month free, 10 h/month premium) ──
+// Mirrors the @aura/shared entitlement constants once monorepo wiring lands; the
+// server meters real usage (voice_usage records) — GET /api/voice/usage.
+export const VOICE_FREE_SECONDS = 20 * 60;
+export const VOICE_PREMIUM_SECONDS = 10 * 3600;
+
 // ── Memories ────────────────────────────────────────────────────────────────
 
 export interface MemoryRow {

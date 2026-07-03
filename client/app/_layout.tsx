@@ -30,19 +30,29 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   return (
-    <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="welcome" />
+    // Deliberate navigation grammar: pushed screens slide from the right (which
+    // also enables the native iOS back-swipe — `fade` silently disables it), and
+    // the pop gesture works from anywhere on the screen, not just the edge
+    // (nothing pushed owns a horizontal pan). Boot/identity boundaries
+    // cross-fade; hero surfaces rise from the bottom; the paywall is the ONE
+    // modal sheet.
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'slide_from_right',
+        fullScreenGestureEnabled: true,
+      }}
+    >
+      <Stack.Screen name="index" options={{ animation: 'fade' }} />
+      <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="age-verification" />
       <Stack.Screen name="ai-disclosure" />
       <Stack.Screen name="ai-consent" />
       <Stack.Screen name="(auth)" />
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen
-        name="chat/[id]"
-        options={{ animation: 'slide_from_right' }}
-      />
+      {/* Entering the tab world is an identity boundary (replace), not a push. */}
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="chat/[id]" />
       <Stack.Screen
         name="voice-call"
         options={{ animation: 'slide_from_bottom' }}

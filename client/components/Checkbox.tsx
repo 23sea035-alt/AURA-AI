@@ -25,7 +25,7 @@ export function Checkbox({ checked, onToggle, disabled }: CheckboxProps) {
       style={[
         styles.box,
         {
-          borderColor: checked ? colors.accent : colors.border,
+          borderColor: checked ? colors.accent : colors.outline,
           backgroundColor: checked ? colors.accent : 'transparent',
         },
       ]}

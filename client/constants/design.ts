@@ -73,6 +73,13 @@ export interface ThemeColors {
   onAccent: string;
   border: string;
   divider: string;
+  /**
+   * Idle interactive-control boundary (unchecked checkbox, unselected radio ring,
+   * toggle-off track, idle code cells) — ≥3:1 against bg AND raised in both themes
+   * (WCAG 2.2 SC 1.4.11). `border` stays for structural hairlines on
+   * non-interactive surfaces.
+   */
+  outline: string;
   navBg: string;
   navBorder: string;
   navIdle: string;
@@ -94,7 +101,7 @@ export const COLORS: Record<ThemeMode, ThemeColors> = {
     bg: '#F4ECE0', raised: '#FBF5EB', sheet: '#FFFCF6',
     textPrimary: '#2A241E', textSecondary: '#6A5D50', textTertiary: '#9C8E7E', textDisabled: '#C2B6A7',
     accent: '#8F4150', accentTint: '#F1E2E4', onAccent: '#FFFCF6',
-    border: '#E6DBCB', divider: '#EFE5D6',
+    border: '#E6DBCB', divider: '#EFE5D6', outline: '#8A7B69',
     navBg: '#FFFCF6', navBorder: '#E6DBCB', navIdle: '#9C8E7E',
     bubbleBg: '#EFDFE1', bubbleText: '#5A3942',
     avatar: '#D8A98C', avatarText: '#5A3B2B',
@@ -105,7 +112,7 @@ export const COLORS: Record<ThemeMode, ThemeColors> = {
     bg: '#1B1712', raised: '#25201A', sheet: '#2E2820',
     textPrimary: '#F1E8DC', textSecondary: '#BFB2A2', textTertiary: '#8A7E70', textDisabled: '#5C5347',
     accent: '#CC7A84', accentTint: '#3A2A2E', onAccent: '#1F1712',
-    border: '#393129', divider: '#332C24',
+    border: '#393129', divider: '#332C24', outline: '#75695A',
     navBg: '#25201A', navBorder: '#393129', navIdle: '#8A7E70',
     bubbleBg: '#3A2A2E', bubbleText: '#EAD7DA',
     avatar: '#7A5142', avatarText: '#F4ECDF',

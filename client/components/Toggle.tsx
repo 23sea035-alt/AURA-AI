@@ -39,7 +39,8 @@ export function Toggle({ value, onValueChange, disabled }: ToggleProps) {
   }, [value, reduce]);
 
   const trackStyle = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(p.value, [0, 1], [colors.border, colors.accent]),
+    // Off-track uses the ≥3:1 idle-control outline tone (SC 1.4.11), not the structural hairline.
+    backgroundColor: interpolateColor(p.value, [0, 1], [colors.outline, colors.accent]),
   }));
   const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateX: p.value * TRAVEL }] }));
 

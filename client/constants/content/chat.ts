@@ -24,6 +24,16 @@ export const CHAT = {
     cta: 'See Premium',
   },
 
+  // voice-minutes cap (paywall promise: 20 min/month free, 10 h/month premium).
+  // Gentle, never a hard wall: chat stays open, the meter renews monthly.
+  voiceLimit: {
+    title: "That's your voice time for this month",
+    body: '{Companion} is still here in chat whenever you want to talk, or go up to 10 hours a month with Premium.',
+    bodyPremium: '{Companion} is still here in chat whenever you want to talk. Your voice time renews next month.',
+    cta: 'See Premium',
+    done: 'Back to chat',
+  },
+
   // crisis state: the companion's warm reply is demo (see DEMO.crisis); the support
   // block is shared (see CRISIS_SUPPORT in ./safety).
 

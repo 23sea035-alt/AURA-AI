@@ -107,6 +107,15 @@ instead of a literal):
 
 ## Step 3 — Capture on the 16e
 
+**Deep-link stacking guardrail (learned 2026-07-03).** When batch-capturing via URL-scheme deep
+links (`xcrun simctl openurl booted "aura-ai://…"`), every link PUSHES onto the existing stack. If
+a modal route (`premium`) is open — or dozens of screens have piled up — subsequent screens render
+inside the modal's sheet chrome (rounded card + gray band up top; looks like "everything became a
+modal") and back-navigation follows the garbage stack, not real user paths. Neither is an app bug.
+Rules: capture modal routes LAST in a batch; `simctl terminate` + `launch` between batches (cheap
+stack reset); and never grade presentation or back-behavior from a deep-linked stack — walk the
+real navigation path for those.
+
 Reach the screen (Owner default #2), relaunch (#4), then:
 
 ```bash

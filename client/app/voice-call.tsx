@@ -27,6 +27,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Button } from '@/components/Button';
 import { RevealingText } from '@/components/chat';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
 import { PressableScale, enterUp } from '@/components/motion';
@@ -36,7 +37,7 @@ import { DURATION, EASING, TYPING } from '@/constants/motion';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoicePrefs } from '@/hooks/useVoicePrefs';
-import { mockVoiceReply } from '@/lib/mock';
+import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS, mockVoiceReply } from '@/lib/mock';
 
 type CallState = 'connecting' | 'listening' | 'thinking' | 'speaking';
 
@@ -66,7 +67,7 @@ export default function VoiceCallScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { companions } = useApp();
+  const { companions, user, voiceUsage, addVoiceSeconds } = useApp();
   const { prefs } = useVoicePrefs();
 
   const companion = companions.find((c) => c.id === id) ?? companions[0];
@@ -74,6 +75,13 @@ export default function VoiceCallScreen() {
   const name = companion?.name ?? 'Aurora';
   const tone = personaToneFor(mode, cid);
   const ringColor = tone?.deep ?? colors.accent;
+
+  // Voice metering — the paywall promise (20 min/month free, 10 h/month premium).
+  // Snapshot the remaining budget at mount; the meter itself lives in context.
+  const isPremium = !!user?.isPremium;
+  const capSeconds = isPremium ? VOICE_PREMIUM_SECONDS : VOICE_FREE_SECONDS;
+  const remainingAtMount = useRef(Math.max(0, capSeconds - voiceUsage.seconds));
+  const [outOfTime, setOutOfTime] = useState(remainingAtMount.current <= 0);
 
   const [state, setState] = useState<CallState>('connecting');
   const [muted, setMuted] = useState(false);
@@ -83,15 +91,43 @@ export default function VoiceCallScreen() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mutedRef = useRef(muted);
   mutedRef.current = muted;
+  const elapsedRef = useRef(0);
+  elapsedRef.current = elapsed;
 
-  // Elapsed clock.
+  // Elapsed clock — also enforces the cap mid-call (calm cutoff, never abrupt UI).
   useEffect(() => {
-    const t = setInterval(() => setElapsed((e) => e + 1), 1000);
+    if (outOfTime) return;
+    const t = setInterval(() => {
+      setElapsed((e) => {
+        const next = e + 1;
+        if (next >= remainingAtMount.current) {
+          setOutOfTime(true);
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        return next;
+      });
+    }, 1000);
     return () => clearInterval(t);
+  }, [outOfTime]);
+
+  // Metering seam: on leaving the call, book the elapsed seconds (the real
+  // server meters voice_usage itself; this mirrors it client-side).
+  useEffect(() => {
+    return () => addVoiceSeconds(elapsedRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Reaching the cap stops the mocked loop.
+  useEffect(() => {
+    if (outOfTime && timer.current) {
+      clearTimeout(timer.current);
+      setCaption(null);
+    }
+  }, [outOfTime]);
 
   // The mocked call loop. Each step schedules the next; mute holds in `listening`.
   useEffect(() => {
+    if (outOfTime) return;
     const schedule = (ms: number, fn: () => void) => {
       timer.current = setTimeout(fn, ms);
     };
@@ -128,7 +164,7 @@ export default function VoiceCallScreen() {
       if (timer.current) clearTimeout(timer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cid]);
+  }, [cid, outOfTime]);
 
   const endCall = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -142,70 +178,102 @@ export default function VoiceCallScreen() {
       {/* Header — who you're with, honestly marked, with the elapsed clock. */}
       <Animated.View entering={enterUp(0)} style={styles.header}>
         <Text style={[styles.name, { color: colors.textPrimary }]}>{name}</Text>
-        <Text style={[styles.marker, { color: colors.textTertiary }]}>
+        <Text style={[styles.marker, { color: colors.textSecondary }]}>
           {CHAT.aiMarker.toUpperCase()} · VOICE
         </Text>
         <Text style={[styles.clock, { color: colors.textSecondary }]}>{formatElapsed(elapsed)}</Text>
       </Animated.View>
 
-      {/* The presence + its state ring. */}
-      <View style={styles.stage}>
-        <View style={styles.ringStack}>
-          {state === 'speaking' ? <Ripples color={ringColor} /> : null}
-          {state === 'listening' && !muted ? <ListeningRing color={ringColor} /> : null}
-          {state === 'thinking' || state === 'connecting' ? <PulseRing color={ringColor} /> : null}
-          <CompanionPresence
-            id={cid}
-            name={name}
-            size={PRESENCE_SIZE}
-            colorFrom={companion?.colorFrom}
-            colorTo={companion?.colorTo}
-          />
-        </View>
-
-        <Text style={[styles.stateLabel, { color: colors.textSecondary }]}>
-          {muted && state === 'listening' ? 'Muted' : STATE_LABEL[state]}
-        </Text>
-
-        {/* Captions — the reply writing itself, same reveal as chat. */}
-        <View style={styles.captionArea}>
-          {prefs.captions && caption && state === 'speaking' ? (
-            <Animated.View entering={FadeIn.duration(DURATION.fast)}>
-              <RevealingText
-                key={caption}
-                text={caption}
-                style={[styles.caption, { color: colors.textPrimary }]}
-              />
+      {outOfTime ? (
+        // Voice-minutes cap — gentle, never a hard wall: the presence stays, chat
+        // stays open, and the meter renews monthly (paywall promise).
+        <>
+          <View style={styles.stage}>
+            <CompanionPresence
+              id={cid}
+              name={name}
+              size={PRESENCE_SIZE}
+              colorFrom={companion?.colorFrom}
+              colorTo={companion?.colorTo}
+            />
+            <Animated.View entering={FadeIn.duration(DURATION.normal)} style={styles.limitBlock}>
+              <Text style={[styles.limitTitle, { color: colors.textPrimary }]}>{CHAT.voiceLimit.title}</Text>
+              <Text style={[styles.limitBody, { color: colors.textSecondary }]}>
+                {(isPremium ? CHAT.voiceLimit.bodyPremium : CHAT.voiceLimit.body).replace('{Companion}', name)}
+              </Text>
             </Animated.View>
-          ) : null}
-        </View>
-      </View>
+          </View>
+          <View style={[styles.limitActions, { paddingBottom: insets.bottom + SPACE.xl }]}>
+            {!isPremium ? (
+              <Button label={CHAT.voiceLimit.cta} onPress={() => router.push('/premium')} />
+            ) : null}
+            <PressableScale haptic="light" onPress={endCall} style={styles.limitDone}>
+              <Text style={[styles.limitDoneText, { color: colors.textSecondary }]}>{CHAT.voiceLimit.done}</Text>
+            </PressableScale>
+          </View>
+        </>
+      ) : (
+        <>
+          {/* The presence + its state ring. */}
+          <View style={styles.stage}>
+            <View style={styles.ringStack}>
+              {state === 'speaking' ? <Ripples color={ringColor} /> : null}
+              {state === 'listening' && !muted ? <ListeningRing color={ringColor} /> : null}
+              {state === 'thinking' || state === 'connecting' ? <PulseRing color={ringColor} /> : null}
+              <CompanionPresence
+                id={cid}
+                name={name}
+                size={PRESENCE_SIZE}
+                colorFrom={companion?.colorFrom}
+                colorTo={companion?.colorTo}
+              />
+            </View>
 
-      {/* Controls — mute, end, settings. End is the one loud control. */}
-      <Animated.View entering={enterUp(2)} style={[styles.controls, { paddingBottom: insets.bottom + SPACE.xl }]}>
-        <ControlButton
-          icon={muted ? 'mic-off' : 'mic'}
-          label={muted ? 'Unmute' : 'Mute'}
-          active={muted}
-          onPress={() => {
-            setMuted((m) => !m);
-            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }}
-        />
-        <PressableScale
-          haptic="medium"
-          onPress={endCall}
-          accessibilityLabel="End call"
-          style={[styles.endBtn, { backgroundColor: colors.error }]}
-        >
-          <Ionicons name="call" size={26} color={colors.onAccent} style={styles.endGlyph} />
-        </PressableScale>
-        <ControlButton
-          icon="options-outline"
-          label="Voice"
-          onPress={() => router.push('/voice-preferences')}
-        />
-      </Animated.View>
+            <Text style={[styles.stateLabel, { color: colors.textSecondary }]}>
+              {muted && state === 'listening' ? 'Muted' : STATE_LABEL[state]}
+            </Text>
+
+            {/* Captions — the reply writing itself, same reveal as chat. */}
+            <View style={styles.captionArea}>
+              {prefs.captions && caption && state === 'speaking' ? (
+                <Animated.View entering={FadeIn.duration(DURATION.fast)}>
+                  <RevealingText
+                    key={caption}
+                    text={caption}
+                    style={[styles.caption, { color: colors.textPrimary }]}
+                  />
+                </Animated.View>
+              ) : null}
+            </View>
+          </View>
+
+          {/* Controls — mute, end, settings. End is the one loud control. */}
+          <Animated.View entering={enterUp(2)} style={[styles.controls, { paddingBottom: insets.bottom + SPACE.xl }]}>
+            <ControlButton
+              icon={muted ? 'mic-off' : 'mic'}
+              label={muted ? 'Unmute' : 'Mute'}
+              active={muted}
+              onPress={() => {
+                setMuted((m) => !m);
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
+            />
+            <PressableScale
+              haptic="medium"
+              onPress={endCall}
+              accessibilityLabel="End call"
+              style={[styles.endBtn, { backgroundColor: colors.error }]}
+            >
+              <Ionicons name="call" size={26} color={colors.onAccent} style={styles.endGlyph} />
+            </PressableScale>
+            <ControlButton
+              icon="options-outline"
+              label="Voice"
+              onPress={() => router.push('/voice-preferences')}
+            />
+          </Animated.View>
+        </>
+      )}
     </View>
   );
 }
@@ -388,4 +456,10 @@ const styles = StyleSheet.create({
   },
   endGlyph: { transform: [{ rotate: '135deg' }] },
   controlLabel: { ...TYPE.caption },
+  limitBlock: { alignItems: 'center', gap: SPACE.sm, paddingHorizontal: SPACE.md },
+  limitTitle: { ...TYPE.title, textAlign: 'center' },
+  limitBody: { ...TYPE.body, fontSize: 15, lineHeight: 22, textAlign: 'center', maxWidth: 320 },
+  limitActions: { gap: SPACE.sm },
+  limitDone: { alignItems: 'center', paddingVertical: SPACE.md },
+  limitDoneText: { ...TYPE.label },
 });

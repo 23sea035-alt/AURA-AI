@@ -79,7 +79,7 @@ export default function VerifyEmailScreen() {
                   key={i}
                   style={[
                     styles.cell,
-                    { backgroundColor: colors.raised, borderColor: active ? colors.accent : colors.border },
+                    { backgroundColor: colors.raised, borderColor: active ? colors.accent : colors.outline },
                   ]}
                 >
                   <Text style={[styles.cellText, { color: colors.textPrimary }]}>{d}</Text>

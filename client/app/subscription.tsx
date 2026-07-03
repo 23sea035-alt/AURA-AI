@@ -60,11 +60,14 @@ export default function SubscriptionScreen() {
                 label="Manage in App Store"
                 onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions').catch(() => {})}
               />
-              <ListRow label={SYSTEM.restorePurchases} onPress={() => void handleRestore()} />
             </ListGroup>
             <Text style={[styles.helper, { color: colors.textTertiary }]}>
               Billing is managed by the App Store; changes happen there.
             </Text>
+            {/* Restore is an action, not navigation — link style, no chevron. */}
+            <PressableScale haptic="light" onPress={() => void handleRestore()} style={styles.linkBtn}>
+              <Text style={[styles.link, { color: colors.textSecondary }]}>{SYSTEM.restorePurchases}</Text>
+            </PressableScale>
             <PressableScale haptic="light" onPress={() => router.push('/premium')} style={styles.linkBtn}>
               <Text style={[styles.link, { color: colors.accent }]}>See plan details</Text>
             </PressableScale>
