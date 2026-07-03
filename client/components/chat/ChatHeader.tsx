@@ -50,15 +50,17 @@ export function ChatHeader({ id, name, onBack, onOverflow, onVoiceCall }: ChatHe
           <Ionicons name="call-outline" size={21} color={colors.textSecondary} />
         </PressableScale>
       ) : null}
-      <PressableScale
-        onPress={onOverflow}
-        hitSlop={8}
-        haptic="light"
-        style={styles.iconBtn}
-        accessibilityLabel="More options"
-      >
-        <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
-      </PressableScale>
+      {onOverflow ? (
+        <PressableScale
+          onPress={onOverflow}
+          hitSlop={8}
+          haptic="light"
+          style={styles.iconBtn}
+          accessibilityLabel="More options"
+        >
+          <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
+        </PressableScale>
+      ) : null}
     </View>
   );
 }

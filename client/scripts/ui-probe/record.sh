@@ -42,7 +42,8 @@ REC_PID=$!
 sleep "$PRE"
 
 echo "running flow: $FLOW" >&2
-maestro --udid "$UDID" test "$FLOW"
+# Forward any args after fps to maestro (e.g. -e EMAIL=... -e PASSWORD=...).
+maestro --udid "$UDID" test "$FLOW" "${@:6}"
 
 sleep "$POST"
 kill -INT "$REC_PID" 2>/dev/null || true

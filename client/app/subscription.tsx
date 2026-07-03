@@ -45,7 +45,9 @@ export default function SubscriptionScreen() {
           {isPremium ? (
             <ListRow first label="Premium" detail={`Renews ${RENEW_DATE}`} />
           ) : (
-            <ListRow first label="Free" detail="30 messages a day, shared across your companions" />
+            // sub, not detail: the long line renders under the label at full
+            // width instead of crushing "Free" out of the row.
+            <ListRow first label="Free" sub="30 messages a day, shared across your companions" />
           )}
         </ListGroup>
 

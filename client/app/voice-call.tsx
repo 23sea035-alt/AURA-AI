@@ -54,7 +54,7 @@ const STATE_LABEL: Record<CallState, string> = {
   speaking: 'Speaking',
 };
 
-const GREETING = "Hi, it's me. I'm right here — what's on your mind?";
+const GREETING = "Hi, it's me. I'm right here. What's on your mind?";
 
 function formatElapsed(seconds: number): string {
   const m = Math.floor(seconds / 60);

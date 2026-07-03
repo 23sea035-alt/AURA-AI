@@ -20,6 +20,7 @@ import { TopBar } from '@/components/TopBar';
 import { PressableScale, enterUp } from '@/components/motion';
 import { MEMORY } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { DURATION } from '@/constants/motion';
 import { type MemoryRow, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -159,7 +160,7 @@ export default function MemoryScreen() {
         )}
       </ScrollView>
 
-      <BottomSheet visible={!!actionFor} onClose={() => setActionFor(null)}>
+      <BottomSheet visible={!!actionFor} onClose={() => setActionFor(null)} scrollable={false}>
         <View style={styles.sheet}>
           <PressableScale haptic="light" onPress={() => actionFor && startEdit(actionFor)} style={styles.sheetRow}>
             <Text style={[styles.sheetText, { color: colors.textPrimary }]}>{MEMORY.edit}</Text>
@@ -169,7 +170,9 @@ export default function MemoryScreen() {
             onPress={() => {
               const m = actionFor;
               setActionFor(null);
-              setConfirmDelete(m);
+              // iOS can't present a Modal while the previous one is dismissing —
+              // wait out the sheet's exit animation before mounting the confirm.
+              setTimeout(() => setConfirmDelete(m), DURATION.normal + 30);
             }}
             style={styles.sheetRow}
           >
@@ -221,7 +224,8 @@ const styles = StyleSheet.create({
     minHeight: 38,
     textAlignVertical: 'top',
   },
-  more: { padding: 2 },
+  // ≥44pt effective target with the hitSlop (the glyph is small; the touchable isn't).
+  more: { padding: 10, margin: -8 },
   sheet: { paddingTop: SPACE.xs },
   sheetRow: { paddingVertical: SPACE.md, alignItems: 'center' },
   sheetText: { fontFamily: FONTS.body.medium, fontSize: 16 },

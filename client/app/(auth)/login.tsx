@@ -24,24 +24,32 @@ const GRACE_DAYS = 30;
 export default function LoginScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { login, logout, reactivate } = useApp();
+  const { login, reactivate } = useApp();
   const a = ONBOARDING.auth;
   const r = ACCOUNT.accountMgmt.reactivate;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // Set when the signed-in account is soft-deleted: the reactivate offer.
-  const [purgeDate, setPurgeDate] = useState<string | null>(null);
+  // Set when the account is soft-deleted: the reactivate offer, holding the
+  // credentials until the user decides. Checked BEFORE login() — signing in
+  // flips user state, and Welcome's returning-user redirect would race the
+  // sheet (the real server flags a deactivated account at sign-in the same way).
+  const [pending, setPending] = useState<{ purgeDate: string; email: string; password: string } | null>(
+    null,
+  );
 
-  // Soft-deleted accounts get the reactivate offer instead of going straight in.
-  const proceed = async () => {
+  const proceed = async (creds: { email: string; password: string }) => {
     const status = await fetchAccountStatus();
     if (status.status === 'deactivated' && status.deletedAt) {
       const purge = new Date(new Date(status.deletedAt).getTime() + GRACE_DAYS * 86400000);
-      setPurgeDate(purge.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }));
+      setPending({
+        purgeDate: purge.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
+        ...creds,
+      });
       return;
     }
+    await login(creds.email, creds.password);
     router.replace('/(tabs)');
   };
 
@@ -53,8 +61,7 @@ export default function LoginScreen() {
     setError('');
     setSubmitting(true);
     try {
-      await login(email.trim(), password);
-      await proceed();
+      await proceed({ email: email.trim(), password });
     } catch {
       setError(a.errors.badCredentials);
     } finally {
@@ -63,19 +70,18 @@ export default function LoginScreen() {
   };
 
   // UI shell; real OAuth is Clerk-wired later.
-  const handleSso = () => void proceed();
+  const handleSso = () => void proceed({ email: 'sso@example.com', password: 'sso' });
 
   const handleReactivate = async () => {
+    if (!pending) return;
     // PATCH /api/account/reactivate — clears the tombstone, back to active.
     await reactivate();
-    setPurgeDate(null);
+    await login(pending.email, pending.password);
+    setPending(null);
     router.replace('/(tabs)');
   };
 
-  const declineReactivate = () => {
-    setPurgeDate(null);
-    logout();
-  };
+  const declineReactivate = () => setPending(null);
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -146,10 +152,10 @@ export default function LoginScreen() {
 
         {/* Reactivate offer for a soft-deleted account — warm, never alarmed. */}
         <ConfirmSheet
-          visible={purgeDate !== null}
+          visible={pending !== null}
           onClose={declineReactivate}
           title={r.title}
-          message={r.body.replace('{date}', purgeDate ?? '')}
+          message={r.body.replace('{date}', pending?.purgeDate ?? '')}
           confirmLabel={r.cta}
           cancelLabel={r.dismiss}
           onConfirm={() => void handleReactivate()}

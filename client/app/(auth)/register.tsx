@@ -47,8 +47,9 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!email.trim() || password.length < 8) {
-      setError('Enter an email and a password of at least 8 characters.');
+    // Light-touch shape check (Clerk owns real validation once wired).
+    if (!/^\S+@\S+\.\S+$/.test(email.trim()) || password.length < 8) {
+      setError('Enter a valid email and a password of at least 8 characters.');
       return;
     }
     if (!gateTerms()) return;

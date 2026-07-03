@@ -34,6 +34,7 @@ import { PressableScale } from '@/components/motion';
 import { Toast } from '@/components/Toast';
 import { CHAT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { DURATION } from '@/constants/motion';
 import { type Message, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { reportMessage } from '@/lib/mock';
@@ -264,7 +265,7 @@ export default function ChatScreen() {
         </Animated.View>
       </KeyboardAvoidingView>
 
-      <BottomSheet visible={overflowOpen} onClose={() => setOverflowOpen(false)}>
+      <BottomSheet visible={overflowOpen} onClose={() => setOverflowOpen(false)} scrollable={false}>
         <View style={styles.overflow}>
           {[
             {
@@ -279,7 +280,13 @@ export default function ChatScreen() {
             },
             {
               label: CHAT.overflow.report,
-              go: () => openReport([...messages].reverse().find(isReportable)?.id ?? null),
+              // iOS can't present a Modal while this sheet is dismissing — wait
+              // out the exit animation before mounting the report sheet.
+              go: () =>
+                setTimeout(
+                  () => openReport([...messages].reverse().find(isReportable)?.id ?? null),
+                  DURATION.normal + 30,
+                ),
               danger: true,
             },
           ].map((row) => (

@@ -221,5 +221,33 @@ system + sentence case (its dev-only stack-trace modal kept as-is).
   `ThinkingIndicator`, all three voice-call rings) has an explicit snap-to-final/static fallback.
 - Both themes: all new color usage flows through `useTheme()` + `PERSONA_TONES[mode]`; zero
   hardcoded hex in screens (grep-verified).
-- On-simulator pass (`/verify-ui`-style: relaunch, both themes, screenshot the hero flows) is the
-  remaining manual step — not run in this session.
+- **On-simulator `/verify-ui` pass (iPhone 16e, both themes) — DONE 2026-07-03.** Every flow was
+  driven with Maestro + frame recordings (never fast-refresh; full relaunch before trusting
+  anything): full onboarding chain incl. verify-email + ai-consent, firstchat greeting reveal,
+  chat typing reveal (frame-by-frame: thinking dots → wine caret → calm word cadence → clean
+  completion), serif date dividers (incl. a cross-midnight Yesterday/Today case), crisis card,
+  report sheet + toast, memory list/edit/delete, voice-call loop (connecting → speaking ripples +
+  revealing captions → listening ring → thinking pulse) + voice preferences, free-tier usage row,
+  paywall store-price placeholder + restore toasts, subscription free state, and the
+  export → soft-delete → sign-in → reactivate cycle. Warm-dark re-verified on Home, chat, voice
+  call, paywall, memory.
+
+  Bugs found by the pass and fixed in the follow-up commit:
+  1. **Sheet-to-sheet modal race** — opening a ConfirmSheet/ReportSheet while the previous
+     BottomSheet's Modal was still dismissing silently dropped the second sheet (memory delete,
+     chat overflow → report). Fixed by waiting out the exit animation (`DURATION.normal + 30`).
+  2. **Action sheets opened near-full-height** (memory •••, chat overflow) — now `scrollable={false}`
+     so they hug their content.
+  3. **Reactivate offer never appeared**: `login()` set the user and Welcome's returning-user
+     redirect raced the sheet. Login now checks account status *before* signing in (as the real
+     server would) and holds the credentials until the user decides.
+  4. **Subscription free state**: long `detail` text crushed the "Free" label out of the row — moved
+     to `sub`.
+  5. Memory ••• target was ~22pt — now ≥44pt effective.
+  6. Firstchat rendered an inert overflow button (ChatHeader now hides it without a handler);
+     composer send button was missing a VoiceOver label.
+  7. `DEV_FORCE_PREMIUM` default flipped to `false` so the canonical free-tier demo (18/30 counter,
+     paywall) shows by default.
+  8. Em dashes removed from mock reply/greeting copy (house style); register gained a light email
+     shape check (Clerk owns real validation later).
+  9. Tooling: `record.sh` now forwards extra args (e.g. `-e EMAIL=…`) to Maestro.

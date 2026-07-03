@@ -124,7 +124,12 @@ export function ChatComposer({ value, onChangeText, onSend, placeholder, onVoice
           style={[styles.input, { color: colors.textPrimary }]}
         />
         {canSend ? (
-          <PressableScale onPress={onSend} haptic="light" style={[styles.btn, { backgroundColor: colors.accent }]}>
+          <PressableScale
+            onPress={onSend}
+            haptic="light"
+            accessibilityLabel="Send message"
+            style={[styles.btn, { backgroundColor: colors.accent }]}
+          >
             <Ionicons name="arrow-up" size={20} color={colors.onAccent} />
           </PressableScale>
         ) : (

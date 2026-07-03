@@ -79,7 +79,7 @@ const CRISIS_PATTERN =
 // Deliberately open-ended so they land after any user message.
 const REPLY_BANKS: Record<string, readonly string[]> = {
   aurora: [
-    "I'm glad you said that out loud. Stay with it for a second — what does it feel like underneath?",
+    "I'm glad you said that out loud. Stay with it for a second, what does it feel like underneath?",
     "That sounds like a lot to be carrying. You don't have to sort it all at once; what part feels closest right now?",
     "I hear you. And I want you to know none of that sounds silly from where I sit. What would feel like a small relief today?",
     "Thank you for trusting me with that. If we just sat with it together for a moment, what would you want me to understand about it?",
