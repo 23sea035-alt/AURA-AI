@@ -46,6 +46,7 @@ export default function AiConsentScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
@@ -100,7 +101,10 @@ export default function AiConsentScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.md, paddingTop: SPACE.sm },
+  // Full-height scroll viewport even when under-filled — otherwise the area
+  // below short content is dead to swipes (same fix as companions.tsx).
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.md, paddingTop: SPACE.sm },
   title: { ...TYPE.headline, marginBottom: SPACE.xs },
   body: { ...TYPE.body, fontSize: 15, lineHeight: 22 },
   rows: { gap: SPACE.lg },

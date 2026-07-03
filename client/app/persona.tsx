@@ -40,6 +40,7 @@ export default function PersonaScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         showsVerticalScrollIndicator={false}
       >
@@ -102,7 +103,10 @@ export default function PersonaScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: SPACE.xl },
-  content: { gap: SPACE.md },
+  // Full-height scroll viewport even when under-filled — otherwise the area
+  // below short content is dead to swipes (same fix as companions.tsx).
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.md },
   title: { ...TYPE.headline },
   sub: { ...TYPE.body, marginBottom: SPACE.sm },
   card: {

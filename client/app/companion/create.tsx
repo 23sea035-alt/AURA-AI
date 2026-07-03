@@ -111,6 +111,7 @@ export default function CreateCompanionScreen() {
         <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
         <TopBar title={isEdit ? 'Edit companion' : 'New companion'} />
         <ScrollView
+          style={styles.scroll}
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 128 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -243,7 +244,10 @@ export default function CreateCompanionScreen() {
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   container: { flex: 1 },
-  content: { gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
+  // Full-height scroll viewport even when under-filled — otherwise the area
+  // below short content is dead to swipes (same fix as companions.tsx).
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   form: { gap: SPACE.xl },
   dimmed: { opacity: 0.5 },
   section: { gap: SPACE.sm },

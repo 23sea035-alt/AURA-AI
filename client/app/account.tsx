@@ -51,6 +51,7 @@ export default function AccountScreen() {
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <TopBar title="Manage your data" />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
@@ -103,7 +104,10 @@ export default function AccountScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
+  // Full-height scroll viewport even when under-filled — otherwise the area
+  // below short content is dead to swipes (same fix as companions.tsx).
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   section: { gap: SPACE.sm },
   line: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 21 },
   explainer: { ...TYPE.caption, lineHeight: 17 },

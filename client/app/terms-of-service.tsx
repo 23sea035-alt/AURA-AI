@@ -21,6 +21,7 @@ export default function TermsOfServiceScreen() {
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <TopBar title="Terms & Privacy" />
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
         showsVerticalScrollIndicator={false}
       >
@@ -54,7 +55,10 @@ export default function TermsOfServiceScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
+  // Full-height scroll viewport even when under-filled — otherwise the area
+  // below short content is dead to swipes (same fix as companions.tsx).
+  scroll: { flex: 1 },
+  content: { flexGrow: 1, gap: SPACE.xl, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   doc: { gap: SPACE.md },
   docTitle: { ...TYPE.headline, marginBottom: -SPACE.xs },
   lastUpdated: { ...TYPE.caption },
