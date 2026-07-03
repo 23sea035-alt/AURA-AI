@@ -50,6 +50,14 @@ export const ONBOARDING = {
     // unchecked surfaces `termsNudge` inline and blocks the action. ToS/Privacy are
     // inline links in the label.
     terms: 'I agree to the Terms & Privacy Policy',
+    // Structured parts so the register screen can render the two documents as
+    // real inline links (both must be reachable at the point of consent).
+    termsParts: {
+      prefix: 'I agree to the ',
+      termsLink: 'Terms of Service',
+      joiner: ' & ',
+      privacyLink: 'Privacy Policy',
+    },
     termsNudge: 'Please agree to the Terms & Privacy Policy to continue.',
     forgotPasswordLink: 'Forgot password?',
     footers: {

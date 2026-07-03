@@ -94,6 +94,7 @@ export default function YouScreen() {
         <ListGroup label="Privacy & Safety">
           <ListRow first label="Safety center" onPress={() => router.push('/safety')} />
           <ListRow label="Privacy policy" onPress={() => router.push('/privacy')} />
+          <ListRow label="Terms of service" onPress={() => router.push('/terms-of-service')} />
           <ListRow label="Manage your data" onPress={() => router.push('/account')} />
         </ListGroup>
 

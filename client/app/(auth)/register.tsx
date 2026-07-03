@@ -128,8 +128,23 @@ export default function RegisterScreen() {
             <View style={[styles.checkWrap, nudge && !agreed ? { borderColor: colors.accent } : null]}>
               <Checkbox checked={agreed} onToggle={toggleAgreed} />
             </View>
+            {/* The two documents are real links (reachable at the point of
+                consent); tapping the surrounding text still toggles the box. */}
             <Text style={[styles.terms, { color: colors.textSecondary }]} onPress={toggleAgreed}>
-              {a.terms}
+              {a.termsParts.prefix}
+              <Text
+                style={[styles.termsLink, { color: colors.accent }]}
+                onPress={() => router.push('/terms-of-service')}
+              >
+                {a.termsParts.termsLink}
+              </Text>
+              {a.termsParts.joiner}
+              <Text
+                style={[styles.termsLink, { color: colors.accent }]}
+                onPress={() => router.push('/privacy')}
+              >
+                {a.termsParts.privacyLink}
+              </Text>
             </Text>
           </Animated.View>
 
@@ -163,6 +178,7 @@ const styles = StyleSheet.create({
   termsRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.sm },
   checkWrap: { borderWidth: 1.5, borderColor: 'transparent', borderRadius: 8, padding: 2 },
   terms: { flex: 1, fontFamily: FONTS.body.regular, fontSize: 14, lineHeight: 19 },
+  termsLink: { fontFamily: FONTS.body.semibold, fontSize: 14 },
   error: { fontFamily: FONTS.body.regular, fontSize: 14, textAlign: 'center' },
   action: { marginTop: 'auto', paddingTop: SPACE.lg, gap: SPACE.sm },
   footerLink: { alignItems: 'center', paddingVertical: SPACE.sm },
