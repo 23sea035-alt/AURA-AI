@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useRef, useState } from 'react';
 import { Pressable, View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
-import Swipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
+import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -25,6 +25,7 @@ import { COMPANIONS, PERSONAS } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { type Companion, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { timeAgo, useNow } from '@/utils/time';
 
 const BASE_IDS = ['aurora', 'orion', 'lyra']; // the 3 base personas — always free-accessible
 
@@ -41,8 +42,29 @@ const editCompanion = (id: string) =>
 export default function CompanionsScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { companions, user, primaryCompanionId, setPrimaryCompanion, archiveCompanion, restoreCompanion } = useApp();
+  const { companions, user, typing, primaryCompanionId, setPrimaryCompanion, archiveCompanion, restoreCompanion } =
+    useApp();
   const isPremium = !!user?.isPremium;
+  // Live relative-time labels (frontend-only: derived from stored ISO stamps).
+  const now = useNow();
+
+  // One swipe row open at a time — any other interaction closes it (Gmail-style).
+  const swipeRefs = useRef(new Map<string, React.RefObject<SwipeableMethods | null>>());
+  const swipeRefFor = (id: string) => {
+    let ref = swipeRefs.current.get(id);
+    if (!ref) {
+      ref = React.createRef<SwipeableMethods | null>();
+      swipeRefs.current.set(id, ref);
+    }
+    return ref;
+  };
+  const openSwipeId = useRef<string | null>(null);
+  const closeOpenSwipe = () => {
+    if (openSwipeId.current) {
+      swipeRefs.current.get(openSwipeId.current)?.current?.close();
+      openSwipeId.current = null;
+    }
+  };
 
   const active = companions.filter((c) => !c.archivedAt);
   const archived = companions.filter((c) => c.archivedAt);
@@ -133,6 +155,7 @@ export default function CompanionsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={closeOpenSwipe}
       >
         {filtered.length === 0 ? (
           <View style={styles.empty}>
@@ -146,35 +169,61 @@ export default function CompanionsScreen() {
             const locked = !isPremium && !BASE_IDS.includes(c.id); // base free; custom locked-not-deleted on free
           const isHome = c.id === primaryCompanionId;
           return (
-            <Animated.View key={c.id} entering={enterUp(i + 1)}>
+            <Animated.View key={c.id} entering={enterUp(i + 1)} style={[styles.rowShadow, shadows.e2]}>
+              <View style={styles.rowClip}>
               <Swipeable
+                ref={swipeRefFor(c.id)}
                 friction={2}
                 overshootFriction={8}
+                onSwipeableWillOpen={() => {
+                  if (openSwipeId.current && openSwipeId.current !== c.id) closeOpenSwipe();
+                  openSwipeId.current = c.id;
+                }}
+                onSwipeableClose={() => {
+                  if (openSwipeId.current === c.id) openSwipeId.current = null;
+                }}
                 renderLeftActions={() => (
                   <ActionPanel
+                    side="left"
                     color={colors.accent}
                     icon={isHome ? 'location' : 'location-outline'}
                     label={isHome ? COMPANIONS.swipe.unpin : COMPANIONS.swipe.pin}
-                    onPress={() => setPrimaryCompanion(isHome ? '' : c.id)}
+                    onPress={() => {
+                      setPrimaryCompanion(isHome ? '' : c.id);
+                      closeOpenSwipe();
+                    }}
                   />
                 )}
                 renderRightActions={
                   canArchive
                     ? () => (
                         <ActionPanel
+                          side="right"
                           color={colors.error}
                           icon="archive-outline"
                           label={COMPANIONS.swipe.archive}
-                          onPress={() => doArchive(c)}
+                          onPress={() => {
+                            doArchive(c);
+                            closeOpenSwipe();
+                          }}
                         />
                       )
                     : undefined
                 }
               >
                 <Pressable
-                  onPress={() => router.push(locked ? '/premium' : { pathname: '/chat/[id]', params: { id: c.id } })}
-                  onLongPress={() => setSheetFor(c.id)}
-                  style={[styles.card, { backgroundColor: colors.raised }, shadows.e2, locked && { opacity: 0.55 }]}
+                  onPress={() => {
+                    if (openSwipeId.current) {
+                      closeOpenSwipe();
+                      return;
+                    }
+                    router.push(locked ? '/premium' : { pathname: '/chat/[id]', params: { id: c.id } });
+                  }}
+                  onLongPress={() => {
+                    closeOpenSwipe();
+                    setSheetFor(c.id);
+                  }}
+                  style={[styles.card, { backgroundColor: colors.raised }, locked && { opacity: 0.55 }]}
                 >
                   <View style={styles.avatarWrap}>
                     <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
@@ -191,16 +240,24 @@ export default function CompanionsScreen() {
                       <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                         {c.name}
                       </Text>
-                      {c.lastActive ? (
-                        <Text style={[styles.time, { color: colors.textTertiary }]}>{c.lastActive}</Text>
+                      {c.lastActiveAt ? (
+                        <Text style={[styles.time, { color: colors.textTertiary }]}>
+                          {timeAgo(c.lastActiveAt, now)}
+                        </Text>
                       ) : null}
                     </View>
                     <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
                       {voiceFor(c)}
                     </Text>
-                    <Text style={[styles.preview, { color: colors.textTertiary }]} numberOfLines={1}>
-                      {locked ? COMPANIONS.lockedCompanion : c.lastMessage ?? ''}
-                    </Text>
+                    {typing[c.id] ? (
+                      <Text style={[styles.typing, { color: colors.accent }]} numberOfLines={1}>
+                        {`${c.name} is typing…`}
+                      </Text>
+                    ) : (
+                      <Text style={[styles.preview, { color: colors.textTertiary }]} numberOfLines={1}>
+                        {locked ? COMPANIONS.lockedCompanion : c.lastMessage ?? ''}
+                      </Text>
+                    )}
                   </View>
                   {locked ? (
                     <Ionicons name="lock-closed" size={16} color={colors.textTertiary} />
@@ -210,6 +267,7 @@ export default function CompanionsScreen() {
                   )}
                 </Pressable>
               </Swipeable>
+              </View>
             </Animated.View>
           );
           })
@@ -289,11 +347,13 @@ export default function CompanionsScreen() {
 }
 
 function ActionPanel({
+  side,
   color,
   icon,
   label,
   onPress,
 }: {
+  side: 'left' | 'right';
   color: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
   label: string;
@@ -301,7 +361,17 @@ function ActionPanel({
 }) {
   const { colors } = useTheme();
   return (
-    <Pressable onPress={onPress} style={[styles.actionPanel, { backgroundColor: color }]}>
+    <Pressable onPress={onPress} style={styles.actionPanel}>
+      {/* The color field bleeds under the card (clipped by the row's rounded
+          wrapper) so mid-swipe reads as the card overlapping a continuous CTA
+          surface, never a floating chip. */}
+      <View
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: color },
+          side === 'left' ? styles.bleedRight : styles.bleedLeft,
+        ]}
+      />
       <Ionicons name={icon} size={20} color={colors.onAccent} />
       <Text style={[styles.actionLabel, { color: colors.onAccent }]}>{label}</Text>
     </Pressable>
@@ -394,6 +464,7 @@ const styles = StyleSheet.create({
   time: { fontFamily: FONTS.body.regular, fontSize: 12 },
   voice: { fontFamily: FONTS.body.regular, fontSize: 14 },
   preview: { fontFamily: FONTS.body.regular, fontSize: 14 },
+  typing: { fontFamily: FONTS.body.medium, fontSize: 14, fontStyle: 'italic' },
   avatarWrap: { position: 'relative' },
   // Pinned/Home indicator — a small corner badge on the avatar (same convention as the create
   // button's lock badge) rather than a labeled chip, so the pinned card doesn't stand apart.
@@ -409,13 +480,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   hint: { opacity: 0.4 },
+  // Rounded unit: shadow on the outer wrapper (shadows clip under overflow:
+  // 'hidden'), clipping on the inner one so the bleed fields stay card-shaped.
+  rowShadow: { borderRadius: RADIUS.card },
+  rowClip: { borderRadius: RADIUS.card, overflow: 'hidden' },
   actionPanel: {
-    width: 84,
-    borderRadius: RADIUS.card,
+    width: 96,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
   },
+  bleedRight: { right: -600 },
+  bleedLeft: { left: -600 },
   actionLabel: { fontFamily: FONTS.body.semibold, fontSize: 12 },
   archivedCard: {
     flexDirection: 'row',

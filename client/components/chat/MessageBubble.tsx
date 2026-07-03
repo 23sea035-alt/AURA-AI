@@ -1,7 +1,9 @@
 // A single chat bubble. Companion (left): warm-paper sheet + soft shadow, softened asymmetric
 // radius. User (right): wine-tinted bubble. Hanken at the approved chat measure (TYPE.body),
-// capped ~82% width. A dictated/voice message also shows a VoiceNote (play + scrubber) above its
-// transcript. `reveal` hands the text to RevealingText — the newest assistant turn writes itself in.
+// capped ~82% width. Consecutive same-sender messages group: tighter spacing, and only the last
+// bubble of a group keeps the asymmetric tail. A dictated/voice message also shows a VoiceNote
+// (play + scrubber) above its transcript. `reveal` hands the text to RevealingText — the newest
+// assistant turn writes itself in.
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 
@@ -14,30 +16,38 @@ interface MessageBubbleProps {
   role: 'user' | 'assistant';
   text: string;
   audioUri?: string;
-  /** When set, long-pressing the bubble fires this (used to open the report sheet on AI messages). */
+  /** Tap (used to toggle the message's timestamp). */
+  onPress?: () => void;
+  /** When set, long-pressing the bubble fires this (opens the message action sheet). */
   onLongPress?: () => void;
   /** Word-by-word typing reveal (the newest assistant reply only). */
   reveal?: boolean;
   onRevealProgress?: () => void;
   onRevealDone?: () => void;
+  /** Continues a run of same-sender messages — tighter gap above. */
+  grouped?: boolean;
+  /** Last bubble of its group keeps the asymmetric tail (default true). */
+  tail?: boolean;
 }
 
 export function MessageBubble({
   role,
   text,
   audioUri,
+  onPress,
   onLongPress,
   reveal,
   onRevealProgress,
   onRevealDone,
+  grouped,
+  tail = true,
 }: MessageBubbleProps) {
   const { colors, shadows } = useTheme();
   const isUser = role === 'user';
   const bubbleStyle = [
     styles.bubble,
-    isUser
-      ? { backgroundColor: colors.bubbleBg, borderBottomRightRadius: RADIUS.tight }
-      : { backgroundColor: colors.sheet, borderBottomLeftRadius: RADIUS.tight, ...shadows.e1 },
+    isUser ? { backgroundColor: colors.bubbleBg } : { backgroundColor: colors.sheet, ...shadows.e1 },
+    tail && (isUser ? { borderBottomRightRadius: RADIUS.tight } : { borderBottomLeftRadius: RADIUS.tight }),
   ];
   const textStyle = [styles.text, { color: isUser ? colors.bubbleText : colors.textPrimary }];
   const content = (
@@ -57,9 +67,14 @@ export function MessageBubble({
     </>
   );
   return (
-    <View style={[styles.row, { justifyContent: isUser ? 'flex-end' : 'flex-start' }]}>
-      {onLongPress ? (
-        <Pressable onLongPress={onLongPress} delayLongPress={350} style={bubbleStyle}>
+    <View
+      style={[
+        styles.row,
+        { marginTop: grouped ? SPACE.xs : SPACE.lg, justifyContent: isUser ? 'flex-end' : 'flex-start' },
+      ]}
+    >
+      {onPress || onLongPress ? (
+        <Pressable onPress={onPress} onLongPress={onLongPress} delayLongPress={350} style={bubbleStyle}>
           {content}
         </Pressable>
       ) : (
@@ -70,8 +85,8 @@ export function MessageBubble({
 }
 
 const styles = StyleSheet.create({
-  // sm vertical margin → 16pt between adjacent bubbles: the thread breathes.
-  row: { flexDirection: 'row', marginVertical: SPACE.sm },
+  // Vertical rhythm lives on marginTop: lg between exchanges, xs within a group.
+  row: { flexDirection: 'row' },
   bubble: {
     maxWidth: '82%',
     paddingHorizontal: SPACE.lg,

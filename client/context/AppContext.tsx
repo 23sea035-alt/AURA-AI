@@ -29,7 +29,8 @@ export interface Companion {
   colorFrom: string;
   colorTo: string;
   lastMessage?: string;
-  lastActive?: string;
+  /** ISO timestamp of the last exchange — display strings are derived live (utils/time). */
+  lastActiveAt?: string;
   messageCount?: number;
   /** The saved "look" (mood filter) for the portrait. Backed by companions.appearance (jsonb). */
   lookId?: string;
@@ -113,6 +114,8 @@ interface AppContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   messages: Record<string, Message[]>;
+  /** Companions with a reply currently in flight — surfaces "typing…" outside the chat. */
+  typing: Record<string, boolean>;
   usage: Usage;
   voiceUsage: VoiceUsage;
   /** Add elapsed call seconds to this month's voice meter (mock of server-side metering). */
@@ -184,7 +187,6 @@ const DEFAULT_COMPANIONS: Companion[] = [
     traits: ['affectionate', 'calm', 'balanced'],
     colorFrom: '#D8A98C',
     colorTo: '#C4826B',
-    lastActive: 'Just now',
     messageCount: DEMO.conversation.length,
   },
   {
@@ -252,6 +254,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [primaryCompanionId, setPrimaryCompanionId] = useState('aurora');
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
+  const [typing, setTyping] = useState<Record<string, boolean>>({});
   const [usage, setUsage] = useState<Usage>(SEED_USAGE);
   const [voiceUsage, setVoiceUsage] = useState<VoiceUsage>({ seconds: 0, month: thisMonth() });
   const [memories, setMemories] = useState<Record<string, mock.MemoryRow[] | undefined>>({});
@@ -295,7 +298,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ]);
 
       if (storedUser) setUser(migrateProfile(JSON.parse(storedUser)));
-      if (storedCompanions) setCompanions(JSON.parse(storedCompanions));
+      if (storedCompanions) {
+        // Migration: earlier builds stored a display string (`lastActive`);
+        // stamp the ISO `lastActiveAt` from each thread's newest message.
+        const parsedCompanions = JSON.parse(storedCompanions) as (Companion & { lastActive?: string })[];
+        const parsedMsgs: Record<string, Message[]> = storedMessages ? JSON.parse(storedMessages) : {};
+        const migrated = parsedCompanions.map(({ lastActive: _legacy, ...c }) => {
+          if (!c.lastActiveAt) {
+            const thread = parsedMsgs[c.id];
+            const newest = thread?.[thread.length - 1]?.createdAt;
+            if (newest) return { ...c, lastActiveAt: newest };
+          }
+          return c;
+        });
+        setCompanions(migrated);
+      }
       if (storedPrimary) setPrimaryCompanionId(storedPrimary);
 
       // Seed Aurora's canonical thread on first run so every screen tells the
@@ -306,6 +323,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const seeded = seedConversation();
         setMessages(seeded);
         persistMessages(seeded);
+        // Stamp the seeded thread's recency on the companion (kept in sync by
+        // sendTurn from here on).
+        const seedEnd = seeded.aurora?.[seeded.aurora.length - 1]?.createdAt;
+        if (seedEnd) {
+          setCompanions((prev) => {
+            const updated = prev.map((c) => (c.id === 'aurora' ? { ...c, lastActiveAt: seedEnd } : c));
+            persistCompanions(updated);
+            return updated;
+          });
+        }
       }
 
       if (storedUsage) {
@@ -515,6 +542,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         audioUri: opts?.audioUri,
       });
 
+      setTyping((prev) => ({ ...prev, [companionId]: true }));
       let result: mock.TurnResult;
       try {
         result = await mock.sendTurn({
@@ -532,6 +560,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         // so the thread offers a retry.
         setMessageStatus(companionId, userMsgId, 'failed');
         return { failed: true };
+      } finally {
+        setTyping((prev) => ({ ...prev, [companionId]: false }));
       }
 
       if (result.inputBlocked) {
@@ -571,7 +601,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ? {
                 ...c,
                 lastMessage: (result.reply ?? content).slice(0, 80),
-                lastActive: 'Just now',
+                lastActiveAt: new Date().toISOString(),
                 messageCount: (c.messageCount ?? 0) + 1,
               }
             : c,
@@ -695,6 +725,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         messages,
+        typing,
         usage,
         voiceUsage,
         addVoiceSeconds,

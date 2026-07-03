@@ -30,7 +30,12 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { user, companions, primaryCompanionId, usage } = useApp();
   const active = companions.filter((c) => !c.archivedAt);
-  const companion = active.find((c) => c.id === primaryCompanionId) ?? active[0];
+  // Pin policy: an explicit pin wins; with no pin (allowed — unpinning is a
+  // deliberate "no favorite" state), Home hosts the most recently active
+  // companion. ISO timestamps compare lexicographically.
+  const companion =
+    active.find((c) => c.id === primaryCompanionId) ??
+    [...active].sort((a, b) => (b.lastActiveAt ?? '').localeCompare(a.lastActiveAt ?? ''))[0];
   const firstName = friendlyFirstName(user?.firstName);
   const greeting = greetingFor(new Date().getHours());
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

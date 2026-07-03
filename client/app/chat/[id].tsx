@@ -5,10 +5,12 @@
 // free-limit card. Runs entirely on the mock pipeline (context.sendTurn) —
 // wiring the live API later only touches AppContext.
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Platform } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 // The built-in RN KeyboardAvoidingView drives its padding via LayoutAnimation, which doesn't
@@ -63,13 +65,14 @@ function dayLabel(iso: string): string {
 // their order (intra-cell sibling order is unreliable under inversion).
 type Row =
   | { kind: 'divider'; key: string; label: string }
-  | { kind: 'message'; key: string; msg: Message }
+  | { kind: 'message'; key: string; msg: Message; grouped: boolean; tail: boolean }
+  | { kind: 'time'; key: string; msg: Message }
   | { kind: 'sendState'; key: string; msg: Message }
   | { kind: 'notice'; key: string }
   | { kind: 'crisis'; key: string };
 
 export default function ChatScreen() {
-  const { colors, mode } = useTheme();
+  const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const { id, starter } = useLocalSearchParams<{ id: string; starter?: string }>();
   const { user, companions, getMessagesForCompanion, sendTurn, removeMessage, safetyState, setBreakReminder } =
@@ -91,10 +94,39 @@ export default function ChatScreen() {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const [voiceDraft, setVoiceDraft] = useState<{ audioUri?: string } | null>(null);
+  // Tap a bubble to reveal its time; long-press opens the message action sheet.
+  const [timeFor, setTimeFor] = useState<string | null>(null);
+  const [msgSheetFor, setMsgSheetFor] = useState<Message | null>(null);
+  // Jump-to-latest pill: shown when scrolled into history; "New reply" when one
+  // lands while away from the bottom.
+  const [showJump, setShowJump] = useState(false);
+  const [newReply, setNewReply] = useState(false);
+  const showJumpRef = useRef(false);
+  showJumpRef.current = showJump;
 
   const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
+
+  // Draft persistence — an unsent composer draft survives leaving the screen.
+  const draftLoaded = useRef(false);
+  useEffect(() => {
+    if (!cid) return;
+    AsyncStorage.getItem(`draft:${cid}`)
+      .then((saved) => {
+        if (saved && !starter) setInput((cur) => (cur ? cur : saved));
+      })
+      .catch(() => {})
+      .finally(() => {
+        draftLoaded.current = true;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cid]);
+  useEffect(() => {
+    if (!draftLoaded.current || !cid) return;
+    if (input) AsyncStorage.setItem(`draft:${cid}`, input).catch(() => {});
+    else AsyncStorage.removeItem(`draft:${cid}`).catch(() => {});
+  }, [input, cid]);
 
   const stored = getMessagesForCompanion(cid);
 
@@ -139,13 +171,25 @@ export default function ChatScreen() {
   const rows: Row[] = useMemo(() => {
     const out: Row[] = [];
     let lastDay = '';
-    for (const msg of windowed) {
+    for (let i = 0; i < windowed.length; i++) {
+      const msg = windowed[i];
+      const prev = windowed[i - 1];
+      const next = windowed[i + 1];
       const label = dayLabel(msg.createdAt);
       if (label !== lastDay) {
         lastDay = label;
         out.push({ kind: 'divider', key: `day-${label}-${msg.id}`, label });
       }
-      out.push({ kind: 'message', key: msg.id, msg });
+      // Grouping: consecutive same-sender, same day, unbroken by a send-state
+      // caption. Only the last bubble of a group keeps the tail.
+      const grouped =
+        !!prev && prev.role === msg.role && dayLabel(prev.createdAt) === label && !prev.status;
+      const tail =
+        !next || next.role !== msg.role || dayLabel(next.createdAt) !== label || !!msg.status;
+      out.push({ kind: 'message', key: msg.id, msg, grouped, tail });
+      if (timeFor === msg.id) {
+        out.push({ kind: 'time', key: `time-${msg.id}`, msg });
+      }
       if (msg.status === 'failed' || msg.status === 'blocked') {
         out.push({ kind: 'sendState', key: `state-${msg.id}`, msg });
       }
@@ -157,7 +201,7 @@ export default function ChatScreen() {
       }
     }
     return out.reverse();
-  }, [windowed, revealId]);
+  }, [windowed, revealId, timeFor]);
 
   // Inverted list: offset 0 IS the bottom (the newest message).
   const scrollToBottom = (animated = true) => listRef.current?.scrollToOffset({ offset: 0, animated });
@@ -171,7 +215,13 @@ export default function ChatScreen() {
     setReportOpen(false);
     // Fire-and-forget + non-punitive: never surface a report error to the user.
     if (reportTargetId) void reportMessage(reportTargetId, reason, note || undefined);
-    setToast(true);
+    setToast(CHAT.report.confirmToast);
+  };
+
+  const copyMessage = async (m: Message) => {
+    setMsgSheetFor(null);
+    await Clipboard.setStringAsync(m.content);
+    setToast('Copied');
   };
 
   const sendContent = async (content: string, opts?: { inputModality?: 'text' | 'voice'; audioUri?: string }) => {
@@ -192,6 +242,7 @@ export default function ChatScreen() {
       // The reveal is the payoff — a soft tick marks the reply landing.
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setRevealId(result.assistant.id);
+      if (showJumpRef.current) setNewReply(true);
     }
   };
 
@@ -258,6 +309,13 @@ export default function ChatScreen() {
           maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
           onEndReached={loadOlder}
           onEndReachedThreshold={0.4}
+          scrollEventThrottle={48}
+          onScroll={(e) => {
+            // Inverted: offset 0 is the bottom; past a screen's worth = "away".
+            const away = e.nativeEvent.contentOffset.y > 320;
+            setShowJump(away);
+            if (!away) setNewReply(false);
+          }}
           // Inverted list: header = visual bottom, footer = visual top.
           ListHeaderComponent={thinking ? <ThinkingIndicator /> : null}
           ListFooterComponent={
@@ -270,6 +328,23 @@ export default function ChatScreen() {
           renderItem={({ item }) => {
             if (item.kind === 'divider') return <ThreadDivider label={item.label} />;
             if (item.kind === 'notice') return <AiNotice text={withName(AI_NOTICE)} />;
+            if (item.kind === 'time') {
+              const t = new Date(item.msg.createdAt).toLocaleTimeString('en-US', {
+                hour: 'numeric',
+                minute: '2-digit',
+              });
+              return (
+                <Text
+                  style={[
+                    styles.timeStamp,
+                    { color: colors.textSecondary },
+                    item.msg.role === 'user' ? styles.timeRight : styles.timeLeft,
+                  ]}
+                >
+                  {t}
+                </Text>
+              );
+            }
             if (item.kind === 'crisis') {
               return (
                 <View style={styles.crisisWrap}>
@@ -303,15 +378,35 @@ export default function ChatScreen() {
                   role={m.role === 'user' ? 'user' : 'assistant'}
                   text={m.content}
                   audioUri={m.audioUri}
-                  onLongPress={isReportable(m) ? () => openReport(m.id) : undefined}
+                  onPress={() => setTimeFor((cur) => (cur === m.id ? null : m.id))}
+                  onLongPress={m.id !== 'greeting' ? () => setMsgSheetFor(m) : undefined}
                   reveal={revealing}
                   onRevealProgress={() => scrollToBottom(false)}
                   onRevealDone={() => setRevealId(null)}
+                  grouped={item.grouped}
+                  tail={item.tail}
                 />
               </View>
             );
           }}
         />
+
+        {showJump ? (
+          <PressableScale
+            haptic="light"
+            onPress={() => {
+              scrollToBottom(true);
+              setNewReply(false);
+            }}
+            accessibilityLabel={newReply ? 'New reply, jump to latest' : 'Jump to latest'}
+            style={[styles.jumpPill, { backgroundColor: colors.sheet }, shadows.e2]}
+          >
+            {newReply ? (
+              <Text style={[styles.jumpText, { color: colors.accent }]}>New reply</Text>
+            ) : null}
+            <Ionicons name="arrow-down" size={16} color={newReply ? colors.accent : colors.textSecondary} />
+          </PressableScale>
+        ) : null}
 
         {safetyState.breakReminder ? (
           <View style={[styles.banner, { backgroundColor: colors.accentTint }]}>
@@ -393,9 +488,36 @@ export default function ChatScreen() {
         </View>
       </BottomSheet>
 
+      {/* Message actions — copy (both roles), report (assistant turns). */}
+      <BottomSheet visible={!!msgSheetFor} onClose={() => setMsgSheetFor(null)} scrollable={false}>
+        <View style={styles.overflow}>
+          <PressableScale
+            haptic="light"
+            onPress={() => msgSheetFor && void copyMessage(msgSheetFor)}
+            style={styles.overflowRow}
+          >
+            <Text style={[styles.overflowText, { color: colors.textPrimary }]}>Copy message</Text>
+          </PressableScale>
+          {msgSheetFor && isReportable(msgSheetFor) ? (
+            <PressableScale
+              haptic="light"
+              onPress={() => {
+                const id = msgSheetFor.id;
+                setMsgSheetFor(null);
+                // iOS can't present a Modal while this sheet is dismissing.
+                setTimeout(() => openReport(id), DURATION.normal + 30);
+              }}
+              style={styles.overflowRow}
+            >
+              <Text style={[styles.overflowText, { color: colors.error }]}>{CHAT.overflow.report}</Text>
+            </PressableScale>
+          ) : null}
+        </View>
+      </BottomSheet>
+
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} onSubmit={submitReport} />
 
-      <Toast visible={toast} message={CHAT.report.confirmToast} onHide={() => setToast(false)} />
+      <Toast visible={toast !== null} message={toast ?? ''} onHide={() => setToast(null)} />
     </View>
   );
 }
@@ -410,6 +532,21 @@ const styles = StyleSheet.create({
   olderLoading: { alignItems: 'center', paddingVertical: SPACE.sm },
   // Failed/blocked sends stay visible but recede.
   heldBubble: { opacity: 0.55 },
+  timeStamp: { ...TYPE.caption, marginTop: SPACE.xs },
+  timeRight: { alignSelf: 'flex-end' },
+  timeLeft: { alignSelf: 'flex-start' },
+  jumpPill: {
+    position: 'absolute',
+    right: SPACE.lg,
+    bottom: 96,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACE.xs,
+    paddingHorizontal: SPACE.md,
+    minHeight: 36,
+    borderRadius: RADIUS.pill,
+  },
+  jumpText: { ...TYPE.label },
   sendState: { alignSelf: 'flex-end', paddingVertical: SPACE.xs },
   sendStateText: { ...TYPE.caption },
   crisisWrap: { marginVertical: SPACE.sm },

@@ -220,6 +220,27 @@ Implemented after the full-app audit (rubric: `audit-rubric-supplement.md`), all
   modals last, never grade presentation from a deep-linked stack. (Only `premium` is actually
   modal; verified by config grep.)
 
+## Conversation + roster round (2026-07-03, fourth pass)
+
+- **Chat niceties**: jump-to-latest pill (shows when scrolled into history; labels "New reply"
+  when one lands while away), message grouping (consecutive same-sender bubbles tighten to a 4pt
+  gap and only the last keeps the tail), tap-a-bubble timestamps, long-press action sheet with
+  **Copy message** (expo-clipboard — native dep added, dev client rebuilt) + Report, and per-
+  companion draft persistence.
+- **Typing visible from outside**: reply-in-flight state (`typing`) lives in AppContext now; the
+  roster preview swaps to an italic accent "{Companion} is typing…" while a reply is being
+  generated, then settles to the reply preview.
+- **Roster swipe actions, Gmail-style**: the action color now bleeds under the card inside a
+  rounded clipping wrapper, so mid-swipe the card visibly slides OVER a continuous accent/error
+  field (never a floating chip); one row open at a time — opening another row, tapping any card,
+  or scrolling closes it.
+- **Live relative times**: companions store ISO `lastActiveAt` (display strings are gone;
+  migration stamps old rows from their newest message). `utils/time.ts` derives
+  "Just now → 3m → 2h → 4d → Jun 26" and `useNow(30s)` re-renders so labels never stale. Purely
+  frontend: timestamps come from the server/store; elapsed display is derived at render.
+- **Pin policy decided**: unpinning is allowed as a deliberate "no favorite" state — Home then
+  hosts the **most recently active** companion (was: first in the roster).
+
 ## Seams index (grep for `WIRE SEAM` / `drop-in point`)
 - `client/lib/mock.ts` — every endpoint stand-in (header comment maps them).
 - `client/context/AppContext.tsx` — Clerk session shell (`login`/`register`/`logout`),

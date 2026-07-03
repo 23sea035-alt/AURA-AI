@@ -127,7 +127,6 @@ const BREAK_AFTER = 12; // session turns before the gentle break reminder
  */
 export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
   await simulateLatency(500);
-
   if (req.content.includes(DEV_FAIL_TRIGGER)) {
     throw new Error('mock network failure');
   }
