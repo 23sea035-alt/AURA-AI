@@ -114,14 +114,22 @@ export default function HomeScreen() {
         <Animated.View entering={FadeIn.delay(300)} style={[styles.stretch, styles.starters]}>
           {starters.map((s) => (
             <PressableScale
-              key={s}
+              key={s.label}
               haptic="light"
-              onPress={() => openChat(withName(s))}
+              onPress={() =>
+                // A random sentence opener lands in the composer, ready for the
+                // user to finish; chips without templates pass their label.
+                openChat(
+                  s.templates.length > 0
+                    ? s.templates[Math.floor(Math.random() * s.templates.length)]
+                    : withName(s.label),
+                )
+              }
               // Tonal fill + soft shadow (like every tappable card) — the old
               // hairline-only pill measured 1.17:1 and read as stray text (SC 1.4.11).
               style={[styles.starter, { backgroundColor: colors.raised }, shadows.e1]}
             >
-              <Text style={[styles.starterText, { color: colors.textSecondary }]}>{withName(s)}</Text>
+              <Text style={[styles.starterText, { color: colors.textSecondary }]}>{withName(s.label)}</Text>
             </PressableScale>
           ))}
         </Animated.View>
