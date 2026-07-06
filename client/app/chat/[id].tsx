@@ -168,7 +168,12 @@ export default function ChatScreen() {
       setInput(content); // give the capped message back to the composer
       return;
     }
-    if (result.failed || result.blocked) return; // the thread renders the state inline
+    if (result.failed || result.blocked) {
+      // The thread renders the state inline as the newest rows — snap to the
+      // bottom so "tap to retry" is never left sitting under the composer.
+      scrollToBottom();
+      return;
+    }
     if (result.assistant) {
       // The reveal is the payoff — a soft tick marks the reply landing.
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -458,7 +463,9 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   // flexGrow: the content wrapper spans the full frame so the whole
   // header-to-composer area stays interactive even when under-filled.
-  thread: { flexGrow: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.md, paddingBottom: SPACE.md },
+  // Inverted list: paddingTop renders at the VISUAL BOTTOM — the larger value
+  // keeps send-state rows ("tap to retry") clear of the composer's top edge.
+  thread: { flexGrow: 1, paddingHorizontal: SPACE.lg, paddingTop: SPACE.xl, paddingBottom: SPACE.md },
   bannerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.md },
   olderLoading: { alignItems: 'center', paddingVertical: SPACE.sm },
   // Failed/blocked sends stay visible but recede.

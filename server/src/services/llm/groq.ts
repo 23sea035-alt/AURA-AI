@@ -38,14 +38,27 @@ export function createGroqProvider(apiKey: string, model?: string, temperature?:
 
   return {
     async generateReply(params) {
-      const completion = await client.chat.completions.create({
+      const request = {
         model: resolvedModel,
         messages: buildMessages(params),
         temperature: resolvedTemperature,
         max_tokens: maxTokensForModel(resolvedModel),
-      }).catch((err: unknown) => {
+        ...(params.responseFormat === "json"
+          ? { response_format: { type: "json_object" as const } }
+          : {}),
+      };
+      const completion = await client.chat.completions.create(request).catch(async (err: unknown) => {
         recordIfRateLimited(err);
-        throw err;
+        // Not every Groq model accepts response_format — retry once without it
+        // rather than failing the call (callers schema-validate regardless).
+        const rejectedJsonMode = params.responseFormat === "json"
+          && err instanceof Error && /response_format/i.test(err.message);
+        if (!rejectedJsonMode) throw err;
+        const { response_format: _drop, ...plain } = request;
+        return client.chat.completions.create(plain).catch((retryErr: unknown) => {
+          recordIfRateLimited(retryErr);
+          throw retryErr;
+        });
       });
 
       const content = completion.choices[0]?.message?.content?.trim() ?? "";

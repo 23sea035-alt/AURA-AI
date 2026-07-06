@@ -355,3 +355,24 @@ The mock seam grew its live twin. Architecture:
   status before a session exists (degrades to post-login handling).
 - run-sim.sh fix: `lsof` exits 1 when :8081 is free → `|| true` (set -e silently killed the
   script on the first run of the day).
+
+## LLM-output hardening + live-mode fixes — 2026-07-06 (afternoon)
+
+- **Every LLM JSON response is now schema-validated** via `server/src/services/llm/llm-json.ts`
+  (fence/prose-tolerant extraction + zod). Before: safeguard verdicts were `JSON.parse(x) as T`
+  casts — valid-but-wrong-shape JSON ({}, nulled fields) read as flagged=false and **fail-OPENed**
+  the output moderator. Now `flagged` is required (absence = parse failure = fail closed);
+  descriptive fields degrade gracefully. Applied to both safeguard verdicts, prompt-guard's JSON
+  branch, and consolidation decisions (per-element validation — one malformed element no longer
+  crashes the loop and burns a retry; valid-empty arrays stay empty).
+- Safeguard calls now request **Groq JSON mode** (`responseFormat: "json"` on GenerateReplyParams;
+  transport retries without response_format if a model rejects it).
+- **False-crisis root cause fixed**: adjudicate's recall regex matched the mere MENTION of
+  "crisis route" — rationales like "no crisis routing needed" routed benign messages to the 988
+  template (observed live). Negated mentions are now suppressed; affirmative distress signals and
+  the crisis_route flag still route.
+- Live verification (OpenAI moderation degraded → the exact Groq safeguard path): benign message
+  → real Aurora reply, zero safety events. OpenAI moderation itself still 429s — the org needs
+  prepaid credits, not just a card on file.
+- Chat thread: send failures snap to bottom + extra visual-bottom padding so "tap to retry" never
+  sits under the composer.

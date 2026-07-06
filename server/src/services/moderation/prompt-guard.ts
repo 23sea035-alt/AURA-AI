@@ -1,6 +1,8 @@
 import OpenAI from "openai";
+import { z } from "zod";
 import type { LLMProvider } from "../llm/index.js";
 import { getLLMProvider } from "../llm/index.js";
+import { parseLlmJson } from "../llm/llm-json.js";
 import { logger } from "../../lib/logger.js";
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
@@ -28,16 +30,10 @@ function parseInjectionProb(raw: string): number {
   const asFloat = parseFloat(trimmed);
   if (!Number.isNaN(asFloat) && asFloat >= 0 && asFloat <= 1) return asFloat;
 
-  // Try parsing as JSON (fallback model may return {"malicious_probability": 0.xx})
-  try {
-    const parsed = JSON.parse(trimmed);
-    if (typeof parsed.malicious_probability === "number") {
-      const p = parsed.malicious_probability;
-      if (p >= 0 && p <= 1) return p;
-    }
-  } catch {
-    // Not JSON, fall through to keyword matching
-  }
+  // JSON shape (fallback model may return {"malicious_probability": 0.xx}) —
+  // schema-validated, fence/prose tolerant; wrong shapes fall through to keywords.
+  const parsed = parseLlmJson(trimmed, z.object({ malicious_probability: z.number().min(0).max(1) }));
+  if (parsed.ok) return parsed.data.malicious_probability;
 
   // Keyword-based fallback
   const r = trimmed.toLowerCase();

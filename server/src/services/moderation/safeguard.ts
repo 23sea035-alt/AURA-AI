@@ -1,5 +1,8 @@
+import { z } from "zod";
+
 import type { LLMProvider } from "../llm/index.js";
 import { getLLMProvider } from "../llm/index.js";
+import { parseLlmJson } from "../llm/llm-json.js";
 import type { ModerationAction } from "./moderator.js";
 
 export interface SafeguardVerdict {
@@ -8,6 +11,35 @@ export interface SafeguardVerdict {
   confidence: "high" | "med" | "low";
   crisis?: boolean;
   route: string;
+}
+
+// The classifier's output contract. Validated with zod (not a blind cast):
+// before this, JSON that parsed but missed `flagged` — `{}`, a prose-wrapped
+// object, a nulled field — fell through the old `catch` and read as
+// flagged=false, silently ALLOWING unmoderated output. Lenient on the
+// descriptive fields (bad confidence/rationale degrade, never invalidate),
+// strict on `flagged` (its absence is a parse failure → fail closed).
+const SafeguardOutputSchema = z.object({
+  flagged: z.boolean(),
+  category: z.string().nullish().transform((v) => v ?? null),
+  confidence: z.enum(["high", "med", "low"]).catch("low"),
+  rationale: z.array(z.string()).catch([]),
+  crisis_route: z.boolean().optional().catch(undefined),
+});
+type SafeguardOutput = z.infer<typeof SafeguardOutputSchema>;
+
+/** Schema-or-fail-closed: wrong-shape output only clears if it literally says `"flagged": false`. */
+function parseVerdict(response: string): SafeguardOutput {
+  const result = parseLlmJson(response, SafeguardOutputSchema);
+  if (result.ok) return result.data;
+  const explicitlySafe = /"flagged"\s*:\s*false/i.test(response);
+  return {
+    flagged: !explicitlySafe,
+    category: explicitlySafe ? null : "unparseable_failclosed",
+    confidence: "low",
+    rationale: [response.slice(0, 200)],
+    crisis_route: undefined,
+  };
 }
 
 export async function runOutputFallback(text: string, provider?: LLMProvider, route?: string): Promise<SafeguardVerdict> {
@@ -31,19 +63,12 @@ Evaluate the AI-GENERATED TEXT below against the CRITERIA. Return JSON:
     const response = await llm.generateReply({
       systemPrompt: policy,
       messages: [{ role: "user", content: `AI OUTPUT: "${text}"` }],
+      responseFormat: "json",
     });
 
-    let parsed: { flagged: boolean; category: string | null; confidence: string };
-    try {
-      parsed = JSON.parse(response) as typeof parsed;
-    } catch {
-      // Unparseable safeguard output → fail CLOSED (block) unless it explicitly says safe.
-      const explicitlySafe = /"flagged"\s*:\s*false/i.test(response);
-      parsed = { flagged: !explicitlySafe, category: explicitlySafe ? null : "unparseable_failclosed", confidence: "low" };
-    }
-
+    const parsed = parseVerdict(response);
     if (parsed.flagged) {
-      return { action: "block", reason: `Output safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
+      return { action: "block", reason: `Output safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence, route: routeLabel };
     }
     return { action: "allow", reason: "Output safeguard cleared", confidence: "high", route: routeLabel };
   } catch (err) {
@@ -93,20 +118,14 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
     const response = await llm.generateReply({
       systemPrompt: policy,
       messages: [{ role: "user", content: `CONTENT: "${text}"\n\nL1 hint: ${l1Category ?? "none"}\nL2 categories: ${l2Categories.join(", ") || "none"}` }],
+      responseFormat: "json",
     });
 
     const routeLabel = route ?? "adjudicate";
-    let parsed: { flagged: boolean; category: string | null; confidence: string; rationale: string[]; crisis_route?: boolean };
-    try {
-      parsed = JSON.parse(response) as typeof parsed;
-    } catch {
-      // Unparseable safeguard output → fail CLOSED (block) unless it explicitly says safe.
-      const explicitlySafe = /"flagged"\s*:\s*false/i.test(response);
-      parsed = { flagged: !explicitlySafe, category: explicitlySafe ? null : "unparseable_failclosed", confidence: "low", rationale: [response] };
-    }
+    const parsed = parseVerdict(response);
 
     if (parsed.flagged) {
-      return { action: "block", reason: `Safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
+      return { action: "block", reason: `Safeguard: ${parsed.category ?? "flagged"}`, confidence: parsed.confidence, route: routeLabel };
     }
     // If the model returned flagged=false but the category/rationale indicate self-harm distress,
     // route to crisis (not a block). This is DELIBERATELY recall-biased: the safeguard model does
@@ -118,9 +137,21 @@ Return JSON: { "flagged": bool, "category": "<rule-id or null>", "confidence": "
     const cat = (parsed.category ?? "").toLowerCase();
     const rationaleText = (parsed.rationale ?? []).join(" ").toLowerCase();
     const isHyperbolic = /\b(hyperbole|hyperbolic|idiom|idiomatic|figurative|figuratively|exaggeration|laugh|😂|😭|joking|joke)\b/.test(rationaleText);
-    const mentionsDistress = /\b(crisis.route|distress|ideation|genuine.*concern|real.*distress)\b/.test(rationaleText);
+    // Rationale wording only counts as a crisis signal when it is NOT negated:
+    // the loose /crisis.route/ match routed benign messages whose rationale
+    // said "no crisis routing needed" straight to the 988 template (live FP,
+    // 2026-07-06). The instructed phrase and distress terms still count, but a
+    // negator in the ~40 chars before them ("no", "not", "doesn't", "without",
+    // "no need to") suppresses the match.
+    const distressMention = /\b(route to crisis support|distress|ideation|genuine\s+\w*\s*concern|real\s+distress)\b/.exec(rationaleText);
+    const negatedBefore = distressMention
+      ? /\b(no|not|never|without|isn'?t|doesn'?t|didn'?t|lacks?|absent)\b[^.;!?]{0,40}$/.test(
+          rationaleText.slice(Math.max(0, distressMention.index - 48), distressMention.index),
+        )
+      : false;
+    const mentionsDistress = distressMention !== null && !negatedBefore;
     if (!isHyperbolic && (cat.includes("sh-1") || cat.includes("self-harm") || cat.includes("crisis") || parsed.crisis_route === true || mentionsDistress)) {
-      return { action: "crisis", reason: "Safeguard: self-harm distress detected — routing to crisis", confidence: parsed.confidence as "high" | "med" | "low", route: routeLabel };
+      return { action: "crisis", reason: "Safeguard: self-harm distress detected — routing to crisis", confidence: parsed.confidence, route: routeLabel };
     }
     return { action: "allow", reason: "Safeguard cleared", confidence: "high", route: routeLabel };
   } catch (err) {

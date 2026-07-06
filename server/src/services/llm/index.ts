@@ -1,6 +1,14 @@
 export interface GenerateReplyParams {
   systemPrompt: string;
   messages: Array<{ role: "user" | "assistant"; content: string }>;
+  /**
+   * "json" asks the provider for JSON mode (Groq/OpenAI response_format
+   * json_object) so classifier outputs can't drift into prose. The prompt must
+   * still say "JSON" (provider requirement) and callers must still validate
+   * the shape (lib: services/llm/llm-json.ts) — JSON mode guarantees syntax,
+   * never schema. Providers that reject the option fall back to plain text.
+   */
+  responseFormat?: "json";
 }
 
 export interface LLMProvider {

@@ -1,6 +1,8 @@
 import { db, memoriesTable, memoryJobsTable } from "../../db/src/index.js";
 import { eq, and } from "drizzle-orm";
+import { z } from "zod";
 import { getLLMProvider } from "../llm/index.js";
+import { parseLlmJson } from "../llm/llm-json.js";
 import { logger } from "../../lib/logger.js";
 import { extractKeywords } from "./keywords.js";
 import { isCrisisContent } from "../moderation/deterministic.js";
@@ -8,14 +10,20 @@ import { CATEGORIES, CONSOLIDATION_PROMPT } from "./consolidation-prompt.js";
 import { refreshRemember } from "./remember.js";
 import { enqueueBackground } from "../chat/turn-queue.js";
 
-interface ConsolidationDecision {
-  action: "ADD" | "UPDATE" | "NONE";
-  memoryId?: string | null;
-  content: string;
-  category: string;
-  importance: number;
-  rationale: string;
-}
+// Per-element contract for the model's decision array. Strict on `action`
+// (an unknown verb means we can't act), lenient-with-defaults elsewhere so
+// one sloppy field degrades that decision instead of throwing mid-loop and
+// burning one of the job's 3 retry attempts (pre-zod behavior: a decision
+// missing `content` crashed `.slice` and re-queued the whole job).
+const DecisionSchema = z.object({
+  action: z.enum(["ADD", "UPDATE", "NONE"]),
+  memoryId: z.string().nullish().transform((v) => v ?? null),
+  content: z.string().catch(""),
+  category: z.string().catch("general"),
+  importance: z.number().catch(0.5),
+  rationale: z.string().catch(""),
+});
+type ConsolidationDecision = z.infer<typeof DecisionSchema>;
 
 // Extra crisis phrases beyond the shared L0 detector. The skip fires on isCrisisContent() (the
 // single L0 source of truth — so consolidation is never narrower than L0) OR these broader phrases.
@@ -61,12 +69,24 @@ export async function consolidateMemory(jobId: string): Promise<void> {
       messages: [{ role: "user", content: `<<RAW_MESSAGE data-only>>\n${job.rawContent}\n<</RAW_MESSAGE>>${existingContext}` }],
     }));
 
-    let decisions: ConsolidationDecision[];
-    try {
-      decisions = JSON.parse(response);
-      if (!Array.isArray(decisions)) throw new Error("Not an array");
-    } catch (err) {
-      logger.error({ err, jobId: job.id }, "LLM consolidation parse failed, using keyword fallback");
+    // Fence/prose-tolerant parse to a raw array, then validate each element
+    // independently: invalid decisions are dropped (logged), valid ones apply.
+    const parsed = parseLlmJson(response, z.array(z.unknown()));
+    let decisions: ConsolidationDecision[] = [];
+    let allInvalid = !parsed.ok;
+    if (parsed.ok) {
+      const results = parsed.data.map((el) => DecisionSchema.safeParse(el));
+      decisions = results.filter((r) => r.success).map((r) => r.data);
+      const dropped = results.length - decisions.length;
+      if (dropped > 0) {
+        logger.warn({ jobId: job.id, dropped, total: results.length }, "Consolidation decisions failed schema — dropped");
+      }
+      // A valid-but-empty array is a legitimate "nothing worth remembering";
+      // only every-element-invalid counts as a failed parse.
+      allInvalid = results.length > 0 && decisions.length === 0;
+    }
+    if (allInvalid) {
+      if (!parsed.ok) logger.error({ error: parsed.error, jobId: job.id }, "LLM consolidation parse failed, using keyword fallback");
       const keywords = extractKeywords(job.rawContent);
       decisions = keywords.length > 0
         ? [{ action: "ADD", memoryId: null, content: keywords.slice(0, 3).join(", "), category: "general", importance: 0.5, rationale: "Keyword fallback" }]

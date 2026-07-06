@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { FREE_DAILY_LIMIT } from "@aura/shared";
 
+// The query chain awaits on .where() — no .for("update"): Postgres rejects
+// FOR UPDATE with aggregates (the first live request found this).
 const mockDb = {
   select: vi.fn(() => ({
     from: vi.fn(() => ({
-      where: vi.fn(() => ({
-        for: vi.fn().mockResolvedValue([{ count: 0 }]),
-      })),
+      where: vi.fn().mockResolvedValue([{ count: 0 }]),
     })),
   })),
 };
@@ -24,9 +24,7 @@ describe("checkFreeTierLimit", () => {
   function mockForResult(count: number) {
     mockDb.select.mockImplementation(() => ({
       from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          for: vi.fn().mockResolvedValue([{ count }]),
-        })),
+        where: vi.fn().mockResolvedValue([{ count }]),
       })),
     }));
   }
