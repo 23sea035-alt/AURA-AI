@@ -54,19 +54,28 @@ export default function PaywallScreen() {
   }, []);
 
   const handleSubscribe = async () => {
-    // RevenueCat drop-in point: Purchases.purchasePackage(offering.monthly).
     setBusy(true);
-    await purchasePremium();
-    setBusy(false);
-    router.back();
+    try {
+      await purchasePremium();
+      router.back();
+    } catch {
+      // Store error or purchases not configured — never strand the spinner.
+      setToast(SYSTEM.purchaseFailed);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleRestore = async () => {
-    // RevenueCat drop-in point: Purchases.restorePurchases().
     setBusy(true);
-    const restored = await restorePurchases();
-    setBusy(false);
-    setToast(restored ? SYSTEM.restoreResult.found : SYSTEM.restoreResult.none);
+    try {
+      const restored = await restorePurchases();
+      setToast(restored ? SYSTEM.restoreResult.found : SYSTEM.restoreResult.none);
+    } catch {
+      setToast(SYSTEM.purchaseFailed);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/(tabs)'));

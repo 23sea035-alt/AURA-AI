@@ -12,6 +12,9 @@ export interface FreeTierResult {
 export async function checkFreeTierLimit(userId: string): Promise<FreeTierResult> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
+  // No row lock here: Postgres rejects FOR UPDATE with aggregates (first live
+  // request found this). The cap check is advisory — a perfectly-timed pair of
+  // concurrent sends can overshoot by one message, which is acceptable.
   const [result] = await db
     .select({ count: sql<number>`count(*)::int` })
     .from(messagesTable)
@@ -19,8 +22,7 @@ export async function checkFreeTierLimit(userId: string): Promise<FreeTierResult
       eq(messagesTable.userId, userId),
       eq(messagesTable.role, "user"),
       gte(messagesTable.createdAt, today),
-    ))
-    .for("update");
+    ));
   const count = result?.count ?? 0;
   return { allowed: count < FREE_DAILY_LIMIT, used: count, limit: FREE_DAILY_LIMIT };
 }

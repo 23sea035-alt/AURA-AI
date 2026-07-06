@@ -20,6 +20,7 @@ export const SYSTEM = {
     found: 'Premium restored. Welcome back.',
     none: 'No previous purchases found for this Apple ID.',
   },
+  purchaseFailed: "That didn't go through. You haven't been charged.",
   autoRenew:
     'Subscription renews automatically until canceled. Manage or cancel anytime in App Store settings.',
   termsLink: 'Terms of Service',
