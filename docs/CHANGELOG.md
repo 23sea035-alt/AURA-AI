@@ -8,6 +8,15 @@ For everything up to and including the 2026-06-29 production-readiness audit and
 
 ---
 
+## 2026-07-06 — batch 1 companion avatars
+
+### Task: Batch 1 companion portraits delivered
+
+- 6 new companion portraits generated via Gemini, resized to 1254×1254
+- Coverage: 2 restyles (Aurora, Orion) + 4 new faces; mixed masc/fem/andro; 4–5 skin tones incl. deep; bald + long-haired
+- All 6 PASS rubric grading (Adult 25+ ✅, Appropriate ✅, all scores ≥4)
+- Delivered to `client/assets/avatars/batch1/` with `notes.md`
+
 ## 2026-07-02 — generation eval re-run on Groq
 
 ### Task 2 (correction): Generation eval re-run on Groq
