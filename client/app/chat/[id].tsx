@@ -39,7 +39,7 @@ import { DURATION } from '@/constants/motion';
 import { type Message, useApp } from '@/context/AppContext';
 import { useDraft } from '@/hooks/useDraft';
 import { useTheme } from '@/hooks/useTheme';
-import { reportMessage } from '@/lib/mock';
+import { reportMessage } from '@/lib/backend';
 import { buildThreadRows, type ThreadRow } from '@/lib/thread';
 
 // Recurring SB 243 line (client-owned copy; the server decides when it fires).

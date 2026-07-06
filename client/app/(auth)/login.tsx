@@ -17,7 +17,7 @@ import { ACCOUNT, ONBOARDING, withAppName } from '@/constants/content';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { fetchAccountStatus } from '@/lib/mock';
+import { fetchAccountStatus } from '@/lib/backend';
 
 const GRACE_DAYS = 30;
 

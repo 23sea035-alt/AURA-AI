@@ -16,6 +16,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { CHAT } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
+import type {
+  AccountStatus,
+  Companion,
+  Hydration,
+  MemoryRow,
+  TurnRequest,
+  TurnResult,
+} from '@/lib/models';
+import type { UserProfile } from '@/lib/profile';
+
+// The seam contract types live in lib/models.ts (shared with lib/live.ts);
+// re-exported here for existing importers.
+export type { AccountStatus, MemoryRow, TurnRequest, TurnResult } from '@/lib/models';
 
 // ── Plumbing ────────────────────────────────────────────────────────────────
 
@@ -42,36 +55,6 @@ async function writeStore(key: string, value: unknown): Promise<void> {
 }
 
 // ── Chat turns ──────────────────────────────────────────────────────────────
-
-export interface TurnRequest {
-  companionId: string;
-  companionName: string;
-  /** Persona archetype driving the reply voice ('aurora' | 'orion' | 'lyra' | custom). */
-  personaKey: string;
-  content: string;
-  /** Assistant turns so far in this thread (drives the recurring AI-disclosure cadence). */
-  assistantTurnCount: number;
-  /** Turns in the current sitting (drives the break reminder). */
-  sessionTurnCount: number;
-  /** Free-tier usage; the server enforces the daily cap. */
-  usage: { used: number; limit: number };
-  isPremium: boolean;
-}
-
-export interface TurnResult {
-  /** The assistant reply text; absent when the daily limit blocked the send. */
-  reply?: string;
-  /** The safety pipeline flagged this exchange — render the grounding support block. */
-  safetyFlagged?: boolean;
-  /** SB 243 recurring notice — surface the quiet "you're talking to an AI" line. */
-  aiDisclosure?: boolean;
-  /** Gentle break reminder (already companion-resolved), when the sitting has run long. */
-  breakReminder?: string;
-  /** Free-tier daily cap reached; the send was not processed. */
-  limitReached?: { used: number; limit: number };
-  /** Input moderation held the message back (MESSAGE_STATUS 'blocked') — no reply. */
-  inputBlocked?: boolean;
-}
 
 // Deterministic dev triggers for the degenerate send states (real networks and
 // the real moderation pipeline produce these; the mock needs a handle on them):
@@ -172,14 +155,6 @@ export {
 
 // ── Memories ────────────────────────────────────────────────────────────────
 
-export interface MemoryRow {
-  id: string;
-  companionId: string;
-  category: string;
-  fact: string;
-  createdAt: string;
-}
-
 // Aurora's six canonical memories about Maya seed the store; other companions
 // start empty (a real, demoable zero state).
 async function memoriesDb(): Promise<MemoryRow[]> {
@@ -237,12 +212,6 @@ export async function reportMessage(messageId: string, reason: string, note?: st
 
 // ── Account lifecycle ───────────────────────────────────────────────────────
 
-export interface AccountStatus {
-  status: 'active' | 'deactivated';
-  /** Set while deactivated; permanent deletion lands 30 days later. */
-  deletedAt: string | null;
-}
-
 /** GET /api/auth/me (status fields) */
 export async function fetchAccountStatus(): Promise<AccountStatus> {
   return (await readStore<AccountStatus>('accountStatus')) ?? { status: 'active', deletedAt: null };
@@ -275,17 +244,20 @@ export async function requestDataExport(): Promise<void> {
  * RevenueCat offering → localized store price string. Returns null in the mock:
  * the paywall renders its store-price placeholder slot (never a hardcoded price).
  */
-export async function fetchStorePrice(): Promise<string | null> {
+export async function fetchStorePrice(_plan: 'monthly' | 'yearly' = 'monthly'): Promise<string | null> {
   await simulateLatency(700);
   return null;
 }
 
 /** Purchases.purchasePackage(...) → entitlement active. */
-export async function purchasePremium(): Promise<{ isPremium: boolean }> {
+export async function purchasePremium(_plan: 'monthly' | 'yearly' = 'monthly'): Promise<{ isPremium: boolean }> {
   await simulateLatency(900);
   await writeStore('isPremium', true);
   return { isPremium: true };
 }
+
+/** Purchases.configure({ appUserID }) — nothing to bind in mock mode. */
+export async function configurePayments(_userId: string): Promise<void> {}
 
 /** Purchases.restorePurchases() → whether an entitlement was found. */
 export async function restorePurchases(): Promise<{ restored: boolean; isPremium: boolean }> {
@@ -297,4 +269,55 @@ export async function restorePurchases(): Promise<{ restored: boolean; isPremium
 /** GET /api/payments/entitlements — reconcile isPremium staleness on foreground. */
 export async function fetchEntitlements(): Promise<{ isPremium: boolean }> {
   return { isPremium: (await readStore<boolean>('isPremium')) ?? false };
+}
+
+// ── Auth (Clerk seam — the local shell lives in AppContext) ────────────────
+// In mock mode the session is the locally-stored profile; these resolve
+// immediately so AppContext's local path (and the verify-email screen's
+// accept-any-complete-code behavior) is unchanged.
+
+export async function authLogin(_email: string, _password: string): Promise<void> {}
+
+export async function authRegister(_email: string, _password: string): Promise<void> {}
+
+export async function authVerifyEmail(_code: string): Promise<void> {
+  await simulateLatency(400);
+}
+
+export async function authResendCode(): Promise<void> {}
+
+export async function authSignOut(): Promise<void> {}
+
+// ── Hydration + remote mirrors (live-mode-only concepts) ───────────────────
+// Mock mode returns null / no-ops: AsyncStorage stays authoritative and
+// AppContext keeps its existing local bootstrap and optimistic writes.
+
+/** Live: one-shot server snapshot on boot/login. Mock: local storage wins. */
+export async function hydrate(): Promise<Hydration | null> {
+  return null;
+}
+
+/** Live: PUT /api/auth/me (+ seed-companions when onboarding completes). */
+export async function updateMe(_updates: Partial<UserProfile>): Promise<void> {}
+
+/** Live: POST /api/companions. Mock: null → caller keeps its local row. */
+export async function remoteCreateCompanion(_c: Omit<Companion, 'id'>): Promise<Companion | null> {
+  return null;
+}
+
+/** Live: PATCH /api/companions/:id (name + client presentation stash). */
+export async function remoteUpdateCompanion(_c: Companion): Promise<void> {}
+
+/** Live: POST /api/companions/:id/archive. */
+export async function remoteArchiveCompanion(_id: string): Promise<void> {}
+
+/** Live: POST /api/companions/:id/restore. */
+export async function remoteRestoreCompanion(_id: string): Promise<void> {}
+
+/** Live: PUT /api/auth/me { primaryCompanionId }. */
+export async function remoteSetPrimary(_id: string): Promise<void> {}
+
+/** Live: GET /api/voice/limits. Mock: null → the local meter stands. */
+export async function fetchVoiceUsage(): Promise<{ seconds: number } | null> {
+  return null;
 }

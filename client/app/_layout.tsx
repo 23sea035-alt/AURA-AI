@@ -11,6 +11,7 @@ import {
   Newsreader_600SemiBold,
   useFonts as useNewsreaderFonts,
 } from '@expo-google-fonts/newsreader';
+import { ClerkProvider } from '@clerk/clerk-expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -21,12 +22,29 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { DEV_USE_MOCKS } from '@/constants/devFlags';
 import { AppProvider } from '@/context/AppContext';
 import { ThemeProvider } from '@/context/ThemeContext';
+import { tokenCache } from '@/lib/clerk';
+import { CLERK_PUBLISHABLE_KEY } from '@/lib/env';
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
+
+// Clerk mounts only in live mode (lib/backend.ts routes auth seams to it);
+// mock mode never starts a session and needs no key. DEV_USE_MOCKS is fixed at
+// bundle time, so this branch never changes within a running app.
+const clerkActive = !DEV_USE_MOCKS && !!CLERK_PUBLISHABLE_KEY;
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  if (!clerkActive) return <>{children}</>;
+  return (
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      {children}
+    </ClerkProvider>
+  );
+}
 
 function RootLayoutNav() {
   return (
@@ -99,10 +117,12 @@ export default function RootLayout() {
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
               <ThemeProvider>
-                <AppProvider>
-                  <StatusBar style="auto" />
-                  <RootLayoutNav />
-                </AppProvider>
+                <AuthGate>
+                  <AppProvider>
+                    <StatusBar style="auto" />
+                    <RootLayoutNav />
+                  </AppProvider>
+                </AuthGate>
               </ThemeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

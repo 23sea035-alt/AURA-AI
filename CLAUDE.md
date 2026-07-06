@@ -1,9 +1,12 @@
 # Aura — working notes for Claude Code
 
 Expo RN client in `client/` (SDK 54, RN 0.81.5, expo-router, pnpm monorepo with `@aura/shared`
-contract package + `server/`). The client currently runs fully on a mock seam (`client/lib/mock.ts`)
-pending backend wiring. Design system: "Warm Sanctuary" — doctrine at `docs/redesign/01-doctrine.md`,
-running change log at `docs/redesign/fable5-rebuild-notes.md`.
+contract package + `server/`). Every backend call goes through `client/lib/backend.ts` — the
+mock/live switch (`DEV_USE_MOCKS`): mock mode (dev default) runs fully local via `lib/mock.ts`;
+live mode is Clerk + REST + RevenueCat via `lib/live.ts` (config in `client/.env`, see
+`.env.example`; restart Metro after env edits — values are inlined at bundle time). Design system:
+"Warm Sanctuary" — doctrine at `docs/redesign/01-doctrine.md`, running change log at
+`docs/redesign/fable5-rebuild-notes.md`.
 
 ## Commands
 
@@ -13,6 +16,11 @@ running change log at `docs/redesign/fable5-rebuild-notes.md`.
 - Run on iPhone 16e sim: `pnpm --filter @aura/client ios:sim` (xcodebuild workaround for Xcode 26 —
   plain `expo run:ios` fails on signing). Metro: `pnpm --dir client exec expo start --port 8081`.
 - Sim storage inspect/stage/reset: `python3 client/scripts/dev/sim-storage.py {get|set|del|reset-demo}`
+  (stage while the app is TERMINATED or its shutdown flush overwrites you; reset-demo assumes a
+  signed-in demo user — stage the `user` key too after a sign-out/delete flow).
+- Webhook tunnel for Clerk/RevenueCat dashboards: `client/scripts/dev/webhook-tunnel.sh [static-domain]`
+  (needs one-time `ngrok config add-authtoken <token>`); voice-pipeline audio harness:
+  `client/scripts/dev/voice-probe.sh` (BlackHole loopback — speak into the sim mic, record TTS out).
 - Regenerate typed routes after adding a route file: briefly run
   `pnpm --dir client exec expo start --port 8090 --offline` until `.expo/types/router.d.ts` updates.
 
@@ -23,9 +31,11 @@ running change log at `docs/redesign/fable5-rebuild-notes.md`.
   boundaries (≥3:1); `border`/`divider` = structural hairlines only.
 - **Copy** lives in `client/constants/content/*` — sentence case everywhere (buttons too), warm
   voice, **no em dashes in user-facing copy**.
-- **Wire seams**: every future backend call is one mock function documenting its endpoint — grep
-  `WIRE SEAM` and `drop-in point`. Keep signatures wire-shaped; don't integrate SDKs
-  (Clerk/RevenueCat/APNs) without being asked. Contract constants come from `@aura/shared`.
+- **Wire seams**: the seam surface is the export list of `lib/backend.ts`; contract types in
+  `lib/models.ts`; wiring work happens in `lib/live.ts` (see `/wire-endpoint`). Screens never
+  import mock/live directly. Request DTOs from `@aura/shared`; response shapes are ad hoc per
+  route (`Server*` interfaces in live.ts). `/auth/*` replies RAW (no `{success,data}` envelope) —
+  use `api(path, { raw: true })`. RevenueCat `appUserID` = local user UUID, never the Clerk id.
 - Verify UI changes on the sim via the `/verify-ui` skill; design-grade via `/audit-screen`.
   **Always relaunch (`simctl terminate` + `launch`) before trusting what you see** — fast refresh
   lies. Don't commit/push unless asked.

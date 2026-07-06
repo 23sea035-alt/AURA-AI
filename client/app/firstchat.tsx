@@ -20,6 +20,10 @@ import { SPACE } from '@/constants/design';
 import { TYPING } from '@/constants/motion';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+// Deliberately the MOCK engine in both modes: this screen is the onboarding
+// doorway — its exchange is never persisted (by design), and in live mode the
+// server-side companion seeding is still landing while the user types here.
+// The persisted relationship starts on the Home/Chat surfaces.
 import { sendTurn } from '@/lib/mock';
 import { friendlyFirstName } from '@/utils/name';
 

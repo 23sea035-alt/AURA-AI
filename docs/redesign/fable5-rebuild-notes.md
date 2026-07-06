@@ -303,3 +303,55 @@ Implemented after the full-app audit (rubric: `audit-rubric-supplement.md`), all
   8. Em dashes removed from mock reply/greeting copy (house style); register gained a light email
      shape check (Clerk owns real validation later).
   9. Tooling: `record.sh` now forwards extra args (e.g. `-e EMAIL=…`) to Maestro.
+
+## Backend wiring arc — 2026-07-06
+
+The mock seam grew its live twin. Architecture:
+
+- **`lib/backend.ts` is the switch**: re-exports one implementation of the whole seam surface,
+  chosen at bundle time by `DEV_USE_MOCKS` (constants/devFlags.ts — dev default ON; flip with
+  `EXPO_PUBLIC_USE_MOCKS=false` in `client/.env` + Metro restart; release builds are always live).
+  An `Omit<typeof mock, …>` annotation keeps mock/live signatures from drifting.
+- **`lib/live.ts`** implements every seam against the real server (survey: Express on :8080, routes
+  enveloped `{success,data}` EXCEPT raw `/auth/*`; chat send = POST /companions/:id/chat with
+  400 BLOCKED / 429 LIMIT_REACHED mapped onto the existing degenerate states; history has NO
+  pagination server-side — client windows locally). Server rows are mapped to client shapes here;
+  client-only presentation (persona text, duotone, lookId) rides in `companions.traits._client`.
+- **`lib/api.ts`** (rewritten): fetch helper with injected Clerk token provider, envelope/raw
+  handling, `ApiError(status, code)`, and `EXPO_PUBLIC_LOG_API=true` request logging.
+- **`lib/clerk.ts`**: imperative Clerk singleton (getClerkInstance) so AppContext keeps plain
+  async login/register/verify functions; ClerkProvider mounts only in live mode (`AuthGate` in
+  _layout). Post-signup USER_NOT_FOUND (webhook lag) is retried with backoff.
+- **`lib/purchases.ts`**: RevenueCat wrapper — `appUserID` = local user UUID (server webhook
+  validates against the users table), products `aura_premium_monthly`/`aura_premium_yearly`,
+  Test Store key via `EXPO_PUBLIC_REVENUECAT_IOS_KEY`; entitlement = any active (server grants by
+  webhook event type, not name).
+- **AppContext**: one-shot `hydrate()` on boot/login in live mode (me + companions + threads +
+  usage + voice meter, merged over local client-only fields); optimistic local writes now have
+  fire-and-forget remote mirrors (companion CRUD, primary pin, profile PUT); completing onboarding
+  seeds the default trio server-side then re-hydrates to adopt server UUIDs. Contract types moved
+  to `lib/models.ts`; the canonical trio to `constants/companions.ts` (shared with live mapping).
+- **firstchat deliberately stays on the mock reply engine in both modes** — the onboarding
+  doorway's exchange is never persisted, and server-side seeding is still landing while the user
+  types there.
+- New deps (expo install + pods + rebuild): `@clerk/clerk-expo` (+ `expo-secure-store`,
+  `expo-auth-session`, `expo-web-browser` — clerk-expo's index imports the SSO hook
+  unconditionally), `react-native-purchases`.
+- Dev tooling: `scripts/dev/webhook-tunnel.sh` (ngrok → prints the exact Clerk/RevenueCat
+  dashboard endpoint URLs; needs a one-time authtoken) and `scripts/dev/voice-probe.sh`
+  (BlackHole-loopback harness: `speak` a synthesized line into the sim's microphone, `record` the
+  companion's TTS reply to a wav for review — for the live-voice arc).
+- **Full mock-mode regression on the 16e (relaunched, Maestro-driven) — PASSED**: Home chips →
+  prefilled chat, send/reply, ##fail → tap-to-retry, ##block → held-back notice, long-press
+  Copy/Report sheet, roster Gmail-bleed swipes + live times + tap-away close, memory list/delete,
+  paywall placeholder price → Subscribe → Premium badge + "Manage in App Store", voice-call loop,
+  Terms/Privacy/Manage-data, export toast, delete → Welcome, reactivate-on-login sheet (correct
+  purge date), sign-out, fresh register → verify-email (async seam + spinner) → carousel → age
+  gate → disclosure → consent → name → firstchat greeting reveal. Demo state re-staged after.
+- **Live mode is wired but UNTESTED** (blocked on root `.env` + Clerk/RC dashboard config +
+  tunnel). Known live-mode gaps to verify then: reactivate endpoint may be unreachable for
+  deleted users if `requireAuth` 403s them first (server-side check); `thirdPartyAiConsentAt`
+  has no server field (client-only for now); login.tsx's pre-login reactivate sheet can't know
+  status before a session exists (degrades to post-login handling).
+- run-sim.sh fix: `lsof` exits 1 when :8081 is free → `|| true` (set -e silently killed the
+  script on the first run of the day).

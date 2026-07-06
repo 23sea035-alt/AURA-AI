@@ -62,7 +62,9 @@ fi
 #    it). A foreign Metro on :8081 — e.g. another Expo app on a different RN/SDK
 #    version — would serve the wrong bundle and trigger a "React Native version
 #    mismatch", so detect it by the listener's cwd and replace it if it isn't ours.
-METRO_PID=$(lsof -t -i :8081 -sTCP:LISTEN 2>/dev/null | head -1)
+# `|| true`: lsof exits 1 when nothing listens, which set -e would otherwise
+# turn into a silent script death (bit us 2026-07-06 — first run of the day).
+METRO_PID=$(lsof -t -i :8081 -sTCP:LISTEN 2>/dev/null | head -1 || true)
 if [ -n "${METRO_PID:-}" ]; then
   METRO_CWD=$(lsof -a -p "$METRO_PID" -d cwd -Fn 2>/dev/null | grep '^n' | cut -c2-)
   if [ "$METRO_CWD" != "$CLIENT_DIR" ]; then

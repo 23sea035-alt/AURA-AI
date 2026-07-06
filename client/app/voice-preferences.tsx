@@ -16,7 +16,7 @@ import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { VOICE_OPTIONS, useVoicePrefs, type VoicePrefs } from '@/hooks/useVoicePrefs';
-import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/mock';
+import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/backend';
 
 const PACES: VoicePrefs['pace'][] = ['relaxed', 'natural', 'brisk'];
 

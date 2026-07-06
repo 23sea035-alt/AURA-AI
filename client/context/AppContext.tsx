@@ -1,12 +1,10 @@
 // ════════════════════════════════════════════════════════════════════════
-// App state — mock-driven for the frontend rebuild.
-//
-// WIRE SEAM: every method that will eventually hit the backend delegates to
-// client/lib/mock.ts, which mirrors the real endpoints one-to-one (each mock
-// function documents the route it stands in for). Auth is a Clerk-shaped local
-// shell: `login`/`register` resolve locally and the session lives in
-// AsyncStorage; swapping in @clerk/clerk-expo replaces their bodies without
-// touching any screen. Nothing else in the client imports the network layer.
+// App state — every backend call goes through lib/backend.ts, which is the
+// mock/live switch (DEV_USE_MOCKS): mock mode runs fully local exactly as the
+// rebuild always has; live mode is Clerk + REST + RevenueCat with the same
+// signatures. This module stays optimistic-local-first in both modes — remote
+// mirrors reconcile behind the local writes; hydrate() replaces the local
+// snapshot with the server's on boot/login when a session exists.
 // ════════════════════════════════════════════════════════════════════════
 
 import { FREE_DAILY_LIMIT } from '@aura/shared';
@@ -14,47 +12,27 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
+import { DEFAULT_COMPANIONS } from '@/constants/companions';
 import { PERSONAS } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
-import { DEV_FORCE_PREMIUM } from '@/constants/devFlags';
-import * as mock from '@/lib/mock';
+import { DEV_FORCE_PREMIUM, DEV_USE_MOCKS } from '@/constants/devFlags';
+import { ApiError } from '@/lib/api';
+import * as backend from '@/lib/backend';
+import type {
+  AccountStatus,
+  Companion,
+  Hydration,
+  MemoryRow,
+  Message,
+  TurnResult,
+} from '@/lib/models';
 import { migrateProfile, type UserProfile } from '@/lib/profile';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-export interface Companion {
-  id: string;
-  name: string;
-  persona: string;
-  traits: string[];
-  colorFrom: string;
-  colorTo: string;
-  lastMessage?: string;
-  /** ISO timestamp of the last exchange — display strings are derived live (utils/time). */
-  lastActiveAt?: string;
-  messageCount?: number;
-  /** The saved "look" (mood filter) for the portrait. Backed by companions.appearance (jsonb). */
-  lookId?: string;
-  /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
-  archivedAt?: string | null;
-}
-
-export interface Message {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  createdAt: string;
-  /** Local URI of the captured audio clip when the message was dictated (push-to-talk). */
-  audioUri?: string;
-  /** How the user composed the message. Absent = text. */
-  inputModality?: 'text' | 'voice';
-  /** Set on an assistant turn the safety pipeline flagged as crisis — renders the inline support block. */
-  safetyFlagged?: boolean;
-  /** SB 243 recurring notice — this turn carries the quiet "you're talking to an AI" line. */
-  aiDisclosure?: boolean;
-  /** Mirrors MESSAGE_STATUS (@aura/shared); absent = complete. */
-  status?: 'failed' | 'blocked';
-}
+// Companion and Message live in @/lib/models (shared with the seam layer);
+// re-exported here for existing importers.
+export type { Companion, Message } from '@/lib/models';
 
 // UserProfile (and its storage migration) live in @/lib/profile — pure and
 // unit-tested; re-exported here for existing importers.
@@ -104,8 +82,8 @@ interface AppContextType {
   /** Add elapsed call seconds to this month's voice meter (mock of server-side metering). */
   addVoiceSeconds: (seconds: number) => void;
   /** Per-companion remembered facts. undefined = not loaded yet (show skeleton); [] = real zero state. */
-  memories: Record<string, mock.MemoryRow[] | undefined>;
-  accountStatus: mock.AccountStatus;
+  memories: Record<string, MemoryRow[] | undefined>;
+  accountStatus: AccountStatus;
   safetyState: SafetyState;
 
   login: (email: string, password: string) => Promise<void>;
@@ -135,11 +113,11 @@ interface AppContextType {
   editMemory: (companionId: string, id: string, fact: string) => Promise<void>;
   removeMemory: (companionId: string, id: string) => Promise<void>;
 
-  softDelete: () => Promise<mock.AccountStatus>;
+  softDelete: () => Promise<AccountStatus>;
   reactivate: () => Promise<void>;
   requestExport: () => Promise<void>;
 
-  purchasePremium: () => Promise<void>;
+  purchasePremium: (plan?: 'monthly' | 'yearly') => Promise<void>;
   restorePurchases: () => Promise<boolean>;
   refreshEntitlements: () => Promise<void>;
 
@@ -155,44 +133,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 // First run tells Maya's canonical story (18/30 used); later days reset honestly.
+// (DEFAULT_COMPANIONS — the canonical trio — now lives in constants/companions,
+// shared with lib/live.ts for server-row mapping.)
 const SEED_USAGE: Usage = { used: DEMO.user.usage.used, limit: FREE_DAILY_LIMIT, day: today() };
-
-// The three canonical companions (docs/specs/personas.md): warm temperaments
-// differentiated by relational stance, never functional archetypes. colorFrom/To
-// are the stored fallback-duotone data for each companion (the curated portraits
-// render for these three; created companions lean on the duotone).
-const DEFAULT_COMPANIONS: Companion[] = [
-  {
-    id: 'aurora',
-    name: 'Aurora',
-    persona:
-      'Tender and attuned. Aurora meets you where you are, holds what you are feeling without rushing to fix it, and reflects it back so you feel understood and less alone.',
-    traits: ['affectionate', 'calm', 'balanced'],
-    colorFrom: '#D8A98C',
-    colorTo: '#C4826B',
-    messageCount: DEMO.conversation.length,
-  },
-  {
-    id: 'orion',
-    name: 'Orion',
-    persona:
-      'Calm and clear-headed. When everything feels loud, Orion slows things down, helps you see the situation plainly, and reminds you that you are on solid ground.',
-    traits: ['warm', 'calm', 'concise'],
-    colorFrom: '#A9683F',
-    colorTo: '#8A5637',
-    messageCount: 0,
-  },
-  {
-    id: 'lyra',
-    name: 'Lyra',
-    persona:
-      'Warm and bright. Lyra brings lightness and a fresh angle, good at shifting your perspective with warmth and gentle humor when things feel heavy or flat.',
-    traits: ['warm', 'playful', 'expansive'],
-    colorFrom: '#D9B26A',
-    colorTo: '#C69A4B',
-    messageCount: 0,
-  },
-];
 
 let seedCounter = 0;
 const localId = () => `local-${Date.now().toString(36)}-${(seedCounter++).toString(36)}`;
@@ -223,8 +166,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [typing, setTyping] = useState<Record<string, boolean>>({});
   const [usage, setUsage] = useState<Usage>(SEED_USAGE);
   const [voiceUsage, setVoiceUsage] = useState<VoiceUsage>({ seconds: 0, month: thisMonth() });
-  const [memories, setMemories] = useState<Record<string, mock.MemoryRow[] | undefined>>({});
-  const [accountStatus, setAccountStatus] = useState<mock.AccountStatus>({ status: 'active', deletedAt: null });
+  const [memories, setMemories] = useState<Record<string, MemoryRow[] | undefined>>({});
+  const [accountStatus, setAccountStatus] = useState<AccountStatus>({ status: 'active', deletedAt: null });
   const [safetyState, setSafetyState] = useState<SafetyState>({
     breakReminder: null,
     showDisclosure: true,
@@ -252,6 +195,37 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const persistCompanions = (updated: Companion[]) => {
     AsyncStorage.setItem('companions', JSON.stringify(updated)).catch(() => {});
   };
+
+  // Live mode: adopt the server snapshot wholesale (server ids, threads,
+  // meters), merging server profile fields over the locally-stored ones so
+  // client-only fields (thirdPartyAiConsentAt, avatarUri, bio) survive.
+  const applyHydration = useCallback((h: Hydration) => {
+    setUser((prev) => {
+      const merged = { ...(prev ?? {}), ...h.user } as UserProfile;
+      AsyncStorage.setItem('user', JSON.stringify(merged)).catch(() => {});
+      return merged;
+    });
+    setCompanions(h.companions);
+    persistCompanions(h.companions);
+    setMessages(h.messages);
+    persistMessages(h.messages);
+    const primary = h.primaryCompanionId ?? '';
+    setPrimaryCompanionId(primary);
+    AsyncStorage.setItem('primaryCompanionId', primary).catch(() => {});
+    if (h.usage) {
+      const nextUsage: Usage = { used: h.usage.used, limit: h.usage.limit, day: today() };
+      setUsage(nextUsage);
+      AsyncStorage.setItem('usage', JSON.stringify(nextUsage)).catch(() => {});
+    }
+    if (h.voiceSeconds !== null) {
+      const nextVoice: VoiceUsage = { seconds: h.voiceSeconds, month: thisMonth() };
+      setVoiceUsage(nextVoice);
+      AsyncStorage.setItem('voiceUsage', JSON.stringify(nextVoice)).catch(() => {});
+    }
+    setAccountStatus(h.accountStatus);
+    // RevenueCat binds to the LOCAL user UUID (the server webhook validates it).
+    void backend.configurePayments(h.user.id);
+  }, []);
 
   const bootstrap = async () => {
     try {
@@ -282,10 +256,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedPrimary) setPrimaryCompanionId(storedPrimary);
 
       // Seed Aurora's canonical thread on first run so every screen tells the
-      // same story; real sessions accumulate on top and persist.
+      // same story; real sessions accumulate on top and persist. (Mock mode
+      // only — live threads come from hydrate() below.)
       if (storedMessages) {
         setMessages(JSON.parse(storedMessages));
-      } else {
+      } else if (DEV_USE_MOCKS) {
         const seeded = seedConversation();
         setMessages(seeded);
         persistMessages(seeded);
@@ -316,36 +291,74 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setVoiceUsage(parsed.month === thisMonth() ? parsed : { seconds: 0, month: thisMonth() });
       }
 
-      setAccountStatus(await mock.fetchAccountStatus());
+      if (DEV_USE_MOCKS) {
+        setAccountStatus(await backend.fetchAccountStatus());
+      } else {
+        // Live: the server snapshot replaces the local paint when a session
+        // exists; no session means the stored user is not a signed-in user.
+        try {
+          const h = await backend.hydrate();
+          if (h) applyHydration(h);
+          else setUser(null);
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'ACCOUNT_SUSPENDED') {
+            setAccountStatus({ status: 'deactivated', deletedAt: null });
+          }
+          // Otherwise (server down, network): keep the local snapshot so the
+          // app still opens; foreground refreshes reconcile later.
+        }
+      }
     } catch {}
     setIsLoading(false);
   };
 
-  // ── Auth (Clerk seam: local shell, same shape) ────────────────────────────
+  // ── Auth (backend.auth* — Clerk in live mode, instant no-ops in mock) ─────
 
-  const login = useCallback(async (email: string, _password: string) => {
-    // Clerk drop-in point: signIn.create → session token; here, a local session.
-    // firstName is a placeholder from the email until the profile provides one.
-    const profile: UserProfile = {
-      firstName: email.split('@')[0],
-      lastName: '',
-      email,
-      ageVerified: true,
-      onboardingDone: true,
-      aiDisclosureAccepted: true,
-      thirdPartyAiConsentAt: new Date().toISOString(),
-      isPremium: false,
-    };
-    setUser(profile);
-    await AsyncStorage.setItem('user', JSON.stringify(profile));
-    // Signing back in within the grace window reactivates a soft-deleted account.
-    const status = await mock.fetchAccountStatus();
-    if (status.status === 'deactivated') setAccountStatus(status);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string) => {
+      await backend.authLogin(email, password);
 
-  const register = useCallback(async (email: string, _password: string) => {
-    // Clerk drop-in point: signUp.create + email verification. Names + DOB are
-    // captured by the onboarding profile/age steps that follow.
+      if (!DEV_USE_MOCKS) {
+        try {
+          const h = await backend.hydrate();
+          if (h) applyHydration(h);
+          return;
+        } catch (err) {
+          if (err instanceof ApiError && err.code === 'ACCOUNT_SUSPENDED') {
+            // Signed in to a soft-deleted account — surface the reactivate offer.
+            setAccountStatus({ status: 'deactivated', deletedAt: null });
+            return;
+          }
+          throw err;
+        }
+      }
+
+      // Mock: a local session. firstName is a placeholder from the email until
+      // the profile provides one.
+      const profile: UserProfile = {
+        firstName: email.split('@')[0],
+        lastName: '',
+        email,
+        ageVerified: true,
+        onboardingDone: true,
+        aiDisclosureAccepted: true,
+        thirdPartyAiConsentAt: new Date().toISOString(),
+        isPremium: false,
+      };
+      setUser(profile);
+      await AsyncStorage.setItem('user', JSON.stringify(profile));
+      // Signing back in within the grace window reactivates a soft-deleted account.
+      const status = await backend.fetchAccountStatus();
+      if (status.status === 'deactivated') setAccountStatus(status);
+    },
+    [applyHydration],
+  );
+
+  const register = useCallback(async (email: string, password: string) => {
+    // Live: Clerk signUp.create + email code (the verify-email screen attempts
+    // it via backend.authVerifyEmail). Both modes keep a local profile mirror —
+    // the onboarding steps that follow write names/DOB/consents into it.
+    await backend.authRegister(email, password);
     const profile: UserProfile = {
       firstName: email.split('@')[0],
       lastName: '',
@@ -361,6 +374,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    void backend.authSignOut();
     setUser(null);
     setCompanions(DEFAULT_COMPANIONS);
     setMessages({});
@@ -368,40 +382,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await AsyncStorage.multiRemove(['user', 'companions', 'messages', 'primaryCompanionId']);
   }, []);
 
-  const updateUser = useCallback((updates: Partial<UserProfile>) => {
-    // PUT /api/auth/me (accepts avatarColor + primaryCompanionId per 2026-06-30).
-    setUser((prev) => {
-      const updated = prev ? { ...prev, ...updates } : (updates as UserProfile);
-      AsyncStorage.setItem('user', JSON.stringify(updated)).catch(() => {});
-      return updated;
-    });
-  }, []);
+  const updateUser = useCallback(
+    (updates: Partial<UserProfile>) => {
+      setUser((prev) => {
+        const updated = prev ? { ...prev, ...updates } : (updates as UserProfile);
+        AsyncStorage.setItem('user', JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
+      // Live mirror: PUT /api/auth/me with whatever schema fields this update
+      // carries. Completing onboarding seeds the default trio server-side, so
+      // re-hydrate to adopt the server's companion ids before first chat.
+      void backend
+        .updateMe(updates)
+        .then(() => {
+          if (!DEV_USE_MOCKS && updates.onboardingDone === true) {
+            return backend.hydrate().then((h) => {
+              if (h) applyHydration(h);
+            });
+          }
+        })
+        .catch(() => {});
+    },
+    [applyHydration],
+  );
 
   // ── Companions ────────────────────────────────────────────────────────────
 
   const setPrimaryCompanion = useCallback((id: string) => {
-    // PUT /api/auth/me { primaryCompanionId }
     setPrimaryCompanionId(id);
     AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
+    void backend.remoteSetPrimary(id);
   }, []);
 
   const addCompanion = useCallback((companion: Omit<Companion, 'id'>) => {
-    // POST /api/companions
-    const newCompanion: Companion = { ...companion, id: localId() };
+    // Optimistic local row first; when the server accepts the create, adopt
+    // its UUID (and re-key any messages already sent under the local id).
+    const localKey = localId();
     setCompanions((prev) => {
-      const updated = [newCompanion, ...prev];
+      const updated = [{ ...companion, id: localKey }, ...prev];
       persistCompanions(updated);
       return updated;
+    });
+    void backend.remoteCreateCompanion(companion).then((remote) => {
+      if (!remote) return;
+      setCompanions((prev) => {
+        const updated = prev.map((c) => (c.id === localKey ? { ...c, ...remote } : c));
+        persistCompanions(updated);
+        return updated;
+      });
+      setMessages((prev) => {
+        if (!prev[localKey]) return prev;
+        const { [localKey]: thread, ...rest } = prev;
+        const updated = { ...rest, [remote.id]: thread };
+        persistMessages(updated);
+        return updated;
+      });
     });
   }, []);
 
   const updateCompanion = useCallback((id: string, updates: Partial<Omit<Companion, 'id'>>) => {
-    // PUT /api/companions/:id
+    const current = companionsRef.current.find((c) => c.id === id);
     setCompanions((prev) => {
       const updated = prev.map((c) => (c.id === id ? { ...c, ...updates } : c));
       persistCompanions(updated);
       return updated;
     });
+    if (current) void backend.remoteUpdateCompanion({ ...current, ...updates });
   }, []);
 
   // Soft-delete: hidden from the roster, but messages/memory stay keyed by companion id and
@@ -418,6 +464,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setPrimaryCompanionId('');
         AsyncStorage.setItem('primaryCompanionId', '').catch(() => {});
       }
+      void backend.remoteArchiveCompanion(id);
     },
     [primaryCompanionId],
   );
@@ -428,6 +475,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       persistCompanions(updated);
       return updated;
     });
+    void backend.remoteRestoreCompanion(id);
   }, []);
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -509,9 +557,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       setTyping((prev) => ({ ...prev, [companionId]: true }));
-      let result: mock.TurnResult;
+      let result: TurnResult;
       try {
-        result = await mock.sendTurn({
+        result = await backend.sendTurn({
           companionId,
           companionName: name,
           personaKey,
@@ -544,7 +592,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       const assistant: Message = {
-        id: localId(),
+        // Live mode returns the server's message id — keeps the reply reportable.
+        id: result.replyId ?? localId(),
         role: 'assistant',
         content: result.reply ?? '',
         createdAt: new Date().toISOString(),
@@ -600,17 +649,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // ── Memories ──────────────────────────────────────────────────────────────
 
   const loadMemories = useCallback(async (companionId: string) => {
-    const rows = await mock.fetchMemories(companionId);
+    const rows = await backend.fetchMemories(companionId);
     setMemories((prev) => ({ ...prev, [companionId]: rows }));
   }, []);
 
   const editMemory = useCallback(async (companionId: string, id: string, fact: string) => {
-    // Optimistic edit, reconciled by the mock's response.
+    // Optimistic edit, reconciled by the backend's response.
     setMemories((prev) => ({
       ...prev,
       [companionId]: (prev[companionId] ?? []).map((m) => (m.id === id ? { ...m, fact } : m)),
     }));
-    await mock.updateMemory(id, { fact });
+    await backend.updateMemory(id, { fact });
   }, []);
 
   const removeMemory = useCallback(async (companionId: string, id: string) => {
@@ -618,42 +667,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       ...prev,
       [companionId]: (prev[companionId] ?? []).filter((m) => m.id !== id),
     }));
-    await mock.deleteMemory(id);
+    await backend.deleteMemory(id);
   }, []);
 
   // ── Account lifecycle ─────────────────────────────────────────────────────
 
   const softDelete = useCallback(async () => {
-    const status = await mock.softDeleteAccount();
+    const status = await backend.softDeleteAccount();
     setAccountStatus(status);
     return status;
   }, []);
 
   const reactivate = useCallback(async () => {
-    setAccountStatus(await mock.reactivateAccount());
+    setAccountStatus(await backend.reactivateAccount());
   }, []);
 
   const requestExport = useCallback(async () => {
-    await mock.requestDataExport();
+    await backend.requestDataExport();
   }, []);
 
   // ── Payments ──────────────────────────────────────────────────────────────
 
-  const purchasePremium = useCallback(async () => {
-    const { isPremium } = await mock.purchasePremium();
-    updateUser({ isPremium });
-  }, [updateUser]);
+  const purchasePremium = useCallback(
+    async (plan: 'monthly' | 'yearly' = 'monthly') => {
+      const { isPremium } = await backend.purchasePremium(plan);
+      if (isPremium) updateUser({ isPremium });
+    },
+    [updateUser],
+  );
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
-    const { restored, isPremium } = await mock.restorePurchases();
+    const { restored, isPremium } = await backend.restorePurchases();
     if (restored) updateUser({ isPremium });
     return restored;
   }, [updateUser]);
 
   const refreshEntitlements = useCallback(async () => {
-    // GET /api/payments/entitlements — called on app foreground to reconcile staleness.
-    const { isPremium } = await mock.fetchEntitlements();
-    if (userRef.current && !!userRef.current.isPremium !== isPremium) updateUser({ isPremium });
+    // GET /api/payments/entitlements — called on app foreground to reconcile
+    // staleness. Best-effort: no session / server down is not an error state.
+    try {
+      const { isPremium } = await backend.fetchEntitlements();
+      if (userRef.current && !!userRef.current.isPremium !== isPremium) updateUser({ isPremium });
+    } catch {}
   }, [updateUser]);
 
   // Reconcile isPremium whenever the app returns to the foreground (the backend
@@ -735,4 +790,4 @@ export function useApp() {
   return ctx;
 }
 
-export type { MemoryRow, AccountStatus } from '@/lib/mock';
+export type { MemoryRow, AccountStatus } from '@/lib/models';

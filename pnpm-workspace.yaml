@@ -28,6 +28,10 @@ allowBuilds:
   onnxruntime-node: true
   protobufjs: true
   sharp: true
+  # Clerk transitive deps; neither needs its postinstall (core-js's is a
+  # funding banner, browser-tabs-lock's is a no-op for RN).
+  browser-tabs-lock: false
+  core-js: false
 
 # LiveKit Agents 1.4.11 is recent; exempt from any minimum-release-age supply-chain delay.
 minimumReleaseAgeExclude:

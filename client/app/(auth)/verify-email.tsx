@@ -1,7 +1,7 @@
 // Email verification — the Clerk-shaped step between sign-up and onboarding.
-// Six-digit code UI with a resend countdown; the mock accepts any complete
-// code. WIRE SEAM: Clerk's signUp.attemptEmailAddressVerification replaces
-// handleVerify's body; Clerk sends the real email.
+// Six-digit code UI with a resend countdown. backend.authVerifyEmail is the
+// seam: mock mode accepts any complete code; live mode attempts Clerk's
+// signUp.attemptEmailAddressVerification (Clerk sends the real email).
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import { enterUp } from '@/components/motion';
 import { ONBOARDING } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
+import { authResendCode, authVerifyEmail } from '@/lib/backend';
 
 const CODE_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -29,6 +30,7 @@ export default function VerifyEmailScreen() {
   const [code, setCode] = useState('');
   const [countdown, setCountdown] = useState(RESEND_SECONDS);
   const [error, setError] = useState('');
+  const [verifying, setVerifying] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -37,18 +39,26 @@ export default function VerifyEmailScreen() {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const handleVerify = () => {
+  const handleVerify = async () => {
     if (code.length < CODE_LENGTH) {
       setError(a.errors.wrongCode);
       return;
     }
-    // Clerk drop-in point: signUp.attemptEmailAddressVerification({ code }).
-    router.replace('/onboarding');
+    setVerifying(true);
+    try {
+      await authVerifyEmail(code);
+      router.replace('/onboarding');
+    } catch {
+      setError(a.errors.wrongCode);
+      setCode('');
+    } finally {
+      setVerifying(false);
+    }
   };
 
   const handleResend = () => {
     if (countdown > 0) return;
-    // Clerk drop-in point: signUp.prepareEmailAddressVerification().
+    void authResendCode().catch(() => {});
     setCountdown(RESEND_SECONDS);
     setCode('');
     setError('');
@@ -119,7 +129,12 @@ export default function VerifyEmailScreen() {
         </Animated.View>
 
         <View style={[styles.action, { paddingBottom: insets.bottom + SPACE.lg }]}>
-          <Button label={a.ctas.verify} onPress={handleVerify} disabled={code.length < CODE_LENGTH} />
+          <Button
+            label={a.ctas.verify}
+            onPress={() => void handleVerify()}
+            loading={verifying}
+            disabled={code.length < CODE_LENGTH}
+          />
         </View>
       </View>
     </KeyboardAvoidingView>

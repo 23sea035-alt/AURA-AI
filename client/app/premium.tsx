@@ -23,7 +23,7 @@ import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { fetchStorePrice } from '@/lib/mock';
+import { fetchStorePrice } from '@/lib/backend';
 
 const RENEW_DATE = DEMO.renewDate; // demo; the real app reads this from the store
 

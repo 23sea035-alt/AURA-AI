@@ -37,7 +37,7 @@ import { DURATION, EASING, TYPING } from '@/constants/motion';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoicePrefs } from '@/hooks/useVoicePrefs';
-import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS, mockVoiceReply } from '@/lib/mock';
+import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS, mockVoiceReply } from '@/lib/backend';
 
 type CallState = 'connecting' | 'listening' | 'thinking' | 'speaking';
 
