@@ -30,7 +30,7 @@ export const CREATE = {
   traitLabels: { warmth: 'Warmth', energy: 'Energy', verbosity: 'Verbosity' }, // segments from TRAITS
   autoNumberExample: 'Aurora 2', // a second Aurora auto-numbers
   // live voice preview restates the selected chips. Aurora's default-tune example:
-  voicePreviewExample: 'Affectionate · calm · balanced. Warm, gentle, emotionally attuned.',
+  voicePreviewExample: 'Doting · calm · balanced. Warm, gentle, emotionally attuned.',
   // NOTE: the deck wrote "affectionate · balanced · balanced"; corrected to personas.md
-  // canon (affectionate · calm · balanced). See docs/specs/personas.md.
+  // canon (doting · calm · balanced; warmth axis renamed affectionate→doting). See docs/specs/personas.md.
 } as const;

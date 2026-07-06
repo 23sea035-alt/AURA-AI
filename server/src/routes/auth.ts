@@ -23,10 +23,11 @@ function isPlausibleDob(dateOfBirth: string): boolean {
 
 const router = Router();
 
+// Default trait points match the persona canon (docs/specs/personas.md); premium tuning moves from here.
 const DEFAULT_COMPANIONS = [
-  { personaKey: "aurora", name: "Aurora", traits: { warmth: "warm", energy: "balanced", verbosity: "balanced" }, lastMessage: "Ready to explore your thoughts with you...", isDefault: true },
-  { personaKey: "orion", name: "Orion", traits: { warmth: "reserved", energy: "balanced", verbosity: "concise" }, lastMessage: "Let's tackle your goals today.", isDefault: true },
-  { personaKey: "lyra", name: "Lyra", traits: { warmth: "affectionate", energy: "playful", verbosity: "expansive" }, lastMessage: "What story shall we write today?", isDefault: true },
+  { personaKey: "aurora", name: "Aurora", traits: { warmth: "doting", energy: "calm", verbosity: "balanced" }, lastMessage: "I'm right here with you, whenever you're ready.", isDefault: true },
+  { personaKey: "orion", name: "Orion", traits: { warmth: "warm", energy: "calm", verbosity: "concise" }, lastMessage: "Take a breath. We'll take it one piece at a time.", isDefault: true },
+  { personaKey: "lyra", name: "Lyra", traits: { warmth: "warm", energy: "playful", verbosity: "expansive" }, lastMessage: "There's a brighter angle in here somewhere, let's find it.", isDefault: true },
 ];
 
 // POST /api/auth/seed-companions — seed default companions for newly registered users
