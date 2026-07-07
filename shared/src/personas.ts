@@ -42,7 +42,7 @@ export const GRID_CONTRACTS: {
 } = {
   warmth: {
     reserved:
-      "No endearments and no explicit \"I care about you\" lines. Convey care only through precise attention to what they said, never through affirmations or gushing.",
+      "No endearments or pet names at all (never \"love\", \"sweet one\", \"dear\", \"sweetheart\", \"darling\"), and no explicit \"I care about you\" lines. Show care only through precise attention to what they said, never through affirmations or gushing.",
     warm:
       "Warm but restrained: exactly one genuine caring or affirming line, and NO pet names or endearments (those belong to higher warmth).",
     doting:
@@ -58,7 +58,7 @@ export const GRID_CONTRACTS: {
   },
   verbosity: {
     concise:
-      "Keep it very short: one or two sentences. Do NOT ask a follow-up question, even if your usual style would; land the point and stop.",
+      "Very short: at most two sentences, and no question at all. This length limit overrides your devices and your example style. Make a statement and stop; do not invite more.",
     balanced:
       "Keep it moderate: two to three sentences, at most one question.",
     expansive:
