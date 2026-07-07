@@ -15,16 +15,16 @@
 | Companion | Status | Action |
 |-----------|--------|--------|
 | **Thea** | ✅ LOCK | keep. best style match. bg cutout only. |
-| **Selene** | ✅ LOCK | keep. bg cutout. OPTIONAL: dial skin warmth down a touch (reads slightly orange). |
-| **Amara** | ✅ keep | good. bg cutout only. |
-| **Eli** | ✅ keep | good. **strip the 1 watermark**, then bg cutout. |
-| **Soren** | ✅ keep | good. **strip the 1 watermark** (✦ near bottom-right), then bg cutout. |
-| **Juno** | ♻️ REGEN | looser top + tighter crop (see below). |
+| **Amara** | ✅ LOCK | keep. bg cutout only. |
+| **Eli** | 🔧 REFINE | **strip the ✦ sparkle watermark near his LEFT elbow** (faint but present), then bg cutout. Otherwise good. |
+| **Soren** | 🔧 REFINE | **strip the ✦ sparkle watermark on his LEFT sleeve** (very visible), then bg cutout. Otherwise good. |
+| **Selene** | 🔧 REFINE | dial skin warmth/saturation down (reads too orange for fair-olive), then bg cutout. |
+| **Juno** | ♻️ REGEN | looser top + tighter crop + style (see below). |
 | **Sage** | ♻️ REGEN | style only — currently flat vector, needs anchor cel look. |
 | **Cyrus** | ♻️ REGEN | style + skin over-saturated; no hands, rooted. |
-| **Wren** | ♻️ REGEN | style + remove the green leaf prop + pull to three-quarter (not profile). |
+| **Wren** | ♻️ REGEN | style + remove the green leaf prop. (Eyes are fine — both visible — keep the three-quarter side-glance.) |
 
-So: **5 keepers** (cleanup only), **4 regens** (Juno, Sage, Cyrus, Wren).
+So: **2 locks** (Thea, Amara — cutout only), **3 refines** (Eli, Soren, Selene), **4 regens** (Juno, Sage, Cyrus, Wren).
 
 ## The style lock (why batch 2 drifted, and how to stop it)
 
@@ -43,9 +43,9 @@ Sage/Wren/Cyrus, glossy comic for others). Three fixes, applied to every regen p
 
 - **Default: eyes engage the viewer.** A companion picker lives on eye contact = warmth/connection, and
   all 3 anchors look at the viewer. Sage, Cyrus, Juno → **look toward the viewer.**
-- **Slight off-axis allowed** only for the reflective characters (**Wren**, and Soren who's already fine)
-  — but a **gentle three-quarter turn with a soft side-glance, both eyes clearly visible, never a full
-  profile.** Wren's batch-2 near-profile (one eye lost) is too far.
+- **Slight off-axis allowed** only for the reflective characters (**Wren**, and Soren) — a gentle
+  three-quarter turn with a soft side-glance, **both eyes clearly visible, never a full profile.** Wren's
+  batch-2 gaze is already fine (both eyes visible) — keep it; the regen is for style + the leaf, not the eyes.
 
 ## Framing / scale lock
 
@@ -83,17 +83,20 @@ Framing: TIGHT head-and-shoulders portrait matching the anchors' crop — head n
 Subject: an adult, clearly 25+. Androgynous / gender-neutral presentation, East Asian (Japanese) heritage. Light warm skin, softly lit. Longer, soft, loosely tucked dark hair in natural black-brown (no auburn or warm highlights). Tastefully dressed as a thoughtful friend: a muted layered top with a soft collar in warm sage-brown; the neck may show, but nothing tight, bare, or suggestive. Pose: thoughtful and contemplative — a gentle three-quarter turn with the eyes glancing softly to the side; BOTH eyes clearly visible, NOT a full profile. A hand may rest lightly near the chin but must be empty (no objects). Expression: quiet, curious, contemplative. A reflective mind that thinks alongside you. Same art style as the references, but a clearly different person from them, never a recolored copy of a reference's face.
 ```
 
-## Cleanup checklist for the 5 keepers
+## Cleanup / refine checklist (non-regen)
 
-- **Eli, Soren:** strip the single watermark each, then background → transparent.
-- **Thea, Amara:** background → transparent.
-- **Selene:** (optional) dial skin warmth down a touch, then background → transparent.
-- All keepers: confirm the crop/scale roughly matches the anchors; if one is noticeably zoomed out vs the
-  anchors, consider a re-crop.
+- **Thea, Amara** (locks): background → transparent only.
+- **Eli:** strip the ✦ sparkle watermark near his **left elbow** (faint), then background → transparent.
+- **Soren:** strip the ✦ sparkle watermark on his **left sleeve** (very visible), then background →
+  transparent.
+- **Selene:** reduce skin warmth/saturation (too orange for fair-olive) — a targeted edit if it stays
+  clean, otherwise a light regen — then background → transparent.
+- All of the above: confirm crop/scale roughly matches the anchors; re-crop if one is noticeably zoomed
+  out.
 
 ## Definition of done
 
-4 regens (Juno, Sage, Cyrus, Wren) now read as the **same soft cel/gouache family as the anchors** (not
-flat/vector), leaf gone, Juno's top loose + crop tight, gazes per the policy; 5 keepers watermark-free and
-cut to transparent; all 9 at 1254², named `[companion].png`, on `test-results`. Update `notes.md`
-(iterations + which were regenerated). Then ping the main session.
+4 regens (Juno, Sage, Cyrus, Wren) read as the **same soft cel/gouache family as the anchors** (not
+flat/vector), leaf gone, Juno's top loose + crop tight, gazes per the policy; Eli + Soren watermark-free;
+Selene skin de-saturated; all 9 cut to transparent, at 1254², named `[companion].png`, on `test-results`.
+Update `notes.md` (iterations + which were regenerated). Then ping the main session.
