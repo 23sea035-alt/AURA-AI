@@ -161,15 +161,11 @@ export const ONBOARDING = {
 
   persona: {
     title: 'Who would you like to talk with?',
-    sub: 'You can always meet the others later.',
+    sub: 'Swipe to meet all 12, then tap to choose. You can always add more later.',
     premiumNote: 'Personalities can be tuned with Premium.',
+    // Undecided state (nothing tapped yet) — the footer CTA stays disabled until a pick.
+    ctaEmpty: 'Choose a companion',
     ctaTemplate: 'Start chatting with {Companion}', // rendered with a trailing "→"
-    // voice lines: see PERSONAS in ./personas (single source, shared with Companions).
-  },
-
-  firstChat: {
-    // disclosure banner: see CHAT.disclosureBanner (shared with the Chat hero).
-    greetingTemplate:
-      "Hi {firstName}, I'm really glad you're here. There's no script and no rush. What's on your mind today?",
+    // voice lines: see PERSONA_GALLERY / PERSONAS in ./personas (single source, shared with Companions).
   },
 } as const;

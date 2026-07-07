@@ -1,40 +1,50 @@
-// Choose your companion — the pivotal choice (CHOOSE, not build). Three warm stacked cards
-// (Aurora / Orion / Lyra) with the curated avatar + a one-line voice; Aurora pre-highlighted.
-// Selecting rises the card (e1 -> e2 + wine ring) and recedes the rest. CTA names the choice.
-import { Image } from 'expo-image';
+// Choose your companion — the pivotal choice (CHOOSE, not build). The full 1-of-12 curated
+// gallery via the shared PersonaCarousel (roster spec §4), opening with NOTHING selected: the
+// user makes this pick explicitly by tapping a card, never a pre-highlighted default. Continue
+// creates the real companion and lands straight in its chat, where the persona's seeded opener
+// is already waiting (createCompanion seeds it automatically — the roster is empty at onboarding).
+import { type PersonaPreset } from '@aura/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Ionicons } from '@expo/vector-icons';
-
 import { BackChevron } from '@/components/BackChevron';
 import { Button } from '@/components/Button';
-import { PressableScale, enterUp } from '@/components/motion';
-import { ONBOARDING, PERSONAS } from '@/constants/content';
-import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { PersonaCarousel } from '@/components/companion/PersonaCarousel';
+import { enterUp } from '@/components/motion';
+import { ONBOARDING } from '@/constants/content';
+import { LOGO_COLORS, SPACE, TYPE, personaColorsFor } from '@/constants/design';
+import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 
-const AVATARS = {
-  Aurora: require('../assets/avatars/aurora.png'),
-  Orion: require('../assets/avatars/orion.png'),
-  Lyra: require('../assets/avatars/lyra.png'),
-};
-const ORDER = ['Aurora', 'Orion', 'Lyra'] as const;
-type PersonaName = (typeof ORDER)[number];
-
 export default function PersonaScreen() {
-  const { colors, shadows, mode } = useTheme();
+  const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const [selected, setSelected] = useState<PersonaName>('Aurora');
+  const { createCompanion, updateUser } = useApp();
+  const [selected, setSelected] = useState<PersonaPreset | null>(null);
   const copy = ONBOARDING.persona;
 
-  const handleStart = () => {
-    router.push({ pathname: '/firstchat', params: { companion: selected } });
+  const handleContinue = () => {
+    if (!selected) return;
+    const preset = selected;
+    const pc = personaColorsFor(preset.id);
+    const result = createCompanion({
+      name: preset.name,
+      personaKey: preset.id,
+      persona: preset.tagline,
+      traits: [preset.defaultTraits.warmth, preset.defaultTraits.energy, preset.defaultTraits.verbosity],
+      colorFrom: pc?.from ?? LOGO_COLORS.wine,
+      colorTo: pc?.to ?? LOGO_COLORS.honey,
+    });
+    updateUser({ onboardingDone: true });
+    router.replace('/(tabs)');
+    if (result.ok) router.push({ pathname: '/chat/[id]', params: { id: result.id } });
   };
+
+  const ctaLabel = selected ? `${copy.ctaTemplate.replace('{Companion}', selected.name)} →` : copy.ctaEmpty;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg, paddingTop: insets.top + SPACE.md }]}>
@@ -52,39 +62,13 @@ export default function PersonaScreen() {
           {copy.sub}
         </Animated.Text>
 
-        {ORDER.map((name, i) => {
-          const persona = PERSONAS[name];
-          const isSel = selected === name;
-          return (
-            <Animated.View key={name} entering={enterUp(i + 2)}>
-              <PressableScale
-                haptic="medium"
-                onPress={() => setSelected(name)}
-                style={[
-                  styles.card,
-                  isSel
-                    ? { ...shadows.e2, backgroundColor: colors.accentTint, borderColor: 'transparent', borderWidth: 1.5 }
-                    : { ...shadows.e1, backgroundColor: colors.raised, borderColor: 'transparent', borderWidth: 1.5, opacity: 0.65 },
-                ]}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isSel }}
-              >
-                <Image source={AVATARS[name]} style={styles.avatar} contentFit="cover" />
-                <View style={styles.cardText}>
-                  <Text style={[styles.name, { color: colors.textPrimary }]}>{persona.name}</Text>
-                  <Text style={[styles.voice, { color: colors.textSecondary }]}>{persona.voice}</Text>
-                </View>
-                {isSel ? (
-                  <View style={[styles.checkBadge, { backgroundColor: colors.accent }]}>
-                    <Ionicons name="checkmark" size={14} color={colors.onAccent} />
-                  </View>
-                ) : null}
-              </PressableScale>
-            </Animated.View>
-          );
-        })}
+        {/* The carousel sizes its cards from the full window width and manages its own side
+            padding — escape the container's horizontal padding so the peek + snap math holds. */}
+        <Animated.View entering={enterUp(2)} style={styles.carouselBleed}>
+          <PersonaCarousel selectedId={selected?.id ?? ''} onSelect={setSelected} />
+        </Animated.View>
 
-        <Animated.Text entering={enterUp(5)} style={[styles.premium, { color: colors.textTertiary }]}>
+        <Animated.Text entering={enterUp(3)} style={[styles.premium, { color: colors.textTertiary }]}>
           {copy.premiumNote}
         </Animated.Text>
       </ScrollView>
@@ -95,7 +79,7 @@ export default function PersonaScreen() {
           { paddingBottom: insets.bottom + SPACE.lg, backgroundColor: colors.bg, borderTopColor: colors.divider },
         ]}
       >
-        <Button label={`${copy.ctaTemplate.replace('{Companion}', selected)} →`} onPress={handleStart} />
+        <Button label={ctaLabel} onPress={handleContinue} disabled={!selected} />
       </View>
     </View>
   );
@@ -109,18 +93,7 @@ const styles = StyleSheet.create({
   content: { flexGrow: 1, gap: SPACE.md },
   title: { ...TYPE.headline },
   sub: { ...TYPE.body, marginBottom: SPACE.sm },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACE.lg,
-    borderRadius: RADIUS.card,
-    padding: SPACE.lg,
-  },
-  avatar: { width: 64, height: 64, borderRadius: RADIUS.pill },
-  cardText: { flex: 1, gap: 4 },
-  checkBadge: { width: 24, height: 24, borderRadius: RADIUS.pill, alignItems: 'center', justifyContent: 'center' },
-  name: { fontFamily: FONTS.body.semibold, fontSize: 18 },
-  voice: { fontFamily: FONTS.body.regular, fontSize: 15, lineHeight: 20 },
+  carouselBleed: { marginHorizontal: -SPACE.xl },
   premium: { ...TYPE.caption, textAlign: 'center', marginTop: SPACE.sm },
   footer: {
     position: 'absolute',
