@@ -2,11 +2,13 @@
 // (+contrast) only, chained as react-native-svg feColorMatrix filter primitives. 'default' skips
 // SVG entirely (plain Image; cheapest, most common case). No new native dependency: Filter /
 // FeColorMatrix / Image are all built into react-native-svg (already installed).
+import { LinearGradient } from 'expo-linear-gradient';
 import React from 'react';
-import { Image as RNImage } from 'react-native';
+import { Image as RNImage, Text } from 'react-native';
 import Svg, { Defs, Filter, FeColorMatrix, Image as SvgImage } from 'react-native-svg';
 
 import { avatarFor } from '@/components/companion/portraits';
+import { AVATAR_INITIAL_COLOR, FONTS, personaColorsFor } from '@/constants/design';
 import { LOOKS, DEFAULT_LOOK_ID, stepsForLook } from '@/constants/looks';
 
 export function FilteredAvatar({
@@ -21,7 +23,25 @@ export function FilteredAvatar({
   const source = avatarFor(personaId);
   const look = LOOKS.find((l) => l.id === lookId) ?? LOOKS[0];
 
-  if (!source) return null; // no portrait for this id (e.g. a custom companion) — caller falls back to initials
+  if (!source) {
+    // No portrait: a gallery persona whose art is not cut yet renders its branded duotone + initial
+    // (the look filter is a no-op without a photo). A truly custom companion has no persona color —
+    // return null so the caller (Avatar) uses its own neutral initials fallback.
+    const pc = personaColorsFor(personaId);
+    if (!pc) return null;
+    return (
+      <LinearGradient
+        colors={[pc.from, pc.to]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ width: size, height: size, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Text style={{ color: AVATAR_INITIAL_COLOR, fontFamily: FONTS.body.semibold, fontSize: size * 0.4 }}>
+          {personaId?.[0]?.toUpperCase() ?? '?'}
+        </Text>
+      </LinearGradient>
+    );
+  }
   if (look.ops.length === 0) {
     return <RNImage source={source} style={{ width: size, height: size, borderRadius: size / 2 }} resizeMode="cover" />;
   }

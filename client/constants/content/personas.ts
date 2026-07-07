@@ -23,15 +23,9 @@ export const PERSONA_GALLERY: readonly PersonaPreset[] = PERSONA_PRESETS;
 
 // Back-compat picker shape: keyed by display Name, `.voice` = the preset tagline. Consumers
 // (persona.tsx onboarding, create.tsx base-picker, companions/firstchat/long-term-memory) index by
-// Name and read `.voice` / `.traits`, so preserve that exact shape for the 3 anchors.
+// Name and read `.voice` / `.traits`. Now built for all 12 gallery presets, not just the 3 anchors.
 type PickerPersona = { name: string; voice: string; traits: PersonaTraits };
-const pick = (id: string): PickerPersona => {
-  const p = PERSONA_PRESETS.find((x) => x.id === id)!;
-  return { name: p.name, voice: p.tagline, traits: p.defaultTraits };
-};
 
-export const PERSONAS = {
-  Aurora: pick('aurora'),
-  Orion: pick('orion'),
-  Lyra: pick('lyra'),
-} as const;
+export const PERSONAS: Record<string, PickerPersona> = Object.fromEntries(
+  PERSONA_PRESETS.map((p) => [p.name, { name: p.name, voice: p.tagline, traits: p.defaultTraits }]),
+);

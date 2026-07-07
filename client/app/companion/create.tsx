@@ -24,15 +24,17 @@ import { SectionLabel } from '@/components/SectionLabel';
 import { Segmented } from '@/components/Segmented';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale, enterUp } from '@/components/motion';
-import { CREATE, PERSONAS, TRAITS } from '@/constants/content';
-import { FONTS, LOGO_COLORS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { CREATE, PERSONAS, PERSONA_GALLERY, TRAITS } from '@/constants/content';
+import { FONTS, LOGO_COLORS, RADIUS, SPACE, TYPE, personaColorsFor } from '@/constants/design';
 import { DEFAULT_LOOK_ID } from '@/constants/looks';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { autoNumberName } from '@/utils/name';
 
-const ORDER = ['Aurora', 'Orion', 'Lyra'] as const;
-type PersonaName = (typeof ORDER)[number];
+// The full curated gallery (12), sourced from @aura/shared via PERSONA_GALLERY — the "Start from"
+// base picker renders one card per preset. Order follows the shared roster (3 anchors, then the 9).
+const ORDER = PERSONA_GALLERY.map((p) => p.name);
+type PersonaName = string;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 export default function CreateCompanionScreen() {
@@ -81,12 +83,13 @@ export default function CreateCompanionScreen() {
         lookId: look,
       });
     } else {
+      const pc = personaColorsFor(base.toLowerCase());
       addCompanion({
         name: finalName,
         persona: PERSONAS[base].voice,
         traits: [traits.warmth, traits.energy, traits.verbosity],
-        colorFrom: LOGO_COLORS.wine,
-        colorTo: LOGO_COLORS.honey,
+        colorFrom: pc?.from ?? LOGO_COLORS.wine,
+        colorTo: pc?.to ?? LOGO_COLORS.honey,
         lookId: look,
       });
     }
@@ -263,9 +266,11 @@ const styles = StyleSheet.create({
   },
   nameField: { alignSelf: 'stretch' },
   nameInput: { textAlign: 'center' },
-  bases: { flexDirection: 'row', gap: SPACE.sm },
+  // A wrapping 3-per-row grid: the gallery is 12 presets now, not 3, so the row wraps into 4 rows.
+  bases: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACE.sm },
   baseCard: {
-    flex: 1,
+    flexBasis: '30%',
+    flexGrow: 1,
     alignItems: 'center',
     gap: SPACE.xs,
     padding: SPACE.md,

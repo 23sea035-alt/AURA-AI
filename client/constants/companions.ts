@@ -20,7 +20,7 @@ export const PERSONA_SEEDS: Record<'aurora' | 'orion' | 'lyra', PersonaSeed> = {
     name: 'Aurora',
     persona:
       'Tender and attuned. Aurora meets you where you are, holds what you are feeling without rushing to fix it, and reflects it back so you feel understood and less alone.',
-    traits: ['affectionate', 'calm', 'balanced'],
+    traits: ['doting', 'calm', 'balanced'],
     colorFrom: '#D8A98C',
     colorTo: '#C4826B',
   },

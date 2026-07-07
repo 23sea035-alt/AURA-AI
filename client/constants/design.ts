@@ -17,6 +17,7 @@
 // ════════════════════════════════════════════════════════════════════════
 
 import type { ViewStyle } from 'react-native';
+import type { PersonaKey } from '@aura/shared';
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -129,7 +130,9 @@ export const COLORS: Record<ThemeMode, ThemeColors> = {
 // decorative marks/rings only (never body text — contrast is not AA-checked for
 // small sizes). Custom companions have no tone: fall back to the neutral avatar
 // tokens.
-export type PersonaKey = 'aurora' | 'orion' | 'lyra';
+// PersonaKey (the 12 curated gallery presets) is owned by @aura/shared; re-exported here so the
+// design tokens keyed by it stay in one place.
+export type { PersonaKey };
 
 export interface PersonaTone {
   wash: string;
@@ -141,18 +144,61 @@ export const PERSONA_TONES: Record<ThemeMode, Record<PersonaKey, PersonaTone>> =
     aurora: { wash: '#F6E8E0', deep: '#9A5B4C' },
     orion: { wash: '#EFE4D8', deep: '#77563E' },
     lyra: { wash: '#F6ECD6', deep: '#8F6D2E' },
+    // 9 gallery personas (art-gated) — washes in the same warm-sanctuary family as their duotone.
+    sage: { wash: '#EFEBE2', deep: '#6E6450' },
+    amara: { wash: '#F8E9E0', deep: '#A85E3F' },
+    eli: { wash: '#F3EADD', deep: '#866440' },
+    selene: { wash: '#F4E7EA', deep: '#8A5D65' },
+    soren: { wash: '#ECE6DC', deep: '#64553F' },
+    juno: { wash: '#F9F0D8', deep: '#93701F' },
+    thea: { wash: '#F8EDE1', deep: '#A06A42' },
+    cyrus: { wash: '#F1E9D6', deep: '#7A5A2A' },
+    wren: { wash: '#EBE7DF', deep: '#5F5544' },
   },
   dark: {
     aurora: { wash: '#251C18', deep: '#DBA48F' },
     orion: { wash: '#231C15', deep: '#C89B72' },
     lyra: { wash: '#262013', deep: '#D6B168' },
+    sage: { wash: '#201E18', deep: '#C3B79C' },
+    amara: { wash: '#271C16', deep: '#DE9E7B' },
+    eli: { wash: '#221C14', deep: '#CDA579' },
+    selene: { wash: '#241A1C', deep: '#CFA0A8' },
+    soren: { wash: '#1F1D17', deep: '#BBA88E' },
+    juno: { wash: '#26200F', deep: '#E2BC63' },
+    thea: { wash: '#251D15', deep: '#DFAF86' },
+    cyrus: { wash: '#221C12', deep: '#CFA45F' },
+    wren: { wash: '#1E1C17', deep: '#B7A992' },
   },
 };
 
 /** Whisper-tone for a companion id, or null for custom companions (use neutral avatar tokens). */
 export function personaToneFor(mode: ThemeMode, id: string): PersonaTone | null {
   const key = id?.toLowerCase?.() as PersonaKey;
-  return key === 'aurora' || key === 'orion' || key === 'lyra' ? PERSONA_TONES[mode][key] : null;
+  return key in PERSONA_TONES[mode] ? PERSONA_TONES[mode][key] : null;
+}
+
+// Per-persona duotone — the avatar for a persona that has no portrait yet, and the color a created
+// companion inherits from its base persona. The 3 anchors match their portrait's dominant tones; the
+// 9 gallery personas are art-gated, so this branded duotone stands in until a PNG is added to
+// portraits.ts (which then takes over). Kept in the warm-sanctuary earth family.
+export const PERSONA_COLORS: Record<PersonaKey, { from: string; to: string }> = {
+  aurora: { from: '#D8A98C', to: '#C4826B' },
+  orion: { from: '#A9683F', to: '#8A5637' },
+  lyra: { from: '#D9B26A', to: '#C69A4B' },
+  sage: { from: '#B9AC94', to: '#9E9077' },
+  amara: { from: '#E2A17C', to: '#CE7E58' },
+  eli: { from: '#C9A57E', to: '#B08A62' },
+  selene: { from: '#C9A0A6', to: '#AE7E86' },
+  soren: { from: '#AE9C88', to: '#918069' },
+  juno: { from: '#E6C06A', to: '#D4A44A' },
+  thea: { from: '#E3B48C', to: '#CF9468' },
+  cyrus: { from: '#BE9455', to: '#A0793D' },
+  wren: { from: '#A99C8A', to: '#8C7E6B' },
+};
+
+/** The branded duotone for a persona id, or undefined for a truly custom companion. */
+export function personaColorsFor(id: string): { from: string; to: string } | undefined {
+  return PERSONA_COLORS[id?.toLowerCase?.() as PersonaKey];
 }
 
 // ── User monogram tones (theme-independent, curated) ────────────────────────

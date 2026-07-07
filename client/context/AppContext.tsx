@@ -13,7 +13,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { AppState } from 'react-native';
 
 import { DEFAULT_COMPANIONS } from '@/constants/companions';
-import { PERSONAS } from '@/constants/content';
+import { PERSONA_GALLERY } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import { DEV_FORCE_PREMIUM, DEV_USE_MOCKS } from '@/constants/devFlags';
 import { ApiError } from '@/lib/api';
@@ -540,7 +540,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const companion = companionsRef.current.find((c) => c.id === companionId);
       const name = companion?.name ?? 'Your companion';
-      const personaKey = PERSONAS[name as keyof typeof PERSONAS] ? companionId : 'custom';
+      // A companion's row id is its persona key only when it's one of the 12 curated gallery presets
+      // (the seeded anchors); user-created companions have a generated id and send 'custom' voice.
+      // TODO(personaId): once Companion carries a first-class base personaId, send that instead so
+      // gallery-based creations keep their chosen voice.
+      const personaKey = PERSONA_GALLERY.some((p) => p.id === companionId) ? companionId : 'custom';
       const assistantTurnCount = (messagesRef.current[companionId] ?? []).filter(
         (m) => m.role === 'assistant',
       ).length;

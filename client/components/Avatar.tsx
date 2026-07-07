@@ -7,7 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
 import { avatarFor } from '@/components/companion/portraits';
-import { AVATAR_INITIAL_COLOR, FONTS } from '@/constants/design';
+import { AVATAR_INITIAL_COLOR, FONTS, personaColorsFor } from '@/constants/design';
 import { DEFAULT_LOOK_ID } from '@/constants/looks';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -44,7 +44,12 @@ export function Avatar({
     return <Image source={src} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
   }
 
-  const duotone = !!(colorFrom && colorTo);
+  // A gallery persona with no portrait yet falls back to its branded duotone (art-gated 9); an
+  // explicit colorFrom/colorTo (e.g. a created companion) always wins over the persona default.
+  const pc = colorFrom && colorTo ? undefined : personaColorsFor(id);
+  const from = colorFrom ?? pc?.from;
+  const to = colorTo ?? pc?.to;
+  const duotone = !!(from && to);
   const round = { width: size, height: size, borderRadius: size / 2 };
   // a light cream initial reads on every warm monogram tone / duotone
   const initial = (
@@ -60,7 +65,7 @@ export function Avatar({
 
   if (duotone) {
     return (
-      <LinearGradient colors={[colorFrom!, colorTo!]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fallback, round]}>
+      <LinearGradient colors={[from!, to!]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.fallback, round]}>
         {initial}
       </LinearGradient>
     );
