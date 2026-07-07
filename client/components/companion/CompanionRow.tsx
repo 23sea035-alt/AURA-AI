@@ -21,9 +21,10 @@ export function voiceFor(c: Companion): string {
   return canon ?? c.traits.join(' · ');
 }
 
-/** Select-mode leading circle (empty ring → filled check) — the same neutral check-badge pattern
- * as the create picker (no accent; selection isn't the one-accent moment). Shared by the roster
- * row and the archived card. */
+/** Select-mode leading circle (empty ring → filled check). Accent-filled when checked — unlike
+ * the create picker's neutral identity badge, marking rows IS the action in Select mode (the
+ * action bar's buttons are secondary/danger, so the accent isn't spent twice). Shared by the
+ * roster row and the archived card. */
 export function SelectCircle({ selected }: { selected: boolean }) {
   const { colors } = useTheme();
   return (
@@ -31,11 +32,11 @@ export function SelectCircle({ selected }: { selected: boolean }) {
       style={[
         styles.selectCircle,
         selected
-          ? { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
-          : { backgroundColor: 'transparent', borderColor: colors.border },
+          ? { backgroundColor: colors.accent, borderColor: colors.accent }
+          : { backgroundColor: 'transparent', borderColor: colors.outline },
       ]}
     >
-      {selected ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+      {selected ? <Ionicons name="checkmark" size={12} color={colors.onAccent} /> : null}
     </View>
   );
 }
@@ -117,7 +118,7 @@ export function CompanionRow({
         >
           {selecting ? <SelectCircle selected={!!selected} /> : null}
           <View style={styles.avatarWrap}>
-            <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
+            <Avatar id={c.personaKey ?? c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
             {isHome ? (
               <View style={[styles.pinBadge, { backgroundColor: colors.accent, borderColor: colors.raised }]}>
                 <Ionicons name="location" size={9} color={colors.onAccent} />

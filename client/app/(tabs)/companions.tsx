@@ -10,7 +10,7 @@
 // untouched, restorable from the "Archived" subtab, whose cards open the same read-only archived
 // chat (spec §8) — the same contract as archiving a conversation thread, not deleting one.
 import { Ionicons } from '@expo/vector-icons';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
@@ -19,6 +19,8 @@ import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { activeCompanionCap } from '@aura/shared';
+
+import { tabBarPillStyle } from './_layout';
 
 import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
@@ -120,6 +122,17 @@ export default function CompanionsScreen() {
     // checked ids belong to the list that's no longer showing.
     if (selecting) setSelectedIds(new Set());
   };
+
+  // Select mode REPLACES the tab bar (spec §12): a screen child can never paint over the
+  // navigator's own bar, so hide it via per-screen options while selecting. A per-screen
+  // tabBarStyle fully replaces the navigator-level one (undefined does NOT fall back), so the
+  // exit path restores the shared pill style explicitly.
+  const navigation = useNavigation();
+  useEffect(() => {
+    navigation.setOptions({
+      tabBarStyle: selecting ? { display: 'none' } : tabBarPillStyle(colors, shadows, insets.bottom),
+    });
+  }, [navigation, selecting, colors, shadows, insets.bottom]);
 
   // Entry params (spec §4): the at-limit sheets elsewhere navigate here with
   // `{ select: 'active' | 'archived' }` to drop the user straight into Select on that subtab.
@@ -351,7 +364,7 @@ export default function CompanionsScreen() {
                   style={[styles.archivedCard, { backgroundColor: colors.raised }, shadows.e1]}
                 >
                   {selecting ? <SelectCircle selected={selected} /> : null}
-                  <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
+                  <Avatar id={c.personaKey ?? c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
                   <View style={styles.archivedText}>
                     <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
                       {c.name}

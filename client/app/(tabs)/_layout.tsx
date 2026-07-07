@@ -4,11 +4,37 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { FONTS, RADIUS, SPACE } from '@/constants/design';
+import { FONTS, RADIUS, SPACE, type ThemeColors, type ThemeShadows } from '@/constants/design';
 import { useTheme } from '@/hooks/useTheme';
+
+/**
+ * The floating navpill's style, shared so screens that hide the tab bar per-screen (Select mode
+ * replaces it with a contextual action bar, roster spec §12) can RESTORE it exactly: a per-screen
+ * `tabBarStyle` fully replaces the navigator-level one — `undefined` does not fall back.
+ */
+export function tabBarPillStyle(colors: ThemeColors, shadows: ThemeShadows, bottomInset: number): ViewStyle {
+  return {
+    position: 'absolute',
+    // Sits right on the home-indicator safe area (not floated above it),
+    // and clearly narrower than the screen so it reads as a pill.
+    // NOTE: left/right are ignored on the absolute tab bar (react-navigation
+    // pins them internally) — margins are what actually inset it.
+    bottom: bottomInset,
+    marginHorizontal: SPACE.xxxl,
+    height: 64,
+    borderRadius: RADIUS.pill,
+    backgroundColor: colors.navBg,
+    borderTopWidth: 0,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.navBorder,
+    paddingTop: 8,
+    paddingBottom: 8,
+    ...shadows.e2,
+  };
+}
 
 type IconPair = { on: React.ComponentProps<typeof Ionicons>['name']; off: React.ComponentProps<typeof Ionicons>['name'] };
 const ICONS: Record<'index' | 'companions' | 'you', IconPair> = {
@@ -28,24 +54,7 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.navIdle,
         tabBarLabelStyle: { fontFamily: FONTS.body.medium, fontSize: 11 },
-        tabBarStyle: {
-          position: 'absolute',
-          // Sits right on the home-indicator safe area (not floated above it),
-          // and clearly narrower than the screen so it reads as a pill.
-          // NOTE: left/right are ignored on the absolute tab bar (react-navigation
-          // pins them internally) — margins are what actually inset it.
-          bottom: insets.bottom,
-          marginHorizontal: SPACE.xxxl,
-          height: 64,
-          borderRadius: RADIUS.pill,
-          backgroundColor: colors.navBg,
-          borderTopWidth: 0,
-          borderWidth: StyleSheet.hairlineWidth,
-          borderColor: colors.navBorder,
-          paddingTop: 8,
-          paddingBottom: 8,
-          ...shadows.e2,
-        },
+        tabBarStyle: tabBarPillStyle(colors, shadows, insets.bottom),
       }}
     >
       <Tabs.Screen

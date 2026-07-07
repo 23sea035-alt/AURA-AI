@@ -409,14 +409,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUser(profile);
     await AsyncStorage.setItem('user', JSON.stringify(profile));
     // Onboarding seeds nothing (roster spec §1): a brand-new account starts with an EMPTY
-    // roster; the 1-of-12 pick creates companion #1 (and its seeded opener). The demo trio
-    // belongs to the sign-in path only.
+    // roster; the 1-of-12 pick creates companion #1 (and its seeded opener). The demo trio —
+    // and Maya's 18/30 demo usage story — belong to the sign-in path only.
     setCompanions([]);
     persistCompanions([]);
     setMessages({});
     persistMessages({});
     setPrimaryCompanionId('');
     await AsyncStorage.setItem('primaryCompanionId', '');
+    const freshUsage: Usage = { used: 0, limit: FREE_DAILY_LIMIT, day: today() };
+    setUsage(freshUsage);
+    await AsyncStorage.setItem('usage', JSON.stringify(freshUsage));
   }, []);
 
   const logout = useCallback(async () => {

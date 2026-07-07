@@ -233,7 +233,9 @@ export default function ChatScreen() {
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <View style={{ paddingTop: insets.top + SPACE.sm }}>
         <ChatHeader
-          id={cid}
+          // Keyed by the base persona, not the row id: created companions have generated row ids,
+          // and the portrait/duotone (and the look filter) resolve off the persona key.
+          id={companion?.personaKey ?? cid}
           name={name}
           lookId={companion?.lookId}
           onBack={() => router.back()}

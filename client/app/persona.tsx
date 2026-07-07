@@ -41,7 +41,11 @@ export default function PersonaScreen() {
     });
     updateUser({ onboardingDone: true });
     router.replace('/(tabs)');
-    if (result.ok) router.push({ pathname: '/chat/[id]', params: { id: result.id } });
+    // Straight into the first chat (spec §10). Deferred a tick: a push issued in the same frame
+    // as the replace gets dropped while the navigator is mid-transition (verified on sim).
+    if (result.ok) {
+      setTimeout(() => router.push({ pathname: '/chat/[id]', params: { id: result.id } }), 0);
+    }
   };
 
   const ctaLabel = selected ? `${copy.ctaTemplate.replace('{Companion}', selected.name)} →` : copy.ctaEmpty;

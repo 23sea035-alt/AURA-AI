@@ -74,7 +74,9 @@ export default function HomeScreen() {
 
         <Animated.View entering={enterUp(1)} style={styles.presence}>
           <CompanionPresence
-            id={companion.id}
+            // Base persona key, not the row id: created companions have generated ids, and the
+            // portrait/duotone (+ look filter) resolve off the persona key.
+            id={companion.personaKey ?? companion.id}
             name={name}
             size={132}
             colorFrom={companion.colorFrom}
