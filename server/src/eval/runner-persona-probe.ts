@@ -28,9 +28,10 @@ const MODEL = process.env.MODEL_GROQ ?? "llama-3.3-70b-versatile";
 // Serial + SDK retry: the free Groq tier caps ~12k tokens/min and the real system prompt is large,
 // so concurrent calls trip 429s that would poison the scores. Correctness over speed here.
 const CONCURRENCY = 1;
-// Pace generation to stay under the free-tier ~12k tokens/min bucket. Deliberately slow (the real
-// system prompt is ~1.5k tokens/call): a lower steady rate lets a depleted bucket refill mid-run.
-const PACE_MS = 14000;
+// Pace generation to stay under the free-tier ~12k tokens/min bucket. ~1.5k tokens/call, so ~8/min
+// is the ceiling; 7.5s keeps a small resume run (a dozen cells) safely under it in ~1-2 min. Raise
+// this toward ~14s for a full 45-cell run against a nearly-depleted daily bucket.
+const PACE_MS = 7500;
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 const ARGS = process.argv.slice(2);
@@ -170,11 +171,14 @@ async function main() {
 
   // ── Part 2: tune-step delta (one companion, vary one axis at a time) ───────
   const TUNE_BASE = PERSONA_PACKS.aurora;
-  const TUNE_MSG = "i had a rough day and i'm not sure how to shake it off.";
-  const AXES: { axis: "warmth" | "energy" | "verbosity"; levels: string[]; base: PersonaTraits }[] = [
-    { axis: "warmth", levels: ["reserved", "warm", "doting"] as Warmth[], base: { warmth: "warm", energy: "calm", verbosity: "balanced" } },
-    { axis: "energy", levels: ["calm", "balanced", "playful"] as Energy[], base: { warmth: "warm", energy: "calm", verbosity: "balanced" } },
-    { axis: "verbosity", levels: ["concise", "balanced", "expansive"] as Verbosity[], base: { warmth: "warm", energy: "calm", verbosity: "concise" } },
+  const HARD_MSG = "i had a rough day and i'm not sure how to shake it off.";
+  // Energy is tested on a NEUTRAL prompt: on a somber message a playful companion (correctly) stays
+  // gentle, so the calm->playful shift can't surface. A low-stakes prompt lets the dial show.
+  const NEUTRAL_MSG = "i've got a totally free afternoon and no plans at all.";
+  const AXES: { axis: "warmth" | "energy" | "verbosity"; levels: string[]; base: PersonaTraits; msg: string }[] = [
+    { axis: "warmth", levels: ["reserved", "warm", "doting"] as Warmth[], base: { warmth: "warm", energy: "calm", verbosity: "balanced" }, msg: HARD_MSG },
+    { axis: "energy", levels: ["calm", "balanced", "playful"] as Energy[], base: { warmth: "warm", energy: "calm", verbosity: "balanced" }, msg: NEUTRAL_MSG },
+    { axis: "verbosity", levels: ["concise", "balanced", "expansive"] as Verbosity[], base: { warmth: "warm", energy: "calm", verbosity: "concise" }, msg: HARD_MSG },
   ];
   console.log(`Tune-step delta on ${TUNE_BASE.name} (deterministic marker counts)`);
   interface AxisResult { axis: string; pass: boolean; detail: string; replies: { level: string; text: string }[] }
@@ -182,7 +186,7 @@ async function main() {
   for (const a of AXES) {
     const rs = await mapLimit(a.levels, CONCURRENCY, (lvl) => {
       const traits = { ...a.base, [a.axis]: lvl } as PersonaTraits;
-      const { system, messages } = buildPrompt(TUNE_BASE, traits, TUNE_MSG);
+      const { system, messages } = buildPrompt(TUNE_BASE, traits, a.msg);
       return cachedGen(`t:${a.axis}:${lvl}`, system, messages).then((text) => ({ level: lvl, text }));
     });
     const by = (lvl: string): string => rs.find((r) => r.level === lvl)?.text ?? "";
@@ -215,7 +219,7 @@ async function main() {
       side.push(`**${PACKS[p].name}** _(${t.warmth}/${t.energy}/${t.verbosity})_\n${replies[s][p]}\n`);
     }
   }
-  side.push(`## Tune-step delta — ${TUNE_BASE.name}\n> ${TUNE_MSG}\n`);
+  side.push(`## Tune-step delta — ${TUNE_BASE.name}\n`);
   for (const t of tune) {
     side.push(`### ${t.axis} — ${t.pass ? "PASS" : "FAIL"} (${t.detail})`);
     for (const r of t.replies) side.push(`**${r.level}**\n${r.text}\n`);
