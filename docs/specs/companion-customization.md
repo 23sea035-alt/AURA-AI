@@ -62,9 +62,11 @@ layers rather than pre-rendered combinations.
 | **Skin tone** | runtime **tint** | full realistic spectrum (~8) | + fantasy set (3–4) |
 | **Hairstyle** | overlay asset | ~6 of 10 (bald incl. as "none") | all 10 + 2–3 exclusives |
 | **Shirt** | overlay asset | ~4 of 6 | all 6 + 2 exclusives |
-| **Personality** | traits / system-prompt | preset defaults | tuning (already premium) |
+| **Personality** | traits / delivery-grid | preset only | grid tuning (v1.0 premium) |
 | **Voice** | Inworld `voice_id` | preset voice | premium voices |
 | **Companion cap** | count of owned companions | **5** | **20** |
+
+**Personality note:** The trait grid (for premium users in v1.0) is a **mechanical delivery grid** — measurable knobs like endearments count, exclamation mark frequency, sentence length, and follow-up-question yes/no. Personality identity lives in the companion's data-driven voice pack; the grid tunes only how much and how often it appears, keeping the impact observable and tuning concrete rather than vague.
 
 ## 6. Skin-tone policy
 
@@ -75,12 +77,17 @@ layers rather than pre-rendered combinations.
 - **Art-direction requirement:** every tone must render *warmly*. The common failure is darker tones
   getting flat/poor shading — make this an explicit QA gate.
 
-## 7. Monetization shift (reconcile before launch)
+## 7. Monetization (v1.0 + v1.1)
 
-Free now gets creation + customization (capped), so premium levers move to: **cap (5 → 20), premium
-hairstyles / shirts / fantasy skins, premium voices, personality tuning.** Reconcile with the paywall
-copy (`client/constants/content/paywall.ts`) and [voice-pricing-economics.md](voice-pricing-economics.md).
-`[DECIDE]` final premium-option boundary.
+**v1.0 free:** curated gallery pick-only (no appearance editing) + rename only.
+
+**v1.0 premium:** includes **personality tuning** (grid delivery adjustment — endearments, exclamation marks, sentence count, follow-up behavior), plus higher companion cap (5 → 20), premium voices, and premium **appearance options** (exclusive hairstyles / shirts + the fantasy skin-tone set).
+
+**v1.1 premium:** adds appearance editor (hair/skin/shirt layered compositing on the 3 anchor base faces).
+
+**No persona gating (decided 2026-07-06).** All 12 gallery personalities (3 anchors + 9 curated) are **free**. Premium is cosmetic + tuning + cap + voice, **never which character can hold you**. Reasons: (1) paywalling *who comforts you* fights the warm-sanctuary / honest-AI brand at the exact emotional moment of choosing; (2) monetization is already carried by voice minutes, the trait-grid, extra looks/voices, and the v1.1 editor — persona-gating adds little revenue for real friction; (3) representation-behind-paywall ("pay to unlock the deep-brown / non-binary / South-Asian companion") is a headline + App-Store risk in the SB243 / Apple-consent climate; (4) a generous 12-persona free tier drives retention → voice/editor conversion. The premium surface on the picker is **locked looks/voices, not locked people**.
+
+Reconcile with the paywall copy (`client/constants/content/paywall.ts`) and [voice-pricing-economics.md](voice-pricing-economics.md). `[DECIDE]` final premium-option boundary beyond v1 scope.
 
 ## 8. Backend design (serves both phases; no migration between them)
 
@@ -93,7 +100,9 @@ copy (`client/constants/content/paywall.ts`) and [voice-pricing-economics.md](vo
 - **Asset manifest** (`@aura/shared`, static): the single source of truth listing base faces, hairstyles,
   shirts, skin tones, and gallery presets — each with an `id`, an asset ref, and a `premium` flag. Client
   renders gallery/pickers from it; server **validates** `appearance` against it (ids exist + premium
-  gating vs the user's tier).
+  gating vs the user's tier). **v1: every gallery persona preset is `premium: false`** — the `premium`
+  flag gates only cosmetic options (exclusive hairstyles / shirts / fantasy tones / voices), never a
+  whole character (see §7 no-persona-gating decision).
 - **Entitlement:** `MAX_COMPANIONS_FREE = 5`, `MAX_COMPANIONS_PREMIUM = 20` (`@aura/shared`), enforced on
   `POST /companions` (count of owned companions — `[DECIDE]` whether archived count toward the cap; lean
   **yes**, archived still owned). Per-option premium gating on create/update.
@@ -101,20 +110,37 @@ copy (`client/constants/content/paywall.ts`) and [voice-pricing-economics.md](vo
   `persona_key`/traits + `voice_id` + suggested name).
 - **Moderation:** curated components need **no image moderation**; only custom **names** (already handled).
 
+- **Voice architecture (data-driven):** each companion preset carries a structured **voice pack** (stance + behavioral devices + lexicon + few-shot exemplars) as companion data. At generation time, the prompt assembler composes this pack to create personality identity, independent of trait tuning. The trait grid (v1.0 premium) modulates **delivery only** — mechanical counts (endearments, exclamation marks, sentence length, follow-up questions) — so tuning is observable without requiring vague adjective interpretation.
+  - `voice_id` (per-preset Inworld casting field for spoken timbre) is a separate per-preset field, currently env-keyed to the 3-companion enum; must become preset data.
+  - The generated text (which carries device/lexicon) is what gets spoken, so personality delivery automatically carries into speech.
+  - The trait grid can also drive Inworld prosody (`speakingRate` + `styleTag`, both supported by inworld-tts-2), making premium tuning **audible** in voice mode — a key lever for premium perceived value.
+
 ## 9. Phasing
 
-### v1 — curated gallery (pick-only)
-- **Scope:** ~24–28 pre-rendered character portraits (a curated set of permutations, not a matrix) from
-  the 3 anchors; user picks a character (`presetId` → stored as resolved `appearance`); per-companion
-  voice; creation caps (5 / 20). **No live editor, no runtime compositor, no tint rig.**
-- **Effort:** art **~1–2 wks** (bounded portrait set) · client gallery **~2–4 days** · backend **~2–3 days**
-  → **~2–3 weeks, art-dominated.**
-- **Why this slice:** delivers the differentiator (personalized companions, real variety, creation caps)
-  without the two things that add weeks — the layered/tint **art rig** and the RN **Skia compositor**.
+### v1 — curated gallery + personality tuning (premium)
+- **Scope:** **12 curated characters** (3 anchors + 9 new variations) as pre-rendered portraits from the 3
+  anchors; free users pick one character + rename; **premium users also get personality tuning** (the
+  mechanical delivery grid: endearments count, exclamation-mark frequency, sentence length, follow-up
+  question yes/no). Per-companion voice assignment. Creation caps: free 5, premium 20. **No live
+  editor, no runtime compositor, no tint rig, no appearance editing** (appearance editor deferred to v1.1).
+- **Effort:** art **~1–2 wks** (bounded 12-portrait set) · tuning spec + backend **~1 wk** · client gallery +
+  grid UI **~3–5 days** · backend **~2–3 days** → **~2–3 weeks, art-dominated.**
+- **Why this slice:** delivers the differentiator (personalized companions, real variety, creation caps,
+  premium tuning to make it feel premium) without the two things that add weeks — the layered/tint
+  **art rig** and the RN **Skia compositor**. Personality identity lives in the data-driven voice pack;
+  the mechanical grid tunes only delivery (how much / how often), keeping tuning observable without
+  needing vague adjective interpretation.
 
-### v1.1 — live appearance editor (fast-follow)
+### v1.1 — live appearance editor + deeper tuning (fast-follow)
 - **Scope:** layered hair/shirt overlays + skin-tint rig + an RN compositor (`react-native-skia`) + the
-  builder UI. Unlocks per-axis editing on top of any base.
+  builder UI. Unlocks per-axis appearance editing on top of the 3 anchor base faces. Also adds deeper
+  personality knobs (stance/device-level fine-tuning beyond delivery count) and premium voice options.
+  
+  **Design seam:** the appearance editor's live compositing works **only on the layered anchor base
+  faces** (Aurora, Orion, Lyra, each with a separated skin layer). The 12 curated gallery characters
+  are **bespoke flat illustrations**, not compositions over the 3 base faces — they remain pick-only
+  unless later re-authored as layered bases. This keeps v1 art scope bounded and v1.1 compositing
+  well-defined.
 - **Effort:** **~3–4 weeks** (art rig + compositor are the long poles).
 - **Reuse:** the v1 backend schema/manifest already support it — **nothing is thrown away**; v1.1 is
   additive art + client.

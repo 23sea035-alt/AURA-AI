@@ -7,7 +7,7 @@ const CASES_DIR = resolve(__dirname, "../../eval/cases/generation");
 const REPORTS_DIR = resolve(__dirname, "../../eval/reports");
 
 interface GenerationTraitSet {
-  warmth: "reserved" | "warm" | "affectionate";
+  warmth: "reserved" | "warm" | "doting";
   energy: "calm" | "balanced" | "playful";
   verbosity: "concise" | "balanced" | "expansive";
 }

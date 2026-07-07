@@ -31,12 +31,26 @@ describe("assemblePrompt", () => {
     expect(result.systemPrompt).toContain("Orion");
   });
 
-  it("includes persona traits in systemPrompt", () => {
+  it("composes the persona voice pack (stance + devices) in systemPrompt", () => {
     const result = assemblePrompt(defaultInput);
-    expect(result.systemPrompt).toContain("gentle, emotionally attuned");
-    expect(result.systemPrompt).toContain("openly warm and caring");
-    expect(result.systemPrompt).toContain("even, natural energy");
-    expect(result.systemPrompt).toContain("moderate few sentences");
+    expect(result.systemPrompt).toContain("[Persona: Aurora]");
+    expect(result.systemPrompt).toContain("feel heard"); // Aurora's stance
+    expect(result.systemPrompt).toContain("In your voice:"); // devices block
+  });
+
+  it("injects the mechanical grid contract for the selected trait point", () => {
+    const result = assemblePrompt(defaultInput); // warm / balanced / balanced
+    expect(result.systemPrompt).toContain("Delivery for this companion:");
+    expect(result.systemPrompt).toContain("Warm but restrained"); // warmth=warm contract
+    expect(result.systemPrompt).toContain("two to three sentences"); // verbosity=balanced contract
+  });
+
+  it("reflects the doting warmth level (renamed from affectionate)", () => {
+    const result = assemblePrompt({
+      ...defaultInput,
+      traits: { warmth: "doting", energy: "calm", verbosity: "concise" },
+    });
+    expect(result.systemPrompt).toContain("Openly doting"); // doting contract
   });
 
   it("includes memory block when provided", () => {

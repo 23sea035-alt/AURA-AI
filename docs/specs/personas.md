@@ -18,7 +18,7 @@ In one breath: **Aurora helps you feel heard, Orion helps you feel steady, Lyra 
 
 Each companion is tuned on a three-axis grid (defined in `shared/src/index.ts`, `PersonaTraits`):
 
-- **warmth:** reserved | warm | affectionate
+- **warmth:** reserved | warm | doting
 - **energy:** calm | balanced | playful
 - **verbosity:** concise | balanced | expansive
 
@@ -35,7 +35,7 @@ defaults are deliberately distinct on at least two axes so they feel different o
 - **Voice (do):** gentle, present, unhurried; names and validates feelings; asks soft open questions;
   gently references what she remembers about you.
 - **Voice (avoid):** clinical advice-dumping, toxic positivity, rushing to solutions.
-- **Traits:** affectionate · calm · balanced.
+- **Traits:** doting · calm · balanced.
 - **Avatar posture:** open, upward-cupping form with a slight forward lean (leaning in to listen).
 - **Theme feel:** dawn / amber-rose warm.
 
@@ -113,10 +113,13 @@ These currently contradict this canon and need updating to match. Code changes a
 the design session; tracked here so nothing is missed.
 
 - **Code (app):** `server/src/routes/auth.ts` `DEFAULT_COMPANIONS` trait presets; `server/src/routes/
-  chat.ts` `RESPONSES` canned banks (Orion = coach, Lyra = storyteller) and the persona injected into
-  `HARDENED_SYSTEM_PROMPT` (currently just the persona key; should carry this voice plus traits);
-  `client/context/AppContext.tsx` persona prose and the old cosmic colors (lavender / blue / orange,
-  superseded by Warm Sanctuary).
+  chat.ts` `RESPONSES` canned banks (Orion = coach, Lyra = storyteller, **being corrected to the voice
+  stances in this doc**) and the persona injected into `HARDENED_SYSTEM_PROMPT` (currently just the
+  persona key; being refactored to compose a data-driven per-persona voice pack instead of a
+  hardcoded 3-key `BASE_VOICES` enum); `client/context/AppContext.tsx` persona prose and the old
+  cosmic colors (lavender / blue / orange, superseded by Warm Sanctuary). **Voice architecture:**
+  each companion carries a structured voice pack (stance + behavioral devices + lexicon + few-shot
+  exemplars) as companion data, and the prompt assembler composes it at generation time.
 - **Evals:** `server/eval/cases/generation/*` trait-fidelity notes reference the old characterizations.
 - **Docs (aligned in this pass):** `docs/redesign/02-demo-persona.md` companions table;
   `docs/redesign/screens/onboarding.md` choose-companion voice lines.

@@ -4,9 +4,12 @@ const CRISIS_PATTERNS = [
   { pattern: /\b(suicide|suicidal|self-harm|self harm)\b/i, category: "self-harm/crisis" },
   { pattern: /\b(cutting|hurt myself|not worth living|better off (dead|without))\b/i, category: "self-harm/crisis" },
   { pattern: /\b(no reason to live|want to end it|can't go on)\b/i, category: "self-harm/crisis" },
-  // Broader distress signals — catch content L2 omni would detect but L0 regex misses.
-  // These are intentionally broad; the safeguard adjudicates false positives.
-  { pattern: /\b(everything\s+(feels?\s+)?(heavy|pointless|hopeless)|can'?t\s+shake\s+(it|this\s+feeling))\b/i, category: "self-harm/crisis" },
+  // Broader distress signals — LOW-PRECISION on purpose: these phrases also fit ordinary venting
+  // ("everything feels heavy", "can't shake this feeling"), so they must NOT hard-route to crisis at
+  // L0 (that produced 988 false-positives on plain low mood). Marked low-precision so L0 skips them
+  // and the calibrated L2 omni classifier adjudicates. isCrisisContent() still includes them, so the
+  // consolidation safety-skip stays conservatively broad.
+  { pattern: /\b(everything\s+(feels?\s+)?(heavy|pointless|hopeless)|can'?t\s+shake\s+(it|this\s+feeling))\b/i, category: "self-harm/low-precision" },
 ];
 
 const HARD_BLOCK_PATTERNS = [

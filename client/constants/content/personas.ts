@@ -4,7 +4,7 @@
 // TODO(shared): source PERSONAS / TRAITS from @aura/shared instead of duplicating.
 
 export const TRAITS = {
-  warmth: ['reserved', 'warm', 'affectionate'],
+  warmth: ['reserved', 'warm', 'doting'],
   energy: ['calm', 'balanced', 'playful'],
   verbosity: ['concise', 'balanced', 'expansive'],
 } as const;
@@ -13,7 +13,7 @@ export const PERSONAS = {
   Aurora: {
     name: 'Aurora',
     voice: 'Warm and gentle, a soft place to land.',
-    traits: { warmth: 'affectionate', energy: 'calm', verbosity: 'balanced' },
+    traits: { warmth: 'doting', energy: 'calm', verbosity: 'balanced' },
   },
   Orion: {
     name: 'Orion',

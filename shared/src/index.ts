@@ -60,10 +60,14 @@ export type ModeratorModel = (typeof MODERATOR_MODEL)[number];
 export const BANNED_IDENTIFIER_TYPE = ['email_hash', 'apple_sub_hash', 'google_sub_hash'] as const;
 export type BannedIdentifierType = (typeof BANNED_IDENTIFIER_TYPE)[number];
 
+export type Warmth = 'reserved' | 'warm' | 'doting';
+export type Energy = 'calm' | 'balanced' | 'playful';
+export type Verbosity = 'concise' | 'balanced' | 'expansive';
+
 export interface PersonaTraits {
-  warmth: 'reserved' | 'warm' | 'affectionate';
-  energy: 'calm' | 'balanced' | 'playful';
-  verbosity: 'concise' | 'balanced' | 'expansive';
+  warmth: Warmth;
+  energy: Energy;
+  verbosity: Verbosity;
 }
 
 export const FREE_DAILY_LIMIT = 30;
@@ -221,3 +225,6 @@ export const VOICE_SILENCE_END_TIMEOUT_S = 90;
 export const LLM_PRIMARY_MODEL = "llama-3.3-70b-versatile";
 export const LLM_FALLBACK_MODEL = "llama-3.1-8b-instant";
 export const STT_MODEL = "whisper-large-v3-turbo";
+
+// ── Persona voice system (packs + mechanical trait grid) ────────────────
+export * from "./personas.js";
