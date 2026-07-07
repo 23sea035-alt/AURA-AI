@@ -49,7 +49,11 @@ live mode is Clerk + REST + RevenueCat via `lib/live.ts` (config in `client/.env
 - AsyncStorage on the sim: small values live in `RCTAsyncLocalStorage_V1/manifest.json`; large
   values move to sibling files named `md5(key)`. Use `sim-storage.py`, not hand edits.
 - react-navigation's absolute tab bar ignores `left`/`right` in `tabBarStyle` — use
-  `marginHorizontal`. `animation: 'fade'` on a stack silently disables the iOS back-swipe.
+  `marginHorizontal`. A per-screen `tabBarStyle` (navigation.setOptions) REPLACES the navigator's
+  style entirely; restore via the shared `tabBarPillStyle` from `(tabs)/_layout`, never
+  `undefined`. A screen child can never paint OVER the tab bar (hide it instead). `router.push`
+  issued in the same frame as a `router.replace` gets dropped — defer the push a tick.
+  `animation: 'fade'` on a stack silently disables the iOS back-swipe.
 - Inverted FlatList renders intra-cell sibling order unreliably — give attachments (captions,
   notices, cards) their own list rows. Scrollable screens need `style={{flex:1}}` +
   `contentContainerStyle={{flexGrow:1}}` or under-filled screens have dead swipe zones.
