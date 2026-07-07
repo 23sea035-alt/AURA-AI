@@ -264,9 +264,11 @@ isn't perceived as data loss.
 
 ## 16. Open items
 
-- Whether to expand any opener pool from 6 to 8 (Appendix A ships 6 + 3).
-- Header control: shipping as the word "Select" unless sim testing of `checkmark-circle-outline` proves
-  it reads clearly.
+- Whether to expand any opener pool from 6 to 8 (Appendix A ships 6 + 3; v1 shipped with 6).
+- ~~Header control: shipping as the word "Select" unless sim testing of `checkmark-circle-outline`
+  proves it reads clearly.~~ **Resolved (2026-07-07): shipped as the word "Select"** — sim-verified
+  alongside the selection-count + Done swap; no icon candidate was tested further since the word
+  reads unambiguously in place.
 
 ---
 

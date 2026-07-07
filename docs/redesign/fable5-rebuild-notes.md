@@ -376,3 +376,51 @@ The mock seam grew its live twin. Architecture:
   prepaid credits, not just a card on file.
 - Chat thread: send failures snap to bottom + extra visual-bottom padding so "tap to retry" never
   sits under the composer.
+
+## Companion roster, gating & first-conversation v1 — 2026-07-07 (evening)
+
+Implemented `docs/specs/companion-roster.md` IN FULL (§15 sequence), mock-mode sim-verified on
+the 16e in both themes. Shared → server → client, committed per layer.
+
+- **Shared**: the four roster caps + `activeCompanionCap`/`totalCompanionCap`; `PersonaVoicePack`
+  gains `openers[]`/`starters[]` (Appendix A copy, all 12); `pickOpener()` ({firstName} slot,
+  no-slot pool when nameless); `CompanionTraitsSchema` admits the `_client` stash at the API
+  boundary (the old schema silently 400'd the live client's create).
+- **Server**: create guarded by TOTAL_LIMIT_REACHED (checked first — archiving can't fix it) then
+  ACTIVE_LIMIT_REACHED; free-tier coercion (grid → preset defaults, `lookId` stripped) on create +
+  patch; the user's FIRST companion gets a server-written opener message (cap- and LLM-exempt) +
+  auto-pin; restore gains the missing active-cap guard; delete gains min-1-active + pin-read-
+  BEFORE-delete re-pin (the FK nulls the pin mid-delete — mocked tests can't see that; caught in
+  review); archive re-pins the earliest active survivor; NEW clear (`DELETE /:id/messages`) +
+  forget (`POST /:id/forget`) routes; `/auth/seed-companions` removed (onboarding seeds nothing).
+- **Client**: `lib/roster.ts` policy lib (unit-tested) is the single home for cap/guard/plan
+  logic; `Companion.personaKey` is first-class (identity fixed at creation; avatars/voice resolve
+  off it everywhere — header, Home presence, rows); onboarding = 1-of-12 `PersonaCarousel`
+  (bounded, peeking, counter+dots, tap-to-select, opens undecided) → creates the REAL companion →
+  straight into its chat where the seeded opener waits with reply chips; create screen = same
+  carousel + partial gate (Premium chip on the trait grid, sparkle on the look badge, Save always
+  live); the two §4 at-limit sheets (never a paywall redirect) with CTAs that drop into Select
+  mode via `?select=` params; roster Select mode (word "Select", accent check circles, contextual
+  action bar that hides/restores the tab-bar pill via shared `tabBarPillStyle`, base-delete +
+  min-1-active proactive disables with reason lines, batch unarchive fills remaining slots +
+  partial toast); archived chats open read-only with the "This chat is archived · Unarchive" bar;
+  persona empty state + starter chips (tonal fill, SC 1.4.11); Clear conversation / Forget
+  everything in the chat overflow with destructive confirms → back to empty-state recs; register()
+  starts with an EMPTY roster and 0/30 usage (demo story is sign-in-only); lock badges gone.
+- **Copy**: paywall + terms reconciled (free = up to 5 from the full gallery; 30/day is per-user
+  shared; premium adds looks + 15 cap).
+- **Sim findings fixed during verify**: replace-then-push race dropped the onboarding→chat push
+  (deferred a tick); per-screen `tabBarStyle` fully replaces the navigator style (extracted the
+  pill style for exact restore); avatars keyed by generated row ids lost portraits/duotones
+  (personaKey everywhere); demo 18/30 usage leaked into fresh registers.
+- **Verification**: 633 root tests green (35 companions contract tests incl. caps/coercion/opener/
+  clear/forget), 24 roster-policy client tests, tsc + lint clean; on-sim end-to-end: full fresh
+  onboarding → Sage AND Aurora picks → seeded openers with "Riley" filled; both at-limit sheets;
+  Select-mode batch archive / partial unarchive toast ("Restored 2…"); min-1-active pixel-verified
+  inert; archived-bar unarchive-at-cap; Clear end-to-end (Forget verified to confirm-sheet +
+  contract tests). Screenshots (both themes): `/tmp/roster-verify-screens/`.
+- **Known non-blockers**: Home's "AURORA REMEMBERS" card still shows the demo line for brand-new
+  users (pre-existing fixture, untouched by the roster spec); `sim-storage.py reset-demo`'s
+  companions fixture predates `personaKey`/`isDefault` and the roster model — needs a fixture
+  refresh (staged manually this session); live-mode wiring landed but is UNTESTED (mock-only
+  session per the handoff constraints).
