@@ -9,8 +9,8 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Platform } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Platform, ScrollView } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 // The built-in RN KeyboardAvoidingView drives its padding via LayoutAnimation, which doesn't
 // ease under the New Architecture — keyboard-controller syncs via Reanimated, frame-by-frame
@@ -18,6 +18,9 @@ import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-na
 import { KeyboardAvoidingView, useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PERSONA_PRESETS } from '@aura/shared';
+
+import { Avatar } from '@/components/Avatar';
 import BottomSheet from '@/components/BottomSheet';
 import { Button } from '@/components/Button';
 import {
@@ -30,16 +33,19 @@ import {
   ThinkingIndicator,
   ThreadDivider,
 } from '@/components/chat';
+import { CompanionLimitSheet, type CompanionLimitKind } from '@/components/companion/CompanionLimitSheet';
+import ConfirmSheet from '@/components/ConfirmSheet';
 import { CrisisSupport } from '@/components/CrisisSupport';
 import { PressableScale } from '@/components/motion';
 import { Toast } from '@/components/Toast';
-import { CHAT, SYSTEM } from '@/constants/content';
+import { CHAT, COMPANIONS, SYSTEM } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { DURATION } from '@/constants/motion';
 import { type Message, useApp } from '@/context/AppContext';
 import { useDraft } from '@/hooks/useDraft';
 import { useTheme } from '@/hooks/useTheme';
 import { reportMessage } from '@/lib/backend';
+import { activeOf } from '@/lib/roster';
 import { buildThreadRows, type ThreadRow } from '@/lib/thread';
 
 // Recurring SB 243 line (client-owned copy; the server decides when it fires).
@@ -56,13 +62,27 @@ export default function ChatScreen() {
   const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
   const { id, starter } = useLocalSearchParams<{ id: string; starter?: string }>();
-  const { user, companions, getMessagesForCompanion, sendTurn, removeMessage, safetyState, setBreakReminder } =
-    useApp();
+  const {
+    user,
+    companions,
+    getMessagesForCompanion,
+    sendTurn,
+    removeMessage,
+    safetyState,
+    setBreakReminder,
+    restoreCompanion,
+    clearConversation,
+    forgetEverything,
+  } = useApp();
 
   const companion = companions.find((c) => c.id === id) ?? companions[0];
   const cid = companion?.id ?? '';
   const name = companion?.name ?? 'Aurora';
+  const archived = !!companion?.archivedAt;
   const withName = (s: string) => s.replace('{Companion}', name);
+  // Empty-state persona line + starter-chip seeds ride on the shared voice pack, keyed by the
+  // companion's fixed base persona (spec §10/§11) — never re-declared client-side.
+  const preset = PERSONA_PRESETS.find((p) => p.id === companion?.personaKey);
 
   const listRef = useRef<FlatList<Row>>(null);
   const sessionTurns = useRef(0);
@@ -76,6 +96,10 @@ export default function ChatScreen() {
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportTargetId, setReportTargetId] = useState<string | null>(null);
+  // Clear conversation / Forget everything (spec §7) — one confirm sheet, two destructive verbs.
+  const [confirmKind, setConfirmKind] = useState<'clear' | 'forget' | null>(null);
+  // Archived-chat unarchive can hit the active cap (spec §6/§8) — same at-limit sheet as create.
+  const [limitKind, setLimitKind] = useState<CompanionLimitKind | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [voiceDraft, setVoiceDraft] = useState<{ audioUri?: string } | null>(null);
   // Tap a bubble to reveal its time; long-press opens the message action sheet.
@@ -90,24 +114,10 @@ export default function ChatScreen() {
 
   const { progress: keyboardProgress } = useReanimatedKeyboardAnimation();
 
-  const stored = getMessagesForCompanion(cid);
-
-  // A brand-new companion opens with a display-only greeting (never persisted —
-  // the relationship starts when Maya says something).
-  const messages: Message[] = useMemo(
-    () =>
-      stored.length > 0
-        ? stored
-        : [
-            {
-              id: 'greeting',
-              role: 'assistant',
-              content: `Hi, I'm ${name}. There's no script and no rush. What's on your mind?`,
-              createdAt: new Date().toISOString(),
-            },
-          ],
-    [stored, name],
-  );
+  // Every companion after onboarding #1 starts empty and user-initiated (spec §10) — an empty
+  // thread renders the persona empty state + starter chips below, never a fake local message.
+  const messages: Message[] = getMessagesForCompanion(cid);
+  const hasUserMessage = messages.some((m) => m.role === 'user');
 
   // Pagination window: only the newest PAGE_SIZE messages render on open;
   // reaching the top of the loaded window pulls in the previous page.
@@ -137,7 +147,7 @@ export default function ChatScreen() {
   // Inverted list: offset 0 IS the bottom (the newest message).
   const scrollToBottom = (animated = true) => listRef.current?.scrollToOffset({ offset: 0, animated });
 
-  const isReportable = (m: Message) => m.role === 'assistant' && m.id !== 'greeting';
+  const isReportable = (m: Message) => m.role === 'assistant';
   const openReport = (messageId: string | null) => {
     setReportTargetId(messageId);
     setReportOpen(true);
@@ -184,7 +194,9 @@ export default function ChatScreen() {
 
   const send = async () => {
     const content = input.trim();
-    if (!content || thinking) return;
+    // Reading an archived chat is always free; the composer is replaced with an unarchive bar
+    // (spec §8), but guard the send path too rather than trust the UI alone.
+    if (!content || thinking || archived) return;
     const draft = voiceDraft;
     setInput('');
     setVoiceDraft(null);
@@ -196,6 +208,13 @@ export default function ChatScreen() {
     if (thinking) return;
     removeMessage(cid, m.id);
     void sendContent(m.content, { inputModality: m.inputModality, audioUri: m.audioUri });
+  };
+
+  // Archived-chat composer replacement (spec §8): only re-activating consumes a slot, so it's
+  // the one gated action — a full roster opens the same at-limit sheet the create flow uses.
+  const unarchive = () => {
+    const result = restoreCompanion(cid);
+    if (!result.ok && result.block === 'active_full') setLimitKind('active_full');
   };
 
   const composerWrapStyle = useAnimatedStyle(() => ({
@@ -218,7 +237,9 @@ export default function ChatScreen() {
           name={name}
           lookId={companion?.lookId}
           onBack={() => router.back()}
-          onVoiceCall={() => router.push({ pathname: '/voice-call', params: { id: cid } })}
+          // Archived: reading is free, but voice calling would start a live turn — hide the entry
+          // point entirely rather than let it lead to a blocked call (spec §8).
+          onVoiceCall={archived ? undefined : () => router.push({ pathname: '/voice-call', params: { id: cid } })}
           onOverflow={() => setOverflowOpen(true)}
         />
       </View>
@@ -260,6 +281,18 @@ export default function ChatScreen() {
                 <ThinkingIndicator />
               </View>
             ) : null
+          }
+          // Persona-flavored empty state (spec §10): presentation, never a chat message. Cells
+          // counter-flip themselves back upright under `inverted`, but Empty/Header/Footer don't —
+          // one manual scaleY undoes the list's own flip so this reads upright and centered.
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <Avatar id={companion?.personaKey ?? cid} name={name} size={72} lookId={companion?.lookId} />
+              <Text style={[styles.emptyName, { color: colors.textPrimary }]}>{name}</Text>
+              {companion?.persona ? (
+                <Text style={[styles.emptyLine, { color: colors.textSecondary }]}>{companion.persona}</Text>
+              ) : null}
+            </View>
           }
           renderItem={({ item }) => {
             if (item.kind === 'divider') return <ThreadDivider label={item.label} />;
@@ -315,7 +348,7 @@ export default function ChatScreen() {
                   text={m.content}
                   audioUri={m.audioUri}
                   onPress={() => setTimeFor((cur) => (cur === m.id ? null : m.id))}
-                  onLongPress={m.id !== 'greeting' ? () => setMsgSheetFor(m) : undefined}
+                  onLongPress={() => setMsgSheetFor(m)}
                   reveal={revealing}
                   onRevealProgress={() => scrollToBottom(false)}
                   onRevealDone={() => setRevealId(null)}
@@ -369,16 +402,52 @@ export default function ChatScreen() {
         ) : null}
 
         <Animated.View style={[styles.composerWrap, composerWrapStyle]}>
-          <ChatComposer
-            value={input}
-            onChangeText={(t) => {
-              setInput(t);
-              if (!t) setVoiceDraft(null);
-            }}
-            onSend={send}
-            onVoiceResult={(info) => setVoiceDraft(info)}
-            placeholder={withName(CHAT.inputPlaceholder)}
-          />
+          {/* Starter chips (spec §10): empty-state only, gone once the user has sent anything
+              (an onboarding opener with zero user replies still counts as empty — chips act as
+              reply chips there) and hidden mid-reply or once the chat is archived. */}
+          {!archived && !hasUserMessage && !thinking && (preset?.starters.length ?? 0) > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsRow}
+              keyboardShouldPersistTaps="handled"
+            >
+              {preset!.starters.map((s) => (
+                <PressableScale
+                  key={s}
+                  haptic="light"
+                  onPress={() => setInput(s)}
+                  // Tonal fill + soft shadow, matching Home's starter chips — a hairline-only
+                  // pill fails SC 1.4.11 and reads as stray text (see (tabs)/index.tsx).
+                  style={[styles.chip, { backgroundColor: colors.raised }, shadows.e1]}
+                >
+                  <Text style={[styles.chipText, { color: colors.textSecondary }]} numberOfLines={1}>
+                    {s}
+                  </Text>
+                </PressableScale>
+              ))}
+            </ScrollView>
+          ) : null}
+
+          {archived ? (
+            <View style={[styles.archivedBar, { backgroundColor: colors.raised, borderColor: colors.border }]}>
+              <Text style={[styles.archivedText, { color: colors.textSecondary }]}>
+                {COMPANIONS.archivedBar.notice}
+              </Text>
+              <Button label={COMPANIONS.archivedBar.cta} size="sm" variant="tinted" onPress={unarchive} />
+            </View>
+          ) : (
+            <ChatComposer
+              value={input}
+              onChangeText={(t) => {
+                setInput(t);
+                if (!t) setVoiceDraft(null);
+              }}
+              onSend={send}
+              onVoiceResult={(info) => setVoiceDraft(info)}
+              placeholder={withName(CHAT.inputPlaceholder)}
+            />
+          )}
         </Animated.View>
       </KeyboardAvoidingView>
 
@@ -394,6 +463,17 @@ export default function ChatScreen() {
               label: CHAT.overflow.viewMemory,
               go: () => router.push({ pathname: '/long-term-memory', params: { companion: cid } }),
               danger: false,
+            },
+            {
+              label: CHAT.overflow.clear,
+              // iOS can't present a Modal while this sheet is dismissing.
+              go: () => setTimeout(() => setConfirmKind('clear'), DURATION.normal + 30),
+              danger: false,
+            },
+            {
+              label: CHAT.overflow.forget,
+              go: () => setTimeout(() => setConfirmKind('forget'), DURATION.normal + 30),
+              danger: true,
             },
             {
               label: CHAT.overflow.report,
@@ -453,6 +533,38 @@ export default function ChatScreen() {
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} onSubmit={submitReport} />
 
+      {/* Clear conversation / Forget everything (spec §7) — disjoint verbs sharing one confirm
+          sheet: Clear keeps memories, Forget wipes them too. Both destructive, both irreversible. */}
+      <ConfirmSheet
+        visible={confirmKind !== null}
+        onClose={() => setConfirmKind(null)}
+        title={confirmKind === 'forget' ? CHAT.forgetConfirm.title : CHAT.clearConfirm.title}
+        message={withName(confirmKind === 'forget' ? CHAT.forgetConfirm.body : CHAT.clearConfirm.body)}
+        confirmLabel={confirmKind === 'forget' ? CHAT.forgetConfirm.confirm : CHAT.clearConfirm.confirm}
+        cancelLabel={CHAT.clearConfirm.cancel}
+        destructive
+        onConfirm={() => {
+          if (confirmKind === 'forget') {
+            forgetEverything(cid);
+            setToast(withName(CHAT.forgotToast));
+          } else if (confirmKind === 'clear') {
+            clearConversation(cid);
+            setToast(CHAT.clearedToast);
+          }
+          setConfirmKind(null);
+        }}
+      />
+
+      <CompanionLimitSheet
+        kind={limitKind}
+        onClose={() => setLimitKind(null)}
+        isPremium={!!user?.isPremium}
+        activeCount={activeOf(companions).length}
+        onArchive={() => router.push({ pathname: '/(tabs)/companions', params: { select: 'active' } })}
+        onManageArchived={() => router.push({ pathname: '/(tabs)/companions', params: { select: 'archived' } })}
+        onGoPremium={() => router.push('/premium')}
+      />
+
       <Toast visible={toast !== null} message={toast ?? ''} onHide={() => setToast(null)} />
     </View>
   );
@@ -509,7 +621,42 @@ const styles = StyleSheet.create({
   },
   limitTitle: { ...TYPE.title, fontSize: 18 },
   limitText: { fontFamily: FONTS.body.regular, fontSize: 13, lineHeight: 18 },
-  composerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm },
+  // Persona empty state (spec §10): centered in the thread's available space. `inverted` flips
+  // the whole list's rendering; a lone counter scaleY undoes it for this one subtree so the
+  // avatar + text read upright (ordinary message cells do this automatically; Empty doesn't).
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: SPACE.sm,
+    paddingHorizontal: SPACE.xl,
+    transform: [{ scaleY: -1 }],
+  },
+  emptyName: { ...TYPE.title, marginTop: SPACE.xs },
+  emptyLine: { ...TYPE.body, textAlign: 'center', maxWidth: 300 },
+  composerWrap: { paddingHorizontal: SPACE.lg, paddingTop: SPACE.sm, gap: SPACE.sm },
+  // Starter chips (spec §10) — a horizontal-scrolling row so 2-3 persona-flavored sentences never
+  // fight the composer for vertical space.
+  chipsRow: { gap: SPACE.sm, paddingRight: SPACE.lg },
+  chip: {
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: SPACE.md,
+    paddingVertical: SPACE.sm,
+    maxWidth: 260,
+  },
+  chipText: { ...TYPE.label, fontFamily: FONTS.body.medium },
+  // Archived-chat composer replacement (spec §8) — reading stays free; only re-activating is gated.
+  archivedBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: SPACE.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: RADIUS.soft,
+    paddingHorizontal: SPACE.lg,
+    paddingVertical: SPACE.md,
+  },
+  archivedText: { ...TYPE.body, flexShrink: 1 },
   overflow: { paddingTop: SPACE.xs },
   overflowRow: { paddingVertical: SPACE.md, alignItems: 'center' },
   overflowText: { ...TYPE.body },
