@@ -40,7 +40,7 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export default function CreateCompanionScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, companions, addCompanion, updateCompanion } = useApp();
+  const { user, companions, createCompanion, updateCompanion } = useApp();
   const params = useLocalSearchParams<{ mode?: string; id?: string }>();
   const isEdit = params.mode === 'edit';
   const editing = isEdit ? companions.find((c) => c.id === params.id) : undefined;
@@ -68,10 +68,6 @@ export default function CreateCompanionScreen() {
   const voicePreview = `${cap(traits.warmth)} · ${traits.energy} · ${traits.verbosity}. ${PERSONAS[base].voice}`;
 
   const handleSave = () => {
-    if (locked) {
-      router.push('/premium');
-      return;
-    }
     const finalName = autoNumberName(
       name.trim() || base,
       companions.filter((c) => c.id !== editing?.id).map((c) => c.name),
@@ -84,8 +80,9 @@ export default function CreateCompanionScreen() {
       });
     } else {
       const pc = personaColorsFor(base.toLowerCase());
-      addCompanion({
+      createCompanion({
         name: finalName,
+        personaKey: base.toLowerCase(),
         persona: PERSONAS[base].voice,
         traits: [traits.warmth, traits.energy, traits.verbosity],
         colorFrom: pc?.from ?? LOGO_COLORS.wine,
@@ -113,7 +110,9 @@ export default function CreateCompanionScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View pointerEvents={locked ? 'none' : 'auto'} style={[styles.form, locked && styles.dimmed]}>
+          {/* Partial gate (spec §4): base picker + name + Save stay live for everyone; only the
+              trait grid (and look) carry the premium gate below. Never a dimmed whole-form. */}
+          <View style={styles.form}>
             {/* avatar + name — Change look is a corner badge on the avatar (swap-not-upload curated
                 mood filters, never a new photo); the name sits right under the face so the identity
                 (look + name) reads as one unit before the personality controls below. */}
@@ -220,9 +219,9 @@ export default function CreateCompanionScreen() {
             + explainer for free. Kept outside the dimmed form so the door stays live when locked. */}
         <KeyboardFooter>
           {locked ? (
-            <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.unlockExplainer}</Text>
+            <Text style={[styles.unlockExplainer, { color: colors.textTertiary }]}>{CREATE.premiumExplainer}</Text>
           ) : null}
-          <Button label={locked ? CREATE.unlockCta : CREATE.saveCta} onPress={handleSave} />
+          <Button label={CREATE.saveCta} onPress={handleSave} />
         </KeyboardFooter>
       </View>
 
@@ -246,7 +245,6 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { flexGrow: 1, gap: SPACE.lg, paddingHorizontal: SPACE.xl, paddingTop: SPACE.lg },
   form: { gap: SPACE.xl },
-  dimmed: { opacity: 0.5 },
   section: { gap: SPACE.sm },
   avatarSection: { alignItems: 'center', gap: SPACE.md },
   avatarWrap: { width: 96, height: 96, borderRadius: 48 },

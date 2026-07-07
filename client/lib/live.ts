@@ -10,9 +10,9 @@
 // Payments = RevenueCat SDK (lib/purchases.ts) + server webhook reconciling
 // users.isPremium.
 // ════════════════════════════════════════════════════════════════════════
-import { FREE_DAILY_LIMIT } from '@aura/shared';
+import { FREE_DAILY_LIMIT, PERSONA_PRESETS, type PersonaTraits } from '@aura/shared';
 
-import { PERSONA_SEEDS } from '@/constants/companions';
+import { LOGO_COLORS, personaColorsFor } from '@/constants/design';
 import { api, ApiError } from '@/lib/api';
 import {
   clerkHasSession,
@@ -28,6 +28,7 @@ import type {
   Hydration,
   MemoryRow,
   Message,
+  RemoteCreateResult,
   TurnRequest,
   TurnResult,
 } from '@/lib/models';
@@ -54,9 +55,10 @@ interface ServerUser {
 
 interface ServerCompanion {
   id: string;
-  personaKey: 'aurora' | 'orion' | 'lyra';
+  /** One of the 12 gallery PersonaKeys. */
+  personaKey: string;
   name: string;
-  traits: Record<string, unknown> | null;
+  traits: (Partial<PersonaTraits> & Record<string, unknown>) | null;
   isDefault: boolean;
   lastMessage: string | null;
   lastActiveAt: string | null;
@@ -94,17 +96,27 @@ interface ClientTraitsStash {
 }
 
 function mapCompanion(row: ServerCompanion): Companion {
-  const seed = PERSONA_SEEDS[row.personaKey] ?? PERSONA_SEEDS.aurora;
+  const preset = PERSONA_PRESETS.find((p) => p.id === row.personaKey) ?? PERSONA_PRESETS[0];
   const stash = ((row.traits ?? {}) as Record<string, unknown>)[CLIENT_TRAITS_KEY] as
     | ClientTraitsStash
     | undefined;
+  const pc = personaColorsFor(row.personaKey);
+  // The trait chips come from the row's grid (authoritative — the server coerces a free caller's
+  // tuning back to the preset defaults), never from the stash copy.
+  const grid = row.traits;
+  const chips =
+    grid?.warmth && grid?.energy && grid?.verbosity
+      ? [grid.warmth, grid.energy, grid.verbosity]
+      : [preset.defaultTraits.warmth, preset.defaultTraits.energy, preset.defaultTraits.verbosity];
   return {
     id: row.id,
     name: row.name,
-    persona: stash?.persona ?? seed.persona,
-    traits: stash?.traits ?? seed.traits,
-    colorFrom: stash?.colorFrom ?? seed.colorFrom,
-    colorTo: stash?.colorTo ?? seed.colorTo,
+    personaKey: preset.id,
+    isDefault: row.isDefault || undefined,
+    persona: stash?.persona ?? preset.tagline,
+    traits: chips,
+    colorFrom: stash?.colorFrom ?? pc?.from ?? LOGO_COLORS.wine,
+    colorTo: stash?.colorTo ?? pc?.to ?? LOGO_COLORS.honey,
     lookId: stash?.lookId,
     lastMessage: row.lastMessage ?? undefined,
     lastActiveAt: row.lastActiveAt ?? undefined,
@@ -229,8 +241,8 @@ const PROFILE_FIELDS = [
 ] as const;
 
 /**
- * PUT /api/auth/me with whatever schema fields the update carries; completing
- * onboarding also seeds the three default companions (idempotent server-side).
+ * PUT /api/auth/me with whatever schema fields the update carries. (Onboarding seeds nothing —
+ * the user's 1-of-12 pick creates companion #1 via POST /companions, which writes the opener.)
  */
 export async function updateMe(updates: Partial<UserProfile>): Promise<void> {
   const body: Record<string, unknown> = {};
@@ -250,11 +262,6 @@ export async function updateMe(updates: Partial<UserProfile>): Promise<void> {
         await wait(1000 + attempt * 500);
       }
     }
-  }
-  if (updates.onboardingDone === true) {
-    await api('/auth/seed-companions', { method: 'POST', raw: true }).catch(() => {
-      // Already seeded (or profile gate not met) — hydrate() reflects reality.
-    });
   }
 }
 
@@ -358,14 +365,6 @@ export async function requestDataExport(): Promise<void> {
 
 // ── Companions CRUD ─────────────────────────────────────────────────────────
 
-function inferPersonaKey(c: Pick<Companion, 'name' | 'traits'>): 'aurora' | 'orion' | 'lyra' {
-  const named = c.name.toLowerCase();
-  if (named in PERSONA_SEEDS) return named as keyof typeof PERSONA_SEEDS;
-  if (c.traits.includes('playful')) return 'lyra';
-  if (c.traits.includes('concise')) return 'orion';
-  return 'aurora';
-}
-
 function stashFor(c: Partial<Companion>): ClientTraitsStash {
   return {
     persona: c.persona,
@@ -376,29 +375,63 @@ function stashFor(c: Partial<Companion>): ClientTraitsStash {
   };
 }
 
-/** POST /api/companions; null on failure → the caller keeps its optimistic local row. */
-export async function remoteCreateCompanion(c: Omit<Companion, 'id'>): Promise<Companion | null> {
+/** The wire traits shape (CompanionTraitsSchema): the tuned grid triplet + the presentation stash.
+ * The chips array is [warmth, energy, verbosity]; missing axes fall back to the preset default. */
+function wireTraitsFor(c: Partial<Companion> & Pick<Companion, 'personaKey' | 'traits'>) {
+  const preset = PERSONA_PRESETS.find((p) => p.id === c.personaKey) ?? PERSONA_PRESETS[0];
+  const [warmth, energy, verbosity] = c.traits;
+  return {
+    warmth: warmth ?? preset.defaultTraits.warmth,
+    energy: energy ?? preset.defaultTraits.energy,
+    verbosity: verbosity ?? preset.defaultTraits.verbosity,
+    [CLIENT_TRAITS_KEY]: stashFor(c),
+  };
+}
+
+/** POST /api/companions — the server enforces the roster caps (spec §9) and seeds the onboarding
+ * opener for the user's first companion. null on network failure → the optimistic row stands. */
+export async function remoteCreateCompanion(c: Omit<Companion, 'id'>): Promise<RemoteCreateResult> {
   try {
     const row = await api<ServerCompanion>('/companions', {
       method: 'POST',
       body: {
         name: c.name,
-        personaKey: inferPersonaKey(c),
-        traits: { [CLIENT_TRAITS_KEY]: stashFor(c) },
+        personaKey: c.personaKey,
+        traits: wireTraitsFor(c),
       },
     });
-    return mapCompanion(row);
-  } catch {
+    return { companion: mapCompanion(row) };
+  } catch (err) {
+    // A cap refusal means the optimistic local row must be rolled back (the client pre-checks,
+    // so this only fires on a race with another device / a stale snapshot).
+    if (err instanceof ApiError && err.code === 'ACTIVE_LIMIT_REACHED') return { limit: 'active' };
+    if (err instanceof ApiError && err.code === 'TOTAL_LIMIT_REACHED') return { limit: 'total' };
     return null;
   }
 }
 
-/** PATCH /api/companions/:id — pushes the full client presentation stash. */
+/** PATCH /api/companions/:id — pushes the tuned grid + full client presentation stash. */
 export async function remoteUpdateCompanion(c: Companion): Promise<void> {
   await api(`/companions/${c.id}`, {
     method: 'PATCH',
-    body: { name: c.name, traits: { [CLIENT_TRAITS_KEY]: stashFor(c) } },
+    body: { name: c.name, traits: wireTraitsFor(c) },
   }).catch(() => {});
+}
+
+/** DELETE /api/companions/:id — permanent; the server cascades messages + memories and re-pins
+ * the Home companion if the deleted one was pinned. */
+export async function remoteDeleteCompanion(id: string): Promise<void> {
+  await api(`/companions/${id}`, { method: 'DELETE' }).catch(() => {});
+}
+
+/** DELETE /api/companions/:id/messages — Clear conversation (transcript only; memories kept). */
+export async function remoteClearConversation(id: string): Promise<void> {
+  await api(`/companions/${id}/messages`, { method: 'DELETE' }).catch(() => {});
+}
+
+/** POST /api/companions/:id/forget — Forget everything (transcript + memories; companion kept). */
+export async function remoteForgetCompanion(id: string): Promise<void> {
+  await api(`/companions/${id}/forget`, { method: 'POST' }).catch(() => {});
 }
 
 export async function remoteArchiveCompanion(id: string): Promise<void> {

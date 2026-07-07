@@ -57,6 +57,9 @@ export const remoteCreateCompanion = impl.remoteCreateCompanion;
 export const remoteUpdateCompanion = impl.remoteUpdateCompanion;
 export const remoteArchiveCompanion = impl.remoteArchiveCompanion;
 export const remoteRestoreCompanion = impl.remoteRestoreCompanion;
+export const remoteDeleteCompanion = impl.remoteDeleteCompanion;
+export const remoteClearConversation = impl.remoteClearConversation;
+export const remoteForgetCompanion = impl.remoteForgetCompanion;
 export const remoteSetPrimary = impl.remoteSetPrimary;
 
 // Account lifecycle

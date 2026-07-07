@@ -16,8 +16,27 @@ export const CHAT = {
   overflow: {
     settings: 'Companion settings',
     viewMemory: 'View memory',
+    clear: 'Clear conversation',
+    forget: 'Forget everything',
     report: 'Report',
   },
+
+  // The two in-chat conversation resets (roster spec §7). Both are destructive-confirm sheets;
+  // the verbs are disjoint: Clear keeps memories, Forget wipes them. Neither touches the roster.
+  clearConfirm: {
+    title: 'Clear this conversation?',
+    body: 'The messages here will be gone, but {Companion} keeps what they remember about you. This can’t be undone.',
+    confirm: 'Clear conversation',
+    cancel: 'Cancel',
+  },
+  forgetConfirm: {
+    title: 'Forget everything?',
+    body: 'This clears your conversation and everything {Companion} remembers about you. {Companion} stays in your roster, and you can start fresh. This can’t be undone.',
+    confirm: 'Forget everything',
+    cancel: 'Cancel',
+  },
+  clearedToast: 'Conversation cleared',
+  forgotToast: 'Fresh start with {Companion}',
 
   // limit state (free only) — gentle inline upsell, no shame, no countdown.
   limit: {

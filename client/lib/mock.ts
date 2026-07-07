@@ -21,6 +21,7 @@ import type {
   Companion,
   Hydration,
   MemoryRow,
+  RemoteCreateResult,
   TurnRequest,
   TurnResult,
 } from '@/lib/models';
@@ -300,8 +301,9 @@ export async function hydrate(): Promise<Hydration | null> {
 /** Live: PUT /api/auth/me (+ seed-companions when onboarding completes). */
 export async function updateMe(_updates: Partial<UserProfile>): Promise<void> {}
 
-/** Live: POST /api/companions. Mock: null → caller keeps its local row. */
-export async function remoteCreateCompanion(_c: Omit<Companion, 'id'>): Promise<Companion | null> {
+/** Live: POST /api/companions (cap-guarded + opener-seeding server-side). Mock: null → the caller
+ * keeps its local row; AppContext enforces the caps + seeds the opener via lib/roster policy. */
+export async function remoteCreateCompanion(_c: Omit<Companion, 'id'>): Promise<RemoteCreateResult> {
   return null;
 }
 
@@ -313,6 +315,33 @@ export async function remoteArchiveCompanion(_id: string): Promise<void> {}
 
 /** Live: POST /api/companions/:id/restore. */
 export async function remoteRestoreCompanion(_id: string): Promise<void> {}
+
+/** Live: DELETE /api/companions/:id (permanent; cascades messages + memories). Mock: the roster
+ * and thread live in AppContext; only the mock memory store needs the cascade. */
+export async function remoteDeleteCompanion(id: string): Promise<void> {
+  const db = await memoriesDb();
+  await writeStore(
+    'memories',
+    db.filter((m) => m.companionId !== id.toLowerCase()),
+  );
+}
+
+/** Live: DELETE /api/companions/:id/messages — Clear conversation (transcript only; memories
+ * kept). Mock: messages live in AppContext, nothing server-side to clear. */
+export async function remoteClearConversation(_id: string): Promise<void> {
+  await simulateLatency(300);
+}
+
+/** Live: POST /api/companions/:id/forget — Forget everything (transcript + memories, companion
+ * kept). Mock: wipe the companion's rows from the mock memory store. */
+export async function remoteForgetCompanion(id: string): Promise<void> {
+  await simulateLatency(300);
+  const db = await memoriesDb();
+  await writeStore(
+    'memories',
+    db.filter((m) => m.companionId !== id.toLowerCase()),
+  );
+}
 
 /** Live: PUT /api/auth/me { primaryCompanionId }. */
 export async function remoteSetPrimary(_id: string): Promise<void> {}

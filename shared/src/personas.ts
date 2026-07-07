@@ -492,8 +492,9 @@ export const PERSONA_PRESETS: PersonaPreset[] = Object.values(PERSONA_PACKS).map
 }));
 
 /** Pick an opener for the onboarding #1 companion: random from the pool, {firstName} filled.
- * With no usable first name, only the no-slot openers are eligible (never "Hey ."). */
-export function pickOpener(pack: PersonaVoicePack, firstName: string | null | undefined, random: number = Math.random()): string {
+ * With no usable first name, only the no-slot openers are eligible (never "Hey ."). Accepts the
+ * full pack (server) or the public preset projection (client) — only `openers` is read. */
+export function pickOpener(pack: Pick<PersonaVoicePack, "openers">, firstName: string | null | undefined, random: number = Math.random()): string {
   const name = firstName?.trim();
   const pool = name ? pack.openers : pack.openers.filter((o) => !o.includes("{firstName}"));
   const line = pool[Math.floor(random * pool.length)] ?? pack.openers[0];

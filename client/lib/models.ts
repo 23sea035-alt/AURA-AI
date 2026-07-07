@@ -5,10 +5,15 @@
 export interface Companion {
   id: string;
   name: string;
+  /** Base gallery preset (PersonaKey) driving the reply voice — fixed at creation; identity is the
+   * voice pack (docs/specs/companion-roster.md §5). */
+  personaKey: string;
   persona: string;
   traits: string[];
   colorFrom: string;
   colorTo: string;
+  /** Server-seeded anchor (Aurora/Orion/Lyra trio): archive-only, never deletable. */
+  isDefault?: boolean;
   lastMessage?: string;
   /** ISO timestamp of the last exchange — display strings are derived live (utils/time). */
   lastActiveAt?: string;
@@ -18,6 +23,16 @@ export interface Companion {
   /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
   archivedAt?: string | null;
 }
+
+/**
+ * What the remote create mirror reports back: the adopted server row, a cap
+ * refusal the caller must roll back (the client pre-checks, so this is a
+ * race), or null — mock mode (local row stands) / live network failure.
+ */
+export type RemoteCreateResult =
+  | { companion: Companion }
+  | { limit: 'active' | 'total' }
+  | null;
 
 export interface Message {
   id: string;

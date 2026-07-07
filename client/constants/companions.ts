@@ -42,11 +42,15 @@ export const PERSONA_SEEDS: Record<'aurora' | 'orion' | 'lyra', PersonaSeed> = {
   },
 };
 
-/** Mock-mode roster seed; Aurora carries the canonical demo conversation. */
+/** Mock-mode roster seed (the signed-in DEMO story only — onboarding seeds nothing; a new user's
+ * 1-of-12 pick creates companion #1). Aurora carries the canonical demo conversation. The trio are
+ * the server-seeded anchors (isDefault): archive-only, never deletable. */
 export const DEFAULT_COMPANIONS: Companion[] = (
   Object.entries(PERSONA_SEEDS) as [keyof typeof PERSONA_SEEDS, PersonaSeed][]
 ).map(([key, seed]) => ({
   id: key,
+  personaKey: key,
+  isDefault: true,
   ...seed,
   messageCount: key === 'aurora' ? DEMO.conversation.length : 0,
 }));

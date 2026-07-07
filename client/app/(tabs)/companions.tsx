@@ -1,7 +1,7 @@
 // Companions — the roster, which doubles as the chat list. Warm cards (avatar + name + voice +
-// last-message + time-ago) deep-link to the pushed Chat. The 3 base personas are always free-
-// accessible (the 30/day limit is shared across them); custom companions are locked-not-deleted on
-// free. Create is an always-accessible header "+" (lock badge on free) that opens the creator.
+// last-message + time-ago) deep-link to the pushed Chat. No companion is ever locked (the
+// free/premium gate is partial: tuning + look only, in the creator). Create is the floating "+"
+// FAB — a first-class free action (roster spec §12), shown on the Active subtab only.
 //
 // Each row supports two entry points to the same three actions (Pin/Unpin, Archive, Edit):
 // swipe (right reveals Pin, left reveals Archive) for fast one-handed use, and long-press for an
@@ -28,17 +28,14 @@ import { type Companion, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useNow } from '@/utils/time';
 
-const BASE_IDS = ['aurora', 'orion', 'lyra']; // the 3 base personas — always free-accessible
-
 const editCompanion = (id: string) =>
   router.push({ pathname: '/companion/create', params: { mode: 'edit', id } });
 
 export default function CompanionsScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { companions, user, typing, primaryCompanionId, setPrimaryCompanion, archiveCompanion, restoreCompanion } =
+  const { companions, typing, primaryCompanionId, setPrimaryCompanion, archiveCompanion, restoreCompanion } =
     useApp();
-  const isPremium = !!user?.isPremium;
   // Live relative-time labels (frontend-only: derived from stored ISO stamps).
   const now = useNow();
 
@@ -96,23 +93,9 @@ export default function CompanionsScreen() {
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
-      {/* Header: title + always-accessible create "+" (lock badge on free; opens the creator). */}
+      {/* Header: title only — create moved to the FAB (a first-class free action, spec §12). */}
       <Animated.View entering={enterUp(0)} style={[styles.header, { paddingTop: insets.top + SPACE.xl }]}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>{COMPANIONS.title}</Text>
-        <PressableScale
-          haptic="light"
-          onPress={() => router.push('/companion/create')}
-          accessibilityRole="button"
-          accessibilityLabel="Create a companion"
-          style={[styles.addBtn, { backgroundColor: colors.raised, borderColor: colors.border }]}
-        >
-          <Ionicons name="add" size={24} color={colors.textPrimary} />
-          {!isPremium ? (
-            <View style={[styles.lockBadge, { backgroundColor: colors.accent, borderColor: colors.bg }]}>
-              <Ionicons name="lock-closed" size={8} color={colors.onAccent} />
-            </View>
-          ) : null}
-        </PressableScale>
       </Animated.View>
 
       {/* Subtabs + search — fixed above the list; search filters within the selected tab. */}
@@ -160,13 +143,11 @@ export default function CompanionsScreen() {
           </View>
         ) : tab === 'active' ? (
           filtered.map((c, i) => {
-            const locked = !isPremium && !BASE_IDS.includes(c.id); // base free; custom locked-not-deleted on free
           const isHome = c.id === primaryCompanionId;
           return (
             <Animated.View key={c.id} entering={enterUp(i + 1)} style={[styles.rowShadow, shadows.e2]}>
               <CompanionRow
                 companion={c}
-                locked={locked}
                 isHome={isHome}
                 canArchive={canArchive}
                 typing={!!typing[c.id]}
@@ -184,7 +165,7 @@ export default function CompanionsScreen() {
                     closeOpenSwipe();
                     return;
                   }
-                  router.push(locked ? '/premium' : { pathname: '/chat/[id]', params: { id: c.id } });
+                  router.push({ pathname: '/chat/[id]', params: { id: c.id } });
                 }}
                 onLongPress={() => {
                   closeOpenSwipe();
@@ -227,6 +208,21 @@ export default function CompanionsScreen() {
           ))
         )}
       </ScrollView>
+
+      {/* Create FAB — Active subtab only (hidden on Archived, a management view). Floats above
+          the floating tab bar (absolute bar ignores bottom-inset math at 0; ~84pt covers bar +
+          margin) and the list's paddingBottom keeps the last row clear of it. */}
+      {tab === 'active' ? (
+        <PressableScale
+          haptic="light"
+          onPress={() => router.push('/companion/create')}
+          accessibilityRole="button"
+          accessibilityLabel={COMPANIONS.createFab}
+          style={[styles.fab, { backgroundColor: colors.accent, bottom: insets.bottom + 84 }, shadows.e2]}
+        >
+          <Ionicons name="add" size={28} color={colors.onAccent} />
+        </PressableScale>
+      ) : null}
 
       {undo ? (
         <View style={[styles.undoBar, { backgroundColor: colors.raised, borderColor: colors.border }, shadows.e2]}>
@@ -313,22 +309,12 @@ const styles = StyleSheet.create({
     gap: SPACE.md,
   },
   title: { ...TYPE.headline, flex: 1 },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  lockBadge: {
+  fab: {
     position: 'absolute',
-    top: -2,
-    right: -2,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    borderWidth: 1.5,
+    right: SPACE.xl,
+    width: 56,
+    height: 56,
+    borderRadius: RADIUS.pill,
     alignItems: 'center',
     justifyContent: 'center',
   },

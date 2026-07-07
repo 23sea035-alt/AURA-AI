@@ -23,7 +23,6 @@ export function voiceFor(c: Companion): string {
 
 interface CompanionRowProps {
   companion: Companion;
-  locked: boolean;
   isHome: boolean;
   canArchive: boolean;
   typing: boolean;
@@ -40,7 +39,6 @@ interface CompanionRowProps {
 
 export function CompanionRow({
   companion: c,
-  locked,
   isHome,
   canArchive,
   typing,
@@ -88,7 +86,7 @@ export function CompanionRow({
         <Pressable
           onPress={onPress}
           onLongPress={onLongPress}
-          style={[styles.card, { backgroundColor: colors.raised }, locked && styles.locked]}
+          style={[styles.card, { backgroundColor: colors.raised }]}
         >
           <View style={styles.avatarWrap}>
             <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
@@ -116,16 +114,12 @@ export function CompanionRow({
               </Text>
             ) : (
               <Text style={[styles.preview, { color: colors.textTertiary }]} numberOfLines={1}>
-                {locked ? COMPANIONS.lockedCompanion : c.lastMessage ?? ''}
+                {c.lastMessage ?? ''}
               </Text>
             )}
           </View>
-          {locked ? (
-            <Ionicons name="lock-closed" size={16} color={colors.textTertiary} />
-          ) : (
-            // Subtle long-press hint — not itself interactive; the whole row already is.
-            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textTertiary} style={styles.hint} />
-          )}
+          {/* Subtle long-press hint — not itself interactive; the whole row already is. */}
+          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textTertiary} style={styles.hint} />
         </Pressable>
       </Swipeable>
     </View>
@@ -174,7 +168,6 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     padding: SPACE.lg,
   },
-  locked: { opacity: 0.55 },
   cardText: { flex: 1, gap: 2 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACE.sm },
   name: { fontFamily: FONTS.display.semibold, fontSize: 18, flex: 1 },

@@ -7,13 +7,12 @@
 // snapshot with the server's on boot/login when a session exists.
 // ════════════════════════════════════════════════════════════════════════
 
-import { FREE_DAILY_LIMIT } from '@aura/shared';
+import { FREE_DAILY_LIMIT, PERSONA_PRESETS, pickOpener } from '@aura/shared';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
 import { DEFAULT_COMPANIONS } from '@/constants/companions';
-import { PERSONA_GALLERY } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import { DEV_FORCE_PREMIUM, DEV_USE_MOCKS } from '@/constants/devFlags';
 import { ApiError } from '@/lib/api';
@@ -27,6 +26,16 @@ import type {
   TurnResult,
 } from '@/lib/models';
 import { migrateProfile, type UserProfile } from '@/lib/profile';
+import {
+  canArchive,
+  canCreate,
+  canDelete,
+  canRestore,
+  inferPersonaKey,
+  nextPrimaryAfter,
+  planRestore,
+  type RosterCheck,
+} from '@/lib/roster';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -67,6 +76,15 @@ export interface SendResult {
   blocked?: boolean;
 }
 
+/** Everything a create needs from the screen; lifecycle fields are the context's business. */
+export type CreateCompanionInput = Omit<
+  Companion,
+  'id' | 'isDefault' | 'archivedAt' | 'lastMessage' | 'lastActiveAt' | 'messageCount'
+>;
+
+/** Create either lands (with the new local id) or names which at-limit sheet to show (spec §4). */
+export type CreateCompanionResult = { ok: true; id: string } | { ok: false; block: 'active_full' | 'total_full' };
+
 interface AppContextType {
   user: UserProfile | null;
   companions: Companion[];
@@ -92,10 +110,22 @@ interface AppContextType {
   updateUser: (updates: Partial<UserProfile>) => void;
 
   setPrimaryCompanion: (id: string) => void;
-  addCompanion: (companion: Omit<Companion, 'id'>) => void;
+  /** Cap-gated create (spec §4). The first companion ever also seeds the persona's opener message
+   * and pins itself to Home — that is the onboarding #1 path (spec §10). */
+  createCompanion: (companion: CreateCompanionInput) => CreateCompanionResult;
   updateCompanion: (id: string, updates: Partial<Omit<Companion, 'id'>>) => void;
-  archiveCompanion: (id: string) => void;
-  restoreCompanion: (id: string) => void;
+  /** Single + batch lifecycle ops — each returns why it refused (min-1-active, caps, base). */
+  archiveCompanion: (id: string) => RosterCheck;
+  restoreCompanion: (id: string) => RosterCheck;
+  deleteCompanion: (id: string) => RosterCheck;
+  archiveMany: (ids: string[]) => RosterCheck;
+  deleteMany: (ids: string[]) => RosterCheck;
+  /** Batch restore fills the remaining active slots and reports the rest (spec §6). */
+  restoreMany: (ids: string[]) => { restored: number; blocked: number };
+  /** Clear conversation: wipes the transcript, keeps the companion and its memories (spec §7). */
+  clearConversation: (id: string) => void;
+  /** Forget everything: wipes transcript + memories, keeps the companion shell (spec §7). */
+  forgetEverything: (id: string) => void;
 
   getMessagesForCompanion: (companionId: string) => Message[];
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
@@ -239,17 +269,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (storedUser) setUser(migrateProfile(JSON.parse(storedUser)));
       if (storedCompanions) {
-        // Migration: earlier builds stored a display string (`lastActive`);
-        // stamp the ISO `lastActiveAt` from each thread's newest message.
+        // Migrations for rows persisted by earlier builds: `lastActive` display string →
+        // ISO `lastActiveAt` (from the thread's newest message); missing first-class
+        // `personaKey` → inferred once here (gallery id → name → traits heuristic); missing
+        // `isDefault` → the anchor trio (their mock row id IS the persona key).
         const parsedCompanions = JSON.parse(storedCompanions) as (Companion & { lastActive?: string })[];
         const parsedMsgs: Record<string, Message[]> = storedMessages ? JSON.parse(storedMessages) : {};
         const migrated = parsedCompanions.map(({ lastActive: _legacy, ...c }) => {
-          if (!c.lastActiveAt) {
+          const next: Companion = {
+            ...c,
+            personaKey: c.personaKey ?? inferPersonaKey(c),
+            isDefault: c.isDefault ?? ['aurora', 'orion', 'lyra'].includes(c.id),
+          };
+          if (!next.lastActiveAt) {
             const thread = parsedMsgs[c.id];
             const newest = thread?.[thread.length - 1]?.createdAt;
-            if (newest) return { ...c, lastActiveAt: newest };
+            if (newest) next.lastActiveAt = newest;
           }
-          return c;
+          return next;
         });
         setCompanions(migrated);
       }
@@ -371,6 +408,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     setUser(profile);
     await AsyncStorage.setItem('user', JSON.stringify(profile));
+    // Onboarding seeds nothing (roster spec §1): a brand-new account starts with an EMPTY
+    // roster; the 1-of-12 pick creates companion #1 (and its seeded opener). The demo trio
+    // belongs to the sign-in path only.
+    setCompanions([]);
+    persistCompanions([]);
+    setMessages({});
+    persistMessages({});
+    setPrimaryCompanionId('');
+    await AsyncStorage.setItem('primaryCompanionId', '');
   }, []);
 
   const logout = useCallback(async () => {
@@ -414,31 +460,97 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     void backend.remoteSetPrimary(id);
   }, []);
 
-  const addCompanion = useCallback((companion: Omit<Companion, 'id'>) => {
-    // Optimistic local row first; when the server accepts the create, adopt
-    // its UUID (and re-key any messages already sent under the local id).
-    const localKey = localId();
-    setCompanions((prev) => {
-      const updated = [{ ...companion, id: localKey }, ...prev];
-      persistCompanions(updated);
+  const primaryRef = useRef(primaryCompanionId);
+  primaryRef.current = primaryCompanionId;
+
+  // Declared here (not in the Messages section below) because createCompanion seeds the opener.
+  const appendMessage = useCallback((companionId: string, message: Message) => {
+    setMessages((prev) => {
+      const updated = { ...prev, [companionId]: [...(prev[companionId] ?? []), message] };
+      persistMessages(updated);
       return updated;
     });
-    void backend.remoteCreateCompanion(companion).then((remote) => {
-      if (!remote) return;
+  }, []);
+
+  const createCompanion = useCallback(
+    (input: CreateCompanionInput): CreateCompanionResult => {
+      const roster = companionsRef.current;
+      const isPremium = !!(DEV_FORCE_PREMIUM || userRef.current?.isPremium);
+      // The screens pre-check and show the at-limit sheets; this is the shared gate they use.
+      const gate = canCreate(roster, isPremium);
+      if (!gate.ok) return { ok: false, block: gate.block as 'active_full' | 'total_full' };
+
+      // Partial-gate safety net (the server coerces authoritatively, spec §9): a free caller's
+      // companion is the preset at its default traits + default look, renamed to taste.
+      const preset = PERSONA_PRESETS.find((p) => p.id === input.personaKey);
+      const companion: CreateCompanionInput =
+        !isPremium && preset
+          ? {
+              ...input,
+              traits: [preset.defaultTraits.warmth, preset.defaultTraits.energy, preset.defaultTraits.verbosity],
+              lookId: undefined,
+            }
+          : input;
+
+      // Onboarding #1 (spec §10): the very first companion greets first — a real, persisted
+      // assistant message drawn from the persona's opener pool, {firstName} filled. Everyone
+      // after starts from the user-initiated empty state.
+      const isFirst = roster.length === 0;
+      const opener = isFirst && preset ? pickOpener(preset, userRef.current?.firstName) : null;
+
+      const localKey = localId();
+      const now = new Date().toISOString();
       setCompanions((prev) => {
-        const updated = prev.map((c) => (c.id === localKey ? { ...c, ...remote } : c));
+        const row: Companion = {
+          ...companion,
+          id: localKey,
+          ...(opener ? { lastMessage: opener.slice(0, 80), lastActiveAt: now, messageCount: 1 } : {}),
+        };
+        const updated = [row, ...prev];
         persistCompanions(updated);
         return updated;
       });
-      setMessages((prev) => {
-        if (!prev[localKey]) return prev;
-        const { [localKey]: thread, ...rest } = prev;
-        const updated = { ...rest, [remote.id]: thread };
-        persistMessages(updated);
-        return updated;
+      if (opener) appendMessage(localKey, { id: localId(), role: 'assistant', content: opener, createdAt: now });
+      if (isFirst) setPrimaryCompanion(localKey); // Home needs a pin from day one
+
+      // Remote mirror: adopt the server UUID (re-keying any messages already sent under the
+      // local id), or roll the optimistic row back if a cap race slipped past the pre-check.
+      void backend.remoteCreateCompanion(companion).then((remote) => {
+        if (!remote) return;
+        if ('limit' in remote) {
+          setCompanions((prev) => {
+            const updated = prev.filter((c) => c.id !== localKey);
+            persistCompanions(updated);
+            return updated;
+          });
+          setMessages((prev) => {
+            if (!prev[localKey]) return prev;
+            const rest = { ...prev };
+            delete rest[localKey];
+            persistMessages(rest);
+            return rest;
+          });
+          return;
+        }
+        const server = remote.companion;
+        setCompanions((prev) => {
+          const updated = prev.map((c) => (c.id === localKey ? { ...c, ...server } : c));
+          persistCompanions(updated);
+          return updated;
+        });
+        setMessages((prev) => {
+          if (!prev[localKey]) return prev;
+          const { [localKey]: thread, ...rest } = prev;
+          const updated = { ...rest, [server.id]: thread };
+          persistMessages(updated);
+          return updated;
+        });
+        if (primaryRef.current === localKey) setPrimaryCompanion(server.id);
       });
-    });
-  }, []);
+      return { ok: true, id: localKey };
+    },
+    [appendMessage, setPrimaryCompanion],
+  );
 
   const updateCompanion = useCallback((id: string, updates: Partial<Omit<Companion, 'id'>>) => {
     const current = companionsRef.current.find((c) => c.id === id);
@@ -450,32 +562,119 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (current) void backend.remoteUpdateCompanion({ ...current, ...updates });
   }, []);
 
-  // Soft-delete: hidden from the roster, but messages/memory stay keyed by companion id and
-  // restoreCompanion brings it right back. Archiving the Home companion clears the pin rather
-  // than leaving Home pointed at a companion that's no longer in the active roster.
-  const archiveCompanion = useCallback(
-    (id: string) => {
+  // Shared tail for archive/delete: apply the roster change, then re-pin Home to the next active
+  // survivor when the pinned companion left (spec §6 — never leave Home pointing at nothing).
+  // Batches land here once, after the whole batch settles.
+  const applyLeaving = useCallback(
+    (ids: string[], apply: (prev: Companion[]) => Companion[]) => {
+      const roster = companionsRef.current;
       setCompanions((prev) => {
-        const updated = prev.map((c) => (c.id === id ? { ...c, archivedAt: new Date().toISOString() } : c));
+        const updated = apply(prev);
         persistCompanions(updated);
         return updated;
       });
-      if (primaryCompanionId === id) {
-        setPrimaryCompanionId('');
-        AsyncStorage.setItem('primaryCompanionId', '').catch(() => {});
-      }
-      void backend.remoteArchiveCompanion(id);
+      const nextPin = nextPrimaryAfter(roster, ids, primaryRef.current);
+      if (nextPin !== primaryRef.current) setPrimaryCompanion(nextPin);
     },
-    [primaryCompanionId],
+    [setPrimaryCompanion],
   );
 
-  const restoreCompanion = useCallback((id: string) => {
+  // Archive: reversible soft-remove — hidden from the Active roster, messages/memory untouched,
+  // restorable. Min-1-active is enforced here and again server-side.
+  const archiveMany = useCallback(
+    (ids: string[]): RosterCheck => {
+      const gate = canArchive(companionsRef.current, ids);
+      if (!gate.ok) return gate;
+      const stamp = new Date().toISOString();
+      applyLeaving(ids, (prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, archivedAt: stamp } : c)));
+      for (const id of ids) void backend.remoteArchiveCompanion(id);
+      return { ok: true };
+    },
+    [applyLeaving],
+  );
+
+  const archiveCompanion = useCallback((id: string): RosterCheck => archiveMany([id]), [archiveMany]);
+
+  // Restore honors the active cap (spec §6/§8) — only re-activating consumes a slot.
+  const restoreCompanion = useCallback((id: string): RosterCheck => {
+    const isPremium = !!(DEV_FORCE_PREMIUM || userRef.current?.isPremium);
+    const gate = canRestore(companionsRef.current, isPremium);
+    if (!gate.ok) return gate;
     setCompanions((prev) => {
       const updated = prev.map((c) => (c.id === id ? { ...c, archivedAt: null } : c));
       persistCompanions(updated);
       return updated;
     });
     void backend.remoteRestoreCompanion(id);
+    return { ok: true };
+  }, []);
+
+  // Batch restore fills up to the remaining slots and reports the rest, rather than
+  // half-failing silently (spec §6).
+  const restoreMany = useCallback((ids: string[]): { restored: number; blocked: number } => {
+    const isPremium = !!(DEV_FORCE_PREMIUM || userRef.current?.isPremium);
+    const { restoreIds, blockedCount } = planRestore(companionsRef.current, ids, isPremium);
+    if (restoreIds.length > 0) {
+      setCompanions((prev) => {
+        const updated = prev.map((c) => (restoreIds.includes(c.id) ? { ...c, archivedAt: null } : c));
+        persistCompanions(updated);
+        return updated;
+      });
+      for (const id of restoreIds) void backend.remoteRestoreCompanion(id);
+    }
+    return { restored: restoreIds.length, blocked: blockedCount };
+  }, []);
+
+  // Delete: permanent — thread and memories go with it (the server cascades; the mock store
+  // mirrors). Base personas are archive-only; min-1-active holds here too.
+  const deleteMany = useCallback(
+    (ids: string[]): RosterCheck => {
+      const gate = canDelete(companionsRef.current, ids);
+      if (!gate.ok) return gate;
+      applyLeaving(ids, (prev) => prev.filter((c) => !ids.includes(c.id)));
+      setMessages((prev) => {
+        const updated = Object.fromEntries(Object.entries(prev).filter(([key]) => !ids.includes(key)));
+        persistMessages(updated);
+        return updated;
+      });
+      setMemories((prev) => Object.fromEntries(Object.entries(prev).filter(([key]) => !ids.includes(key))));
+      for (const id of ids) void backend.remoteDeleteCompanion(id);
+      return { ok: true };
+    },
+    [applyLeaving],
+  );
+
+  const deleteCompanion = useCallback((id: string): RosterCheck => deleteMany([id]), [deleteMany]);
+
+  // Clear conversation: a fresh page, same relationship — transcript wiped, memories kept (§7).
+  const clearConversation = useCallback((id: string) => {
+    setMessages((prev) => {
+      const updated = { ...prev, [id]: [] };
+      persistMessages(updated);
+      return updated;
+    });
+    setCompanions((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, lastMessage: undefined, messageCount: 0 } : c));
+      persistCompanions(updated);
+      return updated;
+    });
+    void backend.remoteClearConversation(id);
+  }, []);
+
+  // Forget everything: transcript + memories wiped, the companion shell stays (§7).
+  const forgetEverything = useCallback((id: string) => {
+    setMessages((prev) => {
+      const updated = { ...prev, [id]: [] };
+      persistMessages(updated);
+      return updated;
+    });
+    setMemories((prev) => ({ ...prev, [id]: [] }));
+    setCompanions((prev) => {
+      const updated = prev.map((c) => (c.id === id ? { ...c, lastMessage: undefined, messageCount: 0 } : c));
+      persistCompanions(updated);
+      return updated;
+    });
+    void backend.remoteForgetCompanion(id);
   }, []);
 
   // ── Messages ──────────────────────────────────────────────────────────────
@@ -484,14 +683,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (companionId: string): Message[] => messages[companionId] ?? [],
     [messages],
   );
-
-  const appendMessage = useCallback((companionId: string, message: Message) => {
-    setMessages((prev) => {
-      const updated = { ...prev, [companionId]: [...(prev[companionId] ?? []), message] };
-      persistMessages(updated);
-      return updated;
-    });
-  }, []);
 
   const addMessage = useCallback(
     (companionId: string, message: Omit<Message, 'id'>) => {
@@ -540,11 +731,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       const companion = companionsRef.current.find((c) => c.id === companionId);
       const name = companion?.name ?? 'Your companion';
-      // A companion's row id is its persona key only when it's one of the 12 curated gallery presets
-      // (the seeded anchors); user-created companions have a generated id and send 'custom' voice.
-      // TODO(personaId): once Companion carries a first-class base personaId, send that instead so
-      // gallery-based creations keep their chosen voice.
-      const personaKey = PERSONA_GALLERY.some((p) => p.id === companionId) ? companionId : 'custom';
+      // First-class base persona: every companion keeps its chosen gallery voice (fixed at
+      // creation — identity is the voice pack). Legacy rows were migrated at bootstrap.
+      const personaKey = companion?.personaKey ?? (companion ? inferPersonaKey(companion) : 'aurora');
       const assistantTurnCount = (messagesRef.current[companionId] ?? []).filter(
         (m) => m.role === 'assistant',
       ).length;
@@ -762,10 +951,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         logout,
         updateUser,
         setPrimaryCompanion,
-        addCompanion,
+        createCompanion,
         updateCompanion,
         archiveCompanion,
         restoreCompanion,
+        deleteCompanion,
+        archiveMany,
+        deleteMany,
+        restoreMany,
+        clearConversation,
+        forgetEverything,
         getMessagesForCompanion,
         addMessage,
         removeMessage,
