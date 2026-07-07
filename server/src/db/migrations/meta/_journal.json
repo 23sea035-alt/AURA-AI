@@ -29,6 +29,13 @@
       "when": 1783028472769,
       "tag": "0003_companion_archive",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783441645872,
+      "tag": "0004_widen_persona_key_check",
+      "breakpoints": true
     }
   ]
 }

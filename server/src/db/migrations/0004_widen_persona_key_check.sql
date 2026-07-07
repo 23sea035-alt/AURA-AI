@@ -1,0 +1,2 @@
+ALTER TABLE "companions" DROP CONSTRAINT "companions_persona_key_check";--> statement-breakpoint
+ALTER TABLE "companions" ADD CONSTRAINT "companions_persona_key_check" CHECK ("companions"."persona_key" in ('aurora', 'orion', 'lyra', 'sage', 'amara', 'eli', 'selene', 'soren', 'juno', 'thea', 'cyrus', 'wren'));

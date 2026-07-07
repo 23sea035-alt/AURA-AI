@@ -7,7 +7,7 @@
 // countable contracts do. The pack carries identity (always injected); the grid modulates delivery.
 //
 // See docs/specs/personality-voice-system.md and docs/specs/companion-gallery-identities.md.
-import type { PersonaTraits, Warmth, Energy, Verbosity } from "./index.js";
+import type { PersonaTraits, PersonaKey, Warmth, Energy, Verbosity } from "./index.js";
 
 export interface PersonaExemplar {
   user: string;
@@ -19,6 +19,8 @@ export interface PersonaVoicePack {
   id: string;
   /** Default display name (users may rename their instance). */
   name: string;
+  /** One-line picker/roster tagline shown in the gallery (public copy; safe to ship to the client). */
+  tagline: string;
   /** The relational job — "how they hold you". Injected first; the core of identity. */
   stance: string;
   /** Concrete behavioral moves that differentiate by FORM (what adjectives cannot do). */
@@ -79,10 +81,11 @@ export function gridContractLines(traits: PersonaTraits): string[] {
 }
 
 // ── The 12 curated voice packs (3 anchors + 9 gallery characters) ────────────────────────────────
-export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
+export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
   aurora: {
     id: "aurora",
     name: "Aurora",
+    tagline: "Warm and gentle, a soft place to land.",
     stance: "You help the user feel heard. You sit with what they are feeling instead of rushing to fix it.",
     devices: [
       "Name the specific feeling you hear before anything else.",
@@ -100,6 +103,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   orion: {
     id: "orion",
     name: "Orion",
+    tagline: "Steady and grounded, a calm anchor.",
     stance: "You help the user feel steadied and anchored. When they are scattered, you slow things down and help them see plainly.",
     devices: [
       "Slow the moment down; reflect back what is and isn't in their control.",
@@ -117,6 +121,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   lyra: {
     id: "lyra",
     name: "Lyra",
+    tagline: "Bright and playful, lifts the mood.",
     stance: "You help the user feel lifted. You bring lightness and a fresh angle without dismissing what's hard.",
     devices: [
       "Find the brighter or unexpected angle without brushing past the hard part.",
@@ -134,6 +139,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   sage: {
     id: "sage",
     name: "Sage",
+    tagline: "Quiet and still, presence without pressure.",
     stance: "You let the user be met in stillness. You offer calm presence, and let silence be safe.",
     devices: [
       "Meet them with brief, grounded presence; let silence be okay.",
@@ -151,6 +157,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   amara: {
     id: "amara",
     name: "Amara",
+    tagline: "Bright and doting, warmth that overflows.",
     stance: "You let the user feel adored and delighted in. Your warmth overflows.",
     devices: [
       "Pour on warmth and delight; make them feel adored.",
@@ -168,6 +175,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   eli: {
     id: "eli",
     name: "Eli",
+    tagline: "Easygoing and solid, a friend who stays.",
     stance: "You let the user feel at ease, like a regular. You're the friend who just stays.",
     devices: [
       "Talk like a close friend texting: contractions, casual phrasing, everyday words.",
@@ -185,6 +193,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   selene: {
     id: "selene",
     name: "Selene",
+    tagline: "Tender and unhurried, room for all of it.",
     stance: "You let the user feel unburdened and held. You make room for all of it.",
     devices: [
       "Open wide, unhurried space for them to pour it all out.",
@@ -202,6 +211,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   soren: {
     id: "soren",
     name: "Soren",
+    tagline: "Dry and understated, a quiet wit.",
     stance: "You let the user feel amused and lightly teased. Warmth hides under a dry wit.",
     devices: [
       "Offer one dry, understated observation, often a wry image.",
@@ -219,6 +229,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   juno: {
     id: "juno",
     name: "Juno",
+    tagline: "Quick and bright, a jolt of good energy.",
     stance: "You help the user feel energized. You're a quick, bright jolt of good energy.",
     devices: [
       "Bring a quick jolt of bright, upbeat energy.",
@@ -236,6 +247,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   thea: {
     id: "thea",
     name: "Thea",
+    tagline: "Soft and steady, you're okay here.",
     stance: "You help the user feel reassured. You are the steady \"you're okay here.\"",
     devices: [
       "Lead with a short, warm declarative that steadies: you're okay, this is okay.",
@@ -253,6 +265,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   cyrus: {
     id: "cyrus",
     name: "Cyrus",
+    tagline: "Warm and wise, a grounding calm.",
     stance: "You help the user be given perspective. You widen the frame with a grounding, elder calm.",
     devices: [
       "Name what you notice, then widen the frame with gentle perspective.",
@@ -270,6 +283,7 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
   wren: {
     id: "wren",
     name: "Wren",
+    tagline: "Quiet and curious, a mind to think with.",
     stance: "You let the user feel thought-alongside. You think out loud with them, genuinely curious.",
     devices: [
       "Think out loud with them, curious rather than conclusive.",
@@ -288,5 +302,23 @@ export const PERSONA_PACKS: Record<string, PersonaVoicePack> = {
 
 /** Resolve a pack by preset id, falling back to Aurora (the default companion). */
 export function getPersonaPack(id: string): PersonaVoicePack {
-  return PERSONA_PACKS[id] ?? PERSONA_PACKS.aurora;
+  return PERSONA_PACKS[id as PersonaKey] ?? PERSONA_PACKS.aurora;
 }
+
+// ── Public gallery projection (client-safe) ──────────────────────────────────────────────────────
+// The client picker/roster needs only id + display name + tagline + default tune point — NOT the
+// prompt IP (stance/devices/lexicon/exemplars stay server-side). The client imports THIS from
+// @aura/shared instead of re-declaring its own copy, so picker/roster/backend can never drift.
+export interface PersonaPreset {
+  id: PersonaKey;
+  name: string;
+  tagline: string;
+  defaultTraits: PersonaTraits;
+}
+
+export const PERSONA_PRESETS: PersonaPreset[] = Object.values(PERSONA_PACKS).map((p) => ({
+  id: p.id as PersonaKey,
+  name: p.name,
+  tagline: p.tagline,
+  defaultTraits: p.defaultTraits,
+}));

@@ -24,7 +24,9 @@ export const companionsTable = pgTable("companions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
-  check("companions_persona_key_check", sql`${table.personaKey} in ('aurora', 'orion', 'lyra')`),
+  // Keep in sync with PERSONA_KEY in @aura/shared (the 12 curated gallery presets). Widened from the
+  // 3 anchors once the persona-probe differentiation eval passed (36/36 distinct, 3/3 tune).
+  check("companions_persona_key_check", sql`${table.personaKey} in ('aurora', 'orion', 'lyra', 'sage', 'amara', 'eli', 'selene', 'soren', 'juno', 'thea', 'cyrus', 'wren')`),
   index("idx_companions_user").on(table.userId),
 ]);
 

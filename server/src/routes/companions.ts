@@ -5,7 +5,7 @@ import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError } from "../lib/response.js";
-import { CreateCompanionSchema, UpdateCompanionSchema } from "@aura/shared";
+import { CreateCompanionSchema, UpdateCompanionSchema, getPersonaPack } from "@aura/shared";
 
 const router = Router();
 
@@ -30,12 +30,14 @@ router.get("/companions", requireAuth, async (req: AuthRequest, res) => {
 router.post("/companions", requireAuth, validate(CreateCompanionSchema), async (req: AuthRequest, res) => {
   try {
     const { name, personaKey, traits } = req.body;
+    const key = personaKey ?? "aurora";
 
     const [companion] = await db.insert(companionsTable).values({
       userId: req.userId!,
       name,
-      personaKey: personaKey ?? "aurora",
-      traits: traits ?? {},
+      personaKey: key,
+      // When the client omits traits, seed the preset's default tune point (never an empty object).
+      traits: traits ?? getPersonaPack(key).defaultTraits,
     }).returning();
 
     logger.info({ companionId: companion.id }, "Companion created");

@@ -23,6 +23,7 @@ import {
   ChatInputSchema,
   CreateCompanionSchema,
   UpdateCompanionSchema,
+  PERSONA_PRESETS,
   UpdateProfileSchema,
   ReportMessageSchema,
   BanUserSchema,
@@ -50,8 +51,22 @@ import {
 } from "../index.js";
 
 describe("Constants", () => {
-  it("PERSONA_KEY defines aurora, orion, lyra", () => {
-    expect(PERSONA_KEY).toEqual(["aurora", "orion", "lyra"]);
+  it("PERSONA_KEY defines the 12 curated gallery presets", () => {
+    expect(PERSONA_KEY).toEqual([
+      "aurora", "orion", "lyra",
+      "sage", "amara", "eli", "selene", "soren", "juno", "thea", "cyrus", "wren",
+    ]);
+  });
+
+  it("PERSONA_PRESETS mirrors PERSONA_KEY with public picker fields", () => {
+    expect(PERSONA_PRESETS.map((p) => p.id)).toEqual([...PERSONA_KEY]);
+    for (const p of PERSONA_PRESETS) {
+      expect(p.name.length).toBeGreaterThan(0);
+      expect(p.tagline.length).toBeGreaterThan(0);
+      expect(p.defaultTraits).toHaveProperty("warmth");
+      expect(p.defaultTraits).toHaveProperty("energy");
+      expect(p.defaultTraits).toHaveProperty("verbosity");
+    }
   });
 
   it("HISTORY_WINDOW is 8", () => {
@@ -265,7 +280,7 @@ describe("CreateCompanionSchema", () => {
     const result = CreateCompanionSchema.parse({ name: "Aurora" });
     expect(result.name).toBe("Aurora");
     expect(result.personaKey).toBe("aurora");
-    expect(result.traits).toEqual({});
+    expect(result.traits).toBeUndefined(); // server fills the preset default when omitted
   });
 
   it("accepts custom personaKey", () => {
@@ -274,6 +289,36 @@ describe("CreateCompanionSchema", () => {
       personaKey: "orion",
     });
     expect(result.personaKey).toBe("orion");
+  });
+
+  it("accepts all 12 gallery persona keys", () => {
+    for (const key of PERSONA_KEY) {
+      expect(() => CreateCompanionSchema.parse({ name: "C", personaKey: key })).not.toThrow();
+    }
+  });
+
+  it("accepts a full grid traits triplet", () => {
+    const result = CreateCompanionSchema.parse({
+      name: "Tuned",
+      personaKey: "amara",
+      traits: { warmth: "doting", energy: "playful", verbosity: "expansive" },
+    });
+    expect(result.traits).toEqual({ warmth: "doting", energy: "playful", verbosity: "expansive" });
+  });
+
+  it("rejects off-grid trait values", () => {
+    expect(() =>
+      CreateCompanionSchema.parse({
+        name: "Bad",
+        traits: { warmth: "smothering", energy: "calm", verbosity: "concise" },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects partial traits (missing axes)", () => {
+    expect(() =>
+      CreateCompanionSchema.parse({ name: "Bad", traits: { warmth: "warm" } }),
+    ).toThrow();
   });
 
   it("rejects invalid personaKey", () => {
@@ -304,11 +349,15 @@ describe("UpdateCompanionSchema", () => {
     expect(result).toEqual({});
   });
 
-  it("accepts traits update", () => {
+  it("accepts a full grid traits update", () => {
     const result = UpdateCompanionSchema.parse({
-      traits: { warmth: "warm" },
+      traits: { warmth: "warm", energy: "calm", verbosity: "balanced" },
     });
-    expect(result.traits).toEqual({ warmth: "warm" });
+    expect(result.traits).toEqual({ warmth: "warm", energy: "calm", verbosity: "balanced" });
+  });
+
+  it("rejects a partial traits update (missing axes)", () => {
+    expect(() => UpdateCompanionSchema.parse({ traits: { warmth: "warm" } })).toThrow();
   });
 });
 

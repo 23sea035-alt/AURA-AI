@@ -22,13 +22,19 @@ export type VoiceState =
   | "PROCESSING"
   | "ERROR";
 
-const PERSONA_STYLE_TAG: Record<PersonaKey, string> = {
+// Prosody per persona. Only the 3 anchors are voice-cast so far; the 9 gallery presets fall back to a
+// warm neutral prosody (and no cast voiceId) until their Inworld voices are assigned. See
+// docs/specs/companion-gallery-identities.md (voiceId wiring is the remaining voice task).
+const DEFAULT_STYLE_TAG = "[warm and gentle]";
+const DEFAULT_DELIVERY_MODE: DeliveryMode = "BALANCED";
+
+const PERSONA_STYLE_TAG: Partial<Record<PersonaKey, string>> = {
   aurora: "[warm and gentle]",
   orion: "[direct and grounded]",
   lyra: "[bright and expressive]",
 };
 
-const PERSONA_DELIVERY_MODE: Record<PersonaKey, DeliveryMode> = {
+const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = {
   aurora: "BALANCED",
   orion: "STABLE",
   lyra: "CREATIVE",
@@ -40,6 +46,7 @@ function getVoiceId(personaKey: PersonaKey): string | undefined {
     case "aurora": return env.INWORLD_VOICE_ID_AURORA;
     case "orion": return env.INWORLD_VOICE_ID_ORION;
     case "lyra": return env.INWORLD_VOICE_ID_LYRA;
+    default: return undefined; // 9 gallery presets not yet cast → adapter uses its default voice
   }
 }
 
@@ -71,7 +78,7 @@ export class VoiceSession {
       return;
     }
 
-    const deliveryMode = PERSONA_DELIVERY_MODE[this.params.personaKey];
+    const deliveryMode = PERSONA_DELIVERY_MODE[this.params.personaKey] ?? DEFAULT_DELIVERY_MODE;
     const fillerTexts = [...VOICE_FILLER_TEXTS].slice(0, VOICE_FILLER_CLIP_COUNT);
 
     try {
@@ -93,8 +100,8 @@ export class VoiceSession {
       throw new Error(`Voice ID not set for ${this.params.personaKey} — configure INWORLD_VOICE_ID_${this.params.personaKey.toUpperCase()}`);
     }
 
-    const styleTag = opts?.crisis ? "[calm and measured]" : PERSONA_STYLE_TAG[this.params.personaKey];
-    const deliveryMode = opts?.crisis ? "STABLE" : PERSONA_DELIVERY_MODE[this.params.personaKey];
+    const styleTag = opts?.crisis ? "[calm and measured]" : (PERSONA_STYLE_TAG[this.params.personaKey] ?? DEFAULT_STYLE_TAG);
+    const deliveryMode = opts?.crisis ? "STABLE" : (PERSONA_DELIVERY_MODE[this.params.personaKey] ?? DEFAULT_DELIVERY_MODE);
     return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag });
   }
 
