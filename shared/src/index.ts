@@ -90,6 +90,24 @@ export const PersonaTraitsSchema = z.object({
 
 export const FREE_DAILY_LIMIT = 30;
 export const MAX_MESSAGE_CHARS = 2000;
+
+// ── Companion roster caps (docs/specs/companion-roster.md §2) ────────────
+// Active cap = the product limit (what the user feels and what the paywall
+// sells). Total cap = active + archived anti-abuse backstop, never surfaced
+// as a feature. Both server (enforcement) and client (gate UI + at-limit
+// sheets) import these.
+export const MAX_ACTIVE_COMPANIONS_FREE = 5;
+export const MAX_ACTIVE_COMPANIONS_PREMIUM = 15;
+export const MAX_TOTAL_COMPANIONS_FREE = 20;
+export const MAX_TOTAL_COMPANIONS_PREMIUM = 50;
+
+export function activeCompanionCap(isPremium: boolean): number {
+  return isPremium ? MAX_ACTIVE_COMPANIONS_PREMIUM : MAX_ACTIVE_COMPANIONS_FREE;
+}
+
+export function totalCompanionCap(isPremium: boolean): number {
+  return isPremium ? MAX_TOTAL_COMPANIONS_PREMIUM : MAX_TOTAL_COMPANIONS_FREE;
+}
 // Upper bound on a single voice utterance (one Apple-VAD chunk). Bounds the per-utterance
 // STT/LLM/TTS cost before any paid work runs; ~1 minute of audio across common codecs.
 export const MAX_UTTERANCE_BYTES = 2_000_000;
@@ -160,16 +178,24 @@ export const ChatInputSchema = z.object({
   sessionStartedAt: z.string().optional(),
 });
 
+// Companion traits as stored: the tuned grid point plus an opaque `_client`
+// presentation stash (duotone, look, persona line) the server round-trips
+// untouched — except the free-tier coercion, which forces the grid back to the
+// preset defaults and strips the paid `lookId` (docs/specs/companion-roster.md §9).
+export const CompanionTraitsSchema = PersonaTraitsSchema.extend({
+  _client: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const CreateCompanionSchema = z.object({
   name: z.string().min(1).max(100),
   personaKey: z.enum(PERSONA_KEY).optional().default('aurora'),
   // Optional: when omitted the server fills the chosen preset's defaultTraits.
-  traits: PersonaTraitsSchema.optional(),
+  traits: CompanionTraitsSchema.optional(),
 });
 
 export const UpdateCompanionSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  traits: PersonaTraitsSchema.optional(),
+  traits: CompanionTraitsSchema.optional(),
 });
 
 export const UpdateProfileSchema = z.object({

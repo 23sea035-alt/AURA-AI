@@ -23,7 +23,16 @@ import {
   ChatInputSchema,
   CreateCompanionSchema,
   UpdateCompanionSchema,
+  CompanionTraitsSchema,
+  MAX_ACTIVE_COMPANIONS_FREE,
+  MAX_ACTIVE_COMPANIONS_PREMIUM,
+  MAX_TOTAL_COMPANIONS_FREE,
+  MAX_TOTAL_COMPANIONS_PREMIUM,
+  activeCompanionCap,
+  totalCompanionCap,
+  PERSONA_PACKS,
   PERSONA_PRESETS,
+  pickOpener,
   UpdateProfileSchema,
   ReportMessageSchema,
   BanUserSchema,
@@ -477,5 +486,112 @@ describe("HealthCheckResponse", () => {
       checks: { db: "connected" },
     });
     expect(result.checks).toEqual({ db: "connected" });
+  });
+});
+
+describe("Companion roster caps", () => {
+  it("defines the four caps from the roster spec", () => {
+    expect(MAX_ACTIVE_COMPANIONS_FREE).toBe(5);
+    expect(MAX_ACTIVE_COMPANIONS_PREMIUM).toBe(15);
+    expect(MAX_TOTAL_COMPANIONS_FREE).toBe(20);
+    expect(MAX_TOTAL_COMPANIONS_PREMIUM).toBe(50);
+  });
+
+  it("resolves the caps by tier", () => {
+    expect(activeCompanionCap(false)).toBe(MAX_ACTIVE_COMPANIONS_FREE);
+    expect(activeCompanionCap(true)).toBe(MAX_ACTIVE_COMPANIONS_PREMIUM);
+    expect(totalCompanionCap(false)).toBe(MAX_TOTAL_COMPANIONS_FREE);
+    expect(totalCompanionCap(true)).toBe(MAX_TOTAL_COMPANIONS_PREMIUM);
+  });
+
+  it("total cap always leaves headroom above the active cap", () => {
+    expect(MAX_TOTAL_COMPANIONS_FREE).toBeGreaterThan(MAX_ACTIVE_COMPANIONS_FREE);
+    expect(MAX_TOTAL_COMPANIONS_PREMIUM).toBeGreaterThan(MAX_ACTIVE_COMPANIONS_PREMIUM);
+  });
+});
+
+describe("CompanionTraitsSchema (_client stash)", () => {
+  it("accepts a grid triplet with an opaque _client stash", () => {
+    const result = CompanionTraitsSchema.parse({
+      warmth: "warm",
+      energy: "calm",
+      verbosity: "concise",
+      _client: { lookId: "dusk", colorFrom: "#aabbcc" },
+    });
+    expect(result._client).toEqual({ lookId: "dusk", colorFrom: "#aabbcc" });
+  });
+
+  it("still rejects a stash without the grid axes", () => {
+    expect(() => CompanionTraitsSchema.parse({ _client: { lookId: "dusk" } })).toThrow();
+  });
+
+  it("rides along inside Create/Update schemas", () => {
+    const traits = { warmth: "doting", energy: "playful", verbosity: "expansive", _client: { lookId: "ember" } };
+    expect(() => CreateCompanionSchema.parse({ name: "Amara", personaKey: "amara", traits })).not.toThrow();
+    expect(() => UpdateCompanionSchema.parse({ traits })).not.toThrow();
+  });
+});
+
+describe("Persona openers and starters (roster spec §10/§11)", () => {
+  it("every pack ships 6–8 openers and 2–3 starters", () => {
+    for (const pack of Object.values(PERSONA_PACKS)) {
+      expect(pack.openers.length).toBeGreaterThanOrEqual(6);
+      expect(pack.openers.length).toBeLessThanOrEqual(8);
+      expect(pack.starters.length).toBeGreaterThanOrEqual(2);
+      expect(pack.starters.length).toBeLessThanOrEqual(3);
+    }
+  });
+
+  it("each pool mixes {firstName} and no-slot openers (fallback pool is never empty)", () => {
+    for (const pack of Object.values(PERSONA_PACKS)) {
+      const withSlot = pack.openers.filter((o) => o.includes("{firstName}"));
+      expect(withSlot.length).toBeGreaterThan(0);
+      expect(withSlot.length).toBeLessThan(pack.openers.length);
+    }
+  });
+
+  it("no user-facing copy contains an em dash and starters carry no slots", () => {
+    for (const pack of Object.values(PERSONA_PACKS)) {
+      for (const line of [...pack.openers, ...pack.starters]) {
+        expect(line).not.toContain("—");
+      }
+      for (const starter of pack.starters) {
+        expect(starter).not.toContain("{firstName}");
+      }
+    }
+  });
+
+  it("the client projection carries openers + starters for all 12", () => {
+    expect(PERSONA_PRESETS).toHaveLength(12);
+    for (const preset of PERSONA_PRESETS) {
+      expect(preset.openers).toEqual(PERSONA_PACKS[preset.id].openers);
+      expect(preset.starters).toEqual(PERSONA_PACKS[preset.id].starters);
+    }
+  });
+});
+
+describe("pickOpener", () => {
+  it("fills the {firstName} slot", () => {
+    const pack = PERSONA_PACKS.aurora;
+    const idx = pack.openers.findIndex((o) => o.includes("{firstName}"));
+    const line = pickOpener(pack, "Maya", (idx + 0.5) / pack.openers.length);
+    expect(line).toContain("Maya");
+    expect(line).not.toContain("{firstName}");
+  });
+
+  it("without a first name, only no-slot openers are eligible", () => {
+    const pack = PERSONA_PACKS.thea;
+    for (let i = 0; i < 20; i++) {
+      const line = pickOpener(pack, undefined, i / 20);
+      expect(line).not.toContain("{firstName}");
+      expect(line).not.toMatch(/\{|\}/);
+    }
+    expect(pickOpener(pack, "  ", 0.4)).not.toContain("{firstName}");
+  });
+
+  it("stays inside the pool for every random value", () => {
+    const pack = PERSONA_PACKS.soren;
+    expect(pack.openers).toContain(pickOpener(pack, "Jo", 0));
+    expect(pickOpener(pack, "Jo", 0.999)).toBeTruthy();
   });
 });

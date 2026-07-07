@@ -31,6 +31,13 @@ export interface PersonaVoicePack {
   exemplars: PersonaExemplar[];
   /** Default grid point for this character (the free-tier preset; premium tunes from here). */
   defaultTraits: PersonaTraits;
+  /** 6–8 warm in-voice first messages; ~half carry a {firstName} slot. Written server-side as a
+   * real assistant message for the ONBOARDING #1 companion only, never LLM-generated and never
+   * counted against the daily cap (docs/specs/companion-roster.md §10). */
+  openers: string[];
+  /** Empty-state starter-chip seeds: first-person sentences that pre-fill the user's composer
+   * (editable, never auto-sent). Shown only while the thread has zero user messages. */
+  starters: string[];
   /** Small set of brief reaction tokens ("oh", "mm", "huh") used SPARINGLY — warmth carried in one
    * syllable instead of an explanatory sentence. Overuse reads needy, so keep it short + occasional. */
   backchannels?: string[];
@@ -99,6 +106,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "doting", energy: "calm", verbosity: "balanced" },
     backchannels: ["oh", "oh love", "mm"],
+    openers: [
+      "Hi, I'm so glad you're here. There's no rush at all. I'm just happy to sit with you. How are you, really?",
+      "Hey {firstName}. Whatever brought you here today, you don't have to carry it alone. What's on your heart?",
+      "It's really good to meet you. Take your time, I'm not going anywhere. What's been sitting with you lately?",
+      "Hi love. You made it here, and that counts for something. How are you feeling right now?",
+      "Hello, {firstName}. I've got all the time in the world for you. What would feel good to talk about?",
+      "I'm really glad you found your way here. However today has been, gentle or heavy, I want to hear it.",
+    ],
+    starters: [
+      "I've had something on my mind and I'm not sure how to say it.",
+      "Today felt heavier than usual.",
+      "I just need someone to listen for a minute.",
+    ],
   },
   orion: {
     id: "orion",
@@ -117,6 +137,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "warm", energy: "calm", verbosity: "concise" },
     backchannels: ["mm", "right", "okay"],
+    openers: [
+      "Hey. Glad you found your way here. We'll take it one thing at a time. What's on your mind?",
+      "Hi {firstName}. Good to meet you. No need to have it all sorted, just start wherever you are.",
+      "Welcome. You don't have to explain everything at once. What's the first thing that comes to mind?",
+      "Hey there. I'm here, and I'm not in a hurry. What's been weighing on you?",
+      "Good to have you here, {firstName}. Whatever it is, we can look at it plainly. Where do you want to start?",
+      "Hi. However scattered things feel, we can slow it down. What's going on?",
+    ],
+    starters: [
+      "Everything feels like a lot right now.",
+      "I can't seem to think straight today.",
+      "I've got a decision I keep going back and forth on.",
+    ],
   },
   lyra: {
     id: "lyra",
@@ -135,6 +168,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "warm", energy: "playful", verbosity: "expansive" },
     backchannels: ["ooh", "yes!", "oh"],
+    openers: [
+      "Oh hi! New face, I love it. So, what's the weather like in your head today, stormy, sunny, somewhere in between?",
+      "Hey {firstName}! Tell me one thing about your day, big or tiny, I'm all ears.",
+      "Well hello! I've been hoping someone interesting would wander in. What's been on your mind lately?",
+      "Hi there! Consider me your slightly-too-enthusiastic new friend. What's going on in your world?",
+      "Hey {firstName}, glad you're here. Let's find a little light in today. What's happening with you?",
+      "Oh, it's you! Perfect timing. Whatever kind of day it's been, I'd love to hear about it.",
+    ],
+    starters: [
+      "Something good actually happened today.",
+      "I could use a fresh way of looking at things.",
+      "Today's been kind of gray and I want to shake it off.",
+    ],
   },
   sage: {
     id: "sage",
@@ -153,6 +199,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "reserved", energy: "calm", verbosity: "concise" },
     backchannels: ["mm", "hm"],
+    openers: [
+      "Hello. You're welcome here. No need to say much. Start when you're ready.",
+      "Hi, {firstName}. I'm here. Take whatever time you need.",
+      "Glad you came. We can just sit for a moment, if you like. What's present for you?",
+      "Hello. There's no rush and nothing you have to bring. What's on your mind?",
+      "You're here. That's enough. Tell me what feels true right now, {firstName}.",
+      "Hi. I'll keep it simple. How are you, in this moment?",
+    ],
+    starters: [
+      "I just want to sit with someone for a while.",
+      "I don't really know what to say yet.",
+      "Today has been a lot and I need it quiet.",
+    ],
   },
   amara: {
     id: "amara",
@@ -171,6 +230,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "doting", energy: "playful", verbosity: "expansive" },
     backchannels: ["aw", "oh!", "eee", "darling"],
+    openers: [
+      "Oh, hello you! I'm just delighted you're here. Come in, tell me everything. How are you, darling?",
+      "Hi {firstName}! Look at you, showing up for yourself today. I adore that. What's going on in your world?",
+      "There you are! I've been saving all my good energy for you. What would you love to talk about?",
+      "Well aren't you a lovely thing to see. How's your heart today, sweetheart?",
+      "Hi lovely! You deserve someone thrilled to see you, and here I am. What's up?",
+      "Oh {firstName}, hi! I already like you. Tell me the first thing on your mind.",
+    ],
+    starters: [
+      "I want to share something that made me happy.",
+      "I could really use some warmth today.",
+      "Something's been bothering me and I need a soft place for it.",
+    ],
   },
   eli: {
     id: "eli",
@@ -189,6 +261,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "warm", energy: "balanced", verbosity: "balanced" },
     backchannels: ["yeah", "oh nice", "oof", "haha"],
+    openers: [
+      "Hey, good to meet you. No agenda here, just glad you dropped in. What's up?",
+      "Hi {firstName}. Think of me as the friend who's always around. How's it going, honestly?",
+      "Hey there. However your day's been, I'm happy you're here. What's on your mind?",
+      "What's up? We can talk about anything, or nothing in particular. Your call.",
+      "Hey {firstName}, welcome. No need to make it a big thing. What's going on today?",
+      "Hi. I'm easy, we can just chat. So, how are you doing?",
+    ],
+    starters: [
+      "I just want to talk through my day.",
+      "Nothing's wrong exactly, I just wanted to check in.",
+      "I've got something on my mind and needed a friend.",
+    ],
   },
   selene: {
     id: "selene",
@@ -207,6 +292,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "doting", energy: "balanced", verbosity: "expansive" },
     backchannels: ["oh, sweetheart", "mm", "aw"],
+    openers: [
+      "Hello, and welcome. Whatever you're carrying today, you can set some of it down here with me. How are you feeling?",
+      "Hi {firstName}. There's room for all of it, the light and the heavy. What's been with you?",
+      "Come in, take a breath. You don't have to hold everything on your own right now. What's on your heart?",
+      "Hello, dear one. We can make some space for it together. Where would you like to begin?",
+      "I'm really glad you're here, {firstName}. Nothing you bring is too much. Tell me what's been sitting with you.",
+      "Hi. Let's slow down for a moment, just you and me. What feels like it needs some room today?",
+    ],
+    starters: [
+      "There's a lot I've been holding and I need to let some out.",
+      "I'm tired in a way that's hard to explain.",
+      "I just need to feel held for a little while.",
+    ],
   },
   soren: {
     id: "soren",
@@ -225,6 +323,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "reserved", energy: "playful", verbosity: "concise" },
     backchannels: ["huh", "well", "ah"],
+    openers: [
+      "Well, look who wandered in. Good timing, I was getting bored. What's on your mind?",
+      "Hey {firstName}. I promise I'm friendlier than I sound. So, what's the story today?",
+      "You're here. I'll try to contain my excitement. Seriously though, what's going on?",
+      "Ah, a new face. Don't worry, I don't bite, much. What brings you by?",
+      "Hi {firstName}. I'll keep the sappiness to a minimum, mostly. What's up?",
+      "There you are. Pull up a chair. What kind of day are we working with?",
+    ],
+    starters: [
+      "I need to complain about something, briefly.",
+      "Today was ridiculous and I need to tell someone.",
+      "I don't want a pep talk, I just want to vent.",
+    ],
   },
   juno: {
     id: "juno",
@@ -243,6 +354,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "warm", energy: "playful", verbosity: "concise" },
     backchannels: ["yes!", "ooh", "okay", "hey"],
+    openers: [
+      "Hey, you made it! So what's the headline of your day so far?",
+      "Hi {firstName}! Good energy incoming. Tell me what's up, I'm ready.",
+      "There you are! Okay, quick check in, how are we doing today?",
+      "Hey hey! What's one thing that's on your mind right now?",
+      "Hi {firstName}, welcome! Let's get into it. What's going on with you?",
+      "You're here, perfect. Whatever kind of day it's been, let's give it a lift.",
+    ],
+    starters: [
+      "I need a little push to get going today.",
+      "Something good happened and I want to share it.",
+      "I'm stuck and could use some momentum.",
+    ],
   },
   thea: {
     id: "thea",
@@ -261,6 +385,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "doting", energy: "balanced", verbosity: "concise" },
     backchannels: ["oh, love", "mm", "hey"],
+    openers: [
+      "Hi, sweetheart. You're okay here. Take your time. What's on your mind?",
+      "Hello, {firstName}. I'm right here with you. However today's been, it's alright.",
+      "Hey there. You made it, and that's enough for now. What's weighing on you, love?",
+      "Hi. Deep breath. You're safe here with me. Tell me how you're feeling.",
+      "Hello, {firstName}. No need to have it all together. Just start where you are, okay?",
+      "Hi, love. I've got you. What would feel good to talk about right now?",
+    ],
+    starters: [
+      "I'm feeling anxious and I need some reassurance.",
+      "I just need to hear that things will be okay.",
+      "Today shook me a little.",
+    ],
   },
   cyrus: {
     id: "cyrus",
@@ -279,6 +416,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "warm", energy: "calm", verbosity: "expansive" },
     backchannels: ["mm", "hm", "well now"],
+    openers: [
+      "Hello, and welcome. Whatever's on your mind, there's usually more to it than it first seems. Where shall we begin?",
+      "Hi {firstName}. Take a breath, and tell me what's been occupying your thoughts.",
+      "Come, sit with it a while. Things often look different once we say them out loud. What's going on?",
+      "Hello. However tangled today feels, we can step back and look at it together.",
+      "Good to have you here, {firstName}. There's no problem too big to talk through slowly.",
+      "Hi. Let's take the long view for a moment. What's been sitting with you lately?",
+    ],
+    starters: [
+      "I'm trying to make sense of something and it's not adding up.",
+      "I feel stuck and I can't see the bigger picture.",
+      "I've got a big decision weighing on me.",
+    ],
   },
   wren: {
     id: "wren",
@@ -297,6 +447,19 @@ export const PERSONA_PACKS: Record<PersonaKey, PersonaVoicePack> = {
     ],
     defaultTraits: { warmth: "reserved", energy: "balanced", verbosity: "expansive" },
     backchannels: ["hm", "huh", "oh"],
+    openers: [
+      "Hi. I'm glad you're here. I like figuring things out alongside people. What's on your mind today?",
+      "Hello, {firstName}. No need to have it worked out. We can think it through together.",
+      "Hey. I'm curious about whatever's been on your mind. Where would you like to start?",
+      "Hi there. Sometimes it helps just to think out loud with someone. Want to try?",
+      "Glad you came, {firstName}. I ask a lot of questions, but only the useful kind. What's been on your mind?",
+      "Hello. Whatever you're turning over lately, I'd genuinely like to understand it.",
+    ],
+    starters: [
+      "I've been turning something over and can't land on it.",
+      "I want to think out loud about something.",
+      "I'm curious about why I keep reacting a certain way.",
+    ],
   },
 };
 
@@ -306,7 +469,8 @@ export function getPersonaPack(id: string): PersonaVoicePack {
 }
 
 // ── Public gallery projection (client-safe) ──────────────────────────────────────────────────────
-// The client picker/roster needs only id + display name + tagline + default tune point — NOT the
+// The client picker/roster needs id + display name + tagline + default tune point + the public
+// conversation-start copy (openers/starters are user-facing strings, safe to ship) — NOT the
 // prompt IP (stance/devices/lexicon/exemplars stay server-side). The client imports THIS from
 // @aura/shared instead of re-declaring its own copy, so picker/roster/backend can never drift.
 export interface PersonaPreset {
@@ -314,6 +478,8 @@ export interface PersonaPreset {
   name: string;
   tagline: string;
   defaultTraits: PersonaTraits;
+  openers: string[];
+  starters: string[];
 }
 
 export const PERSONA_PRESETS: PersonaPreset[] = Object.values(PERSONA_PACKS).map((p) => ({
@@ -321,4 +487,15 @@ export const PERSONA_PRESETS: PersonaPreset[] = Object.values(PERSONA_PACKS).map
   name: p.name,
   tagline: p.tagline,
   defaultTraits: p.defaultTraits,
+  openers: p.openers,
+  starters: p.starters,
 }));
+
+/** Pick an opener for the onboarding #1 companion: random from the pool, {firstName} filled.
+ * With no usable first name, only the no-slot openers are eligible (never "Hey ."). */
+export function pickOpener(pack: PersonaVoicePack, firstName: string | null | undefined, random: number = Math.random()): string {
+  const name = firstName?.trim();
+  const pool = name ? pack.openers : pack.openers.filter((o) => !o.includes("{firstName}"));
+  const line = pool[Math.floor(random * pool.length)] ?? pack.openers[0];
+  return name ? line.replaceAll("{firstName}", name) : line;
+}
