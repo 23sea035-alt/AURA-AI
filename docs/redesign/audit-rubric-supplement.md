@@ -78,7 +78,7 @@ Grounding: HIG standard content margins (16–20pt) + the doctrine's own 8pt sca
 
 ## S5 — Backend feature coverage (the wire-seam checklist)
 
-Grounding: `docs/planning/frontend-todo.md` "Backend-driven items" + specs. For each, the UI must
+Grounding: the wire seams in `client/lib/backend.ts` + the specs (`docs/specs/`). For each, the UI must
 exist AND be reachable:
 
 | Feature | UI + reachable? |

@@ -9,6 +9,11 @@ transport, voice session state machine, priority queue, interruption handling, a
 > [moderation-pipeline.md](moderation-pipeline.md). Generation (prompt assembly, model, fallback)
 > is in [generation-pipeline.md](generation-pipeline.md). This doc tells you **how to build the
 > orchestration that ties those together.**
+>
+> **Scope note (2026-07-07):** conversation *lifecycle* is owned by
+> [companion-roster.md](companion-roster.md) — one companion = one continuous conversation (no
+> thread concept), server-seeded onboarding openers, and the Clear-conversation / Forget-everything
+> resets. This doc covers the live turn orchestration only.
 
 ---
 

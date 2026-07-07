@@ -77,3 +77,25 @@ bubble UI) changes. **Never put the Groq key on the client** — it must be a ba
 ---
 
 ## (add future deferred features below)
+
+---
+
+## Triage from archived plans (2026-07-07)
+
+When `planning/backend-fixlist-v1.md` and `planning/v1-tasklist.md` were archived, their remaining
+unchecked boxes were audited: nearly all were verified **done or superseded** (coverage thresholds
+enforced in `vitest.config.ts`; the L0–L3 moderation stack shipped; Metro resolves `@aura/shared`;
+SSO buttons shipped via Clerk; the "silent local-user fallback" became the deliberate
+`DEV_USE_MOCKS` seam). Two genuinely-open items survive:
+
+### Pre-release eval sign-off — 🔜
+Run the full eval suite (`pnpm eval`, `eval:gen`, `eval:persona`) against the release candidate and
+record a GO/NO-GO per dimension (safety FN=0, persona, memory, payments). This is the last gate
+before the [GO-LIVE checklist](../GO-LIVE.md) ops steps — it was the final phase of the archived
+fixlist and has no standing owner since.
+
+### Live-mode route guard for `(tabs)` — 🧊 🔗
+In live mode, an unauthenticated boot currently relies on `hydrate()` returning null →
+`setUser(null)` → welcome redirect. A hard `useAuth()`-style guard on the `(tabs)` group would make
+the invariant structural instead of behavioral. Scaffolding: `lib/clerk.ts` exposes
+`clerkHasSession()`. Revisit when live-mode testing resumes.

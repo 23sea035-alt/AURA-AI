@@ -1,10 +1,12 @@
 # Approved tokens — Option A "Reading Nook," softened (LOCKED 2026-06-23)
 
 > The palette + type direction is **locked to Option A, softened** — this **supersedes the original
-> 2026-06-22 lock** (terracotta accent, single soft-radius, soft-shadow-only). Paste this as the system
-> in any Claude Design session; it replaces Step 1 of [`00-foundation.md`](00-foundation.md). The revision
-> prompt in [`00b-tokens-revision.md`](00b-tokens-revision.md) produced it. Every scaffold + per-screen
-> prompt builds from these tokens. **Library Wine** accent on warm paper; warm-light + warm-dark; depth
+> 2026-06-22 lock** (terracotta accent, single soft-radius, soft-shadow-only).
+>
+> ⚠️ **Implementation truth is `client/constants/design.ts` (+ `motion.ts`)** — if this doc and the
+> tokens file disagree, the tokens file wins. This doc is the record of the locked decision. The
+> design-session docs it used to feed ([`00-foundation.md`](../archive/redesign/00-foundation.md),
+> [`00b-tokens-revision.md`](../archive/redesign/00b-tokens-revision.md)) are archived. **Library Wine** accent on warm paper; warm-light + warm-dark; depth
 > from **soft warm shadow** (no glow/glass); warm hairline edges reserved for **structural** surfaces.
 > Meets WCAG 2.2 AA.
 
@@ -92,4 +94,4 @@ bubble text.
 
 ---
 
-*Provenance: [`00b-tokens-revision.md`](00b-tokens-revision.md). Grading rubric: [`01-doctrine.md`](01-doctrine.md) §13.*
+*Provenance: [`00b-tokens-revision.md`](../archive/redesign/00b-tokens-revision.md) (archived). Grading rubric: [`01-doctrine.md`](01-doctrine.md) §13.*

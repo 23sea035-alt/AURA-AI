@@ -122,7 +122,7 @@ the design session; tracked here so nothing is missed.
   exemplars) as companion data, and the prompt assembler composes it at generation time.
 - **Evals:** `server/eval/cases/generation/*` trait-fidelity notes reference the old characterizations.
 - **Docs (aligned in this pass):** `docs/redesign/02-demo-persona.md` companions table;
-  `docs/redesign/screens/onboarding.md` choose-companion voice lines.
+  `docs/archive/redesign/screens/onboarding.md` (archived) choose-companion voice lines.
 
 *Provenance: codebase persona audit on 2026-06-23 surfaced a conflict between the implemented
 functional archetypes and the redesign's warm temperaments; resolved in favor of warm temperaments.

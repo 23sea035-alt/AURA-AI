@@ -1,10 +1,13 @@
 # Aura AI — Backend Changelog
 
-All notable backend changes to `server/` and `shared/`.
+All notable backend changes to `server/` and `shared/`. (The **frontend** change log lives in
+[redesign/fable5-rebuild-notes.md](redesign/fable5-rebuild-notes.md); client-side work is recorded
+there, not here.)
 
-For everything up to and including the 2026-06-29 production-readiness audit and full remediation pass, see **[audit/backend-audit-2026-06.md §9 (Remediation log)](audit/backend-audit-2026-06.md)**. That document is the authoritative record for Phases A–F and all CRITICAL/HIGH fixes. Baseline after remediation: **304 tests green**, commit `25d96c6` on `main`.
+For everything up to and including the 2026-06-29 production-readiness audit and full remediation pass, see **[archive/audit/backend-audit-2026-06.md §9 (Remediation log)](archive/audit/backend-audit-2026-06.md)**. That document is the authoritative record for Phases A–F and all CRITICAL/HIGH fixes. Baseline after remediation: **304 tests green**, commit `25d96c6` on `main`.
 
-**Process:** when you complete a task from [TODO.md](TODO.md), add an entry here before marking it done.
+**Process:** when server/shared work lands, add an entry here in the same PR. (The old backend
+task queue this line referred to is archived at [archive/TODO-backend-era.md](archive/TODO-backend-era.md).)
 
 ---
 
@@ -14,7 +17,7 @@ For everything up to and including the 2026-06-29 production-readiness audit and
   canonical trunk. Nearly clean: one conflict (`paywall.ts` — kept the voice-feature lines + redesign's
   polished tuning copy); docs + lockfile auto-merged. Server untouched by the merge; suite stayed green.
   The RN UI is polished but **not yet API-wired** (deferred to client work), and voice-call screens don't
-  exist yet — tracked in `docs/redesign/rn-port-status.md`.
+  exist yet — tracked in `docs/archive/redesign/rn-port-status.md` (since archived).
 - **Companion archive (code).** New `companions.archived_at` column (migration `0003`) +
   `POST /companions/:id/archive` (guards the last active companion; unpins if it was the Home pin) and
   `/restore`. `GET /companions` still returns the whole roster; Active/Archived + search are client-side.

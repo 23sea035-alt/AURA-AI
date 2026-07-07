@@ -1,7 +1,7 @@
 # Aura AI — Backend / Server (Replit Workspace)
 
-> **Start here:** [`docs/README.md`](docs/README.md) → [`docs/CHANGELOG.md`](docs/CHANGELOG.md) → [`docs/TODO.md`](docs/TODO.md).
-> Work `docs/TODO.md` top-to-bottom, one task at a time. Do not rebuild from scratch.
+> **Start here:** [`docs/README.md`](docs/README.md) → [`docs/CHANGELOG.md`](docs/CHANGELOG.md) → [`docs/CHANGELOG.md`](docs/CHANGELOG.md).
+> **The backend work queue is complete and archived** at [`docs/archive/TODO-backend-era.md`](docs/archive/TODO-backend-era.md); new work is assigned ad hoc — do not rebuild from scratch.
 
 ## What this is
 
@@ -120,7 +120,7 @@ The client (Expo app, not yours) has its own separate `client/.env.example` — 
 - **Follow `docs/`** — architecture, schema, and decisions are deliberate. Don't relitigate without a real reason.
 - **No hardcoded secrets** — Zod-validate env at boot; fail-closed.
 - **Versioned migrations only** — `drizzle-kit generate` → review → runtime `migrate()`. Never `push` in shared/prod.
-- **Do not build the frontend.** Append client-affecting contract changes to [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) under "Backend-driven items."
+- **Do not build the frontend.** Append client-affecting contract changes to the frontend owner via the PR description (the old frontend-todo queue is archived at [`docs/archive/planning/frontend-todo.md`](docs/archive/planning/frontend-todo.md)).
 - **Legal-review items** (retention numbers, `safety_events.flagged_content` retain-vs-scrub, jurisdictions, policy wording) are NOT to be guessed — leave defaults + flags for counsel.
 - **Jason owns `safetyCritical` eval labels** — tune moderation prompts to the labels, never the reverse.
 
@@ -130,7 +130,7 @@ The client (Expo app, not yours) has its own separate `client/.env.example` — 
 |---|---|
 | What Aura is + how to run | [`docs/README.md`](docs/README.md) |
 | What has shipped | [`docs/CHANGELOG.md`](docs/CHANGELOG.md) |
-| Your task list | [`docs/TODO.md`](docs/TODO.md) |
+| Your task list (archived — complete) | [`docs/archive/TODO-backend-era.md`](docs/archive/TODO-backend-era.md) |
 | Architecture + decisions (D1–D12) | [`docs/specs/v1-architecture.md`](docs/specs/v1-architecture.md) |
 | DB schema + `@aura/shared` catalog | [`docs/specs/v1-schema.md`](docs/specs/v1-schema.md) |
 | Moderation pipeline (L0–L3) | [`docs/specs/moderation-pipeline.md`](docs/specs/moderation-pipeline.md) |
@@ -138,7 +138,7 @@ The client (Expo app, not yours) has its own separate `client/.env.example` — 
 | Generation pipeline | [`docs/specs/generation-pipeline.md`](docs/specs/generation-pipeline.md) |
 | Testing strategy | [`docs/testing/test-harness.md`](docs/testing/test-harness.md) |
 | Eval safety rubric | [`docs/testing/eval-safety-rubric.md`](docs/testing/eval-safety-rubric.md) |
-| Production-readiness audit (2026-06-29) | [`docs/audit/backend-audit-2026-06.md`](docs/audit/backend-audit-2026-06.md) |
-| Frontend items (client owner only) | [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) |
+| Production-readiness audit (2026-06-29) | [`docs/archive/audit/backend-audit-2026-06.md`](docs/archive/audit/backend-audit-2026-06.md) |
+| Frontend items (client owner only; archived) | [`docs/archive/planning/frontend-todo.md`](docs/archive/planning/frontend-todo.md) |
 | Post-launch roadmap | [`docs/planning/post-v1.0-roadmap.md`](docs/planning/post-v1.0-roadmap.md) |
 | Compliance drafts (do not publish without counsel) | [`docs/compliance/`](docs/compliance/) |

@@ -1,11 +1,11 @@
 # Aura v1 — Go-Live Checklist
 
-**Status:** the backend **code is v1-complete and green** (526 tests pass, coverage enforced ~90%,
+**Status:** the backend **code is v1-complete and green** (633 tests pass as of 2026-07-07,
 typecheck clean, lint 0 errors; migrate-on-boot wired; `render.yaml` complete). Everything below is
 **ops / config / legal** — none of it is code. Work top-to-bottom; each gate is a hard prerequisite
 for the next.
 
-Canonical branch: **`backend`**. Deploy target: **Render** (`render.yaml`, `plan: starter` = single
+Canonical branch: **`redesign`** (the former `backend`/`fable5-rebuild` lines are merged into it). Deploy target: **Render** (`render.yaml`, `plan: starter` = single
 instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)).
 
 ---
@@ -29,7 +29,7 @@ instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)
   ```
   If any are missing/deprecated, pick a replacement in `server/src/services/llm/model-selector.ts`.
 - [ ] **Inworld — create 3 voices** (Aurora / Orion / Lyra) in the TTS portal; copy each voice ID.
-  Casting guide + style tags are in [docs/TODO.md §1–2](TODO.md). *Until these are set, voice sessions
+  Casting guide + style tags are in [the archived backend TODO §1–2](archive/TODO-backend-era.md). *Until these are set, voice sessions
   run but produce **no audio** (TTS skips gracefully).*
 - [ ] **Neon — provision the production database on the Launch plan** (separate from dev). *Free tier
   is unsafe for prod:* hitting any Free cap (100 CU-hrs / 0.5 GB / 5 GB egress) **suspends compute until

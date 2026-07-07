@@ -13,7 +13,7 @@
 ## 0a. As-built backend status (2026-06-29) — how each part actually works NOW
 
 > This section reflects the **locked `main`** after the 2026-06-29 production-readiness audit +
-> remediation ([docs/audit/backend-audit-2026-06.md](../audit/backend-audit-2026-06.md)). It is the
+> remediation ([docs/archive/audit/backend-audit-2026-06.md](../archive/audit/backend-audit-2026-06.md)). It is the
 > authoritative "current behavior" reference — **do not regress these without an explicit decision.**
 > Suite: 496 tests (494 green; 2 `pg-rate-limit` contract tests require a live Postgres and are skipped
 > in a bare env), typecheck clean. **Last reconciled to code: 2026-07-02.**
@@ -194,7 +194,7 @@ Monetized via subscription (free tier with daily message cap; premium unlimited)
   Delete the no-op forgot-password screen and the silent local-user fallback in
   [context/AppContext.tsx](../../client/context/AppContext.tsx). Add Clerk as a sub-processor in the
   privacy/retention docs; on account deletion, propagate by deleting the Clerk user. Client-affecting →
-  tracked in [frontend-todo.md](../planning/frontend-todo.md).
+  tracked in [frontend-todo.md](../archive/planning/frontend-todo.md) (archived).
 - **Risk:** Clerk's Expo/RN SDK is less battle-tested than its web SDK — **de-risk with a small Expo auth
   spike early** (email/password + Apple + server-side session verification end-to-end) before the rest of
   Phase 1.
@@ -520,7 +520,7 @@ conversion rate.
 ## Appendix — current-state cleanup (from the repo audit)
 
 These prototype artifacts should be removed/fixed during the v1.0 build (tracked in
-[v1-tasklist.md](../planning/v1-tasklist.md)):
+[v1-tasklist.md](../archive/planning/v1-tasklist.md) (archived)):
 
 - Prototype's **fake-streaming WebSocket scaffold** ([app.ts](../../server/src/app.ts) fake-stream, [lib/websocket.ts](../../client/lib/websocket.ts)) — **replace** with the proper WebSocket server per D1; do not simply delete.
 - `mockup-sandbox` package and the design-catalog screens

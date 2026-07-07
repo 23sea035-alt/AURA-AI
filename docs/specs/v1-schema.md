@@ -1,7 +1,7 @@
 # Aura AI — v1.0 Database Schema
 
 **Status:** Locked (design) · **As-built reconciled:** 2026-06-30 · **Target:** Drizzle migrations in `server/src/db/migrations/`
-**Last updated:** 2026-06-30 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../planning/v1-tasklist.md) (build order)
+**Last updated:** 2026-06-30 · **Companion doc:** [v1-architecture.md](v1-architecture.md) (decisions), [v1-tasklist.md](../archive/planning/v1-tasklist.md) (archived) (build order)
 
 > Single source of truth for the v1.0 schema. Build this as **versioned Drizzle migrations** — not
 > `drizzle-kit push`. Enums and shared types live in `@aura/shared`; the Drizzle tables live in
@@ -380,5 +380,5 @@ user↔transaction link (for chargebacks/disputes) or is fully anonymized on pur
   runtime `migrate()` on boot. `drizzle-kit push` is forbidden; the TS schema is the complete source of truth.
 - Build order (CI + Render): `@aura/shared` compiles before `server` (tables import its enum constants).
 - Retention is enforced by scheduled jobs (purge, retention-expiry), not the schema — see
-  [v1-tasklist.md](../planning/v1-tasklist.md) Phase 6.
+  [v1-tasklist.md](../archive/planning/v1-tasklist.md) (archived) Phase 6.
 ```

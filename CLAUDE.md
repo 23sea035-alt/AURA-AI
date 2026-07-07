@@ -6,7 +6,9 @@ mock/live switch (`DEV_USE_MOCKS`): mock mode (dev default) runs fully local via
 live mode is Clerk + REST + RevenueCat via `lib/live.ts` (config in `client/.env`, see
 `.env.example`; restart Metro after env edits — values are inlined at bundle time). Design system:
 "Warm Sanctuary" — doctrine at `docs/redesign/01-doctrine.md`, running change log at
-`docs/redesign/fable5-rebuild-notes.md`.
+`docs/redesign/fable5-rebuild-notes.md`. Living docs are indexed in `docs/README.md`;
+**`docs/archive/` is frozen history — never trust or edit it** (when a doc stops being true, update
+it in the same PR or move it whole into the archive + add a line to its README).
 
 ## Commands
 

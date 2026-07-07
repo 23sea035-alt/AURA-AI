@@ -2,14 +2,14 @@
 
 > **Start here:** [`docs/README.md`](docs/README.md) (what Aura is + how to run) →
 > [`docs/CHANGELOG.md`](docs/CHANGELOG.md) (what has shipped) →
-> [`docs/TODO.md`](docs/TODO.md) (your task list — work it top-to-bottom).
+> [`docs/CHANGELOG.md`](docs/CHANGELOG.md) (the shipped record; the old task queue is complete and archived at [`docs/archive/TODO-backend-era.md`](docs/archive/TODO-backend-era.md)).
 > For full Replit setup details, see [`replit.md`](replit.md).
 
 ## What this is
 
 Aura AI — an iOS AI-companion chat app (18+, US-first). Users chat 1:1 with AI personas (Aurora, Orion, Lyra) that remember facts across conversations; safety-first design; $9.99/month premium (free tier: 30 msgs/day).
 
-This workspace owns the **backend / server only.** The frontend (Expo RN app) is owned separately — do NOT build frontend here. Backend changes that affect the client get appended to [`docs/planning/frontend-todo.md`](docs/planning/frontend-todo.md) under "Backend-driven items."
+This workspace owns the **backend / server only.** The frontend (Expo RN app) is owned separately — do NOT build frontend here. Backend changes that affect the client get called out to the frontend owner in the PR description (the old frontend-todo queue is archived at [`docs/archive/planning/frontend-todo.md`](docs/archive/planning/frontend-todo.md)).
 
 ## Branch and push rules
 
@@ -47,7 +47,7 @@ Do NOT push to `main` or `backend` — Jason owns those branches.
 
 | Role | Person | Scope |
 |---|---|---|
-| **Backend / server** | Coworker (Replit, `test-results` branch) | Work [`docs/TODO.md`](docs/TODO.md) top-to-bottom |
+| **Backend / server** | Coworker (Replit, `test-results` branch) | Old queue archived: [`docs/archive/TODO-backend-era.md`](docs/archive/TODO-backend-era.md) |
 | **Frontend / client** | Jason (Claude Code) | Expo app — do not build frontend here |
 | **Safety labels / eval corpus** | Jason | Coworker may run evals and scale non-safety cases, but must not author or freeze `safetyCritical` labels |
 | **Contract boundary** | `@aura/shared` | Zod DTOs, enums, constants — single source of truth for client + server types |

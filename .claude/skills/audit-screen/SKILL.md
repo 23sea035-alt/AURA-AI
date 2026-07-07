@@ -18,7 +18,7 @@ by design. Ported from `../Amibroke`'s own `audit-screen` skill; adapted to Aura
 dual light/dark system, expo-router file layout, and the `/verify-ui` sim tooling this repo
 already has (Amibroke drives its sim manually — Aura doesn't have to).
 
-**Not the same job as the remediation plan.** `docs/redesign/rn-port-fidelity-audit.md` +
+**Not the same job as the remediation plan.** `docs/archive/redesign/rn-port-fidelity-audit.md` (archived) +
 `rn-port-remediation-plan.md` are a one-time, dated backlog diffing the RN port against the locked
 Claude-Design HTML/JSX prototypes — that's a punch-list being worked off in batches, not a standing
 gate. This skill grades a screen directly against **doctrine §13** instead, with no prototype

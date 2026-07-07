@@ -1,5 +1,5 @@
 // Onboarding flow copy. Mirrors the (now design-only) deck at
-// docs/redesign/screens/onboarding.md. Tokens: {AppName} (wrap with withAppName),
+// docs/archive/redesign/screens/onboarding.md. Tokens: {AppName} (wrap with withAppName),
 // {firstName} and {Companion} (bound at runtime; demo: Maya / Aurora).
 
 export const ONBOARDING = {

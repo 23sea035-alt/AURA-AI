@@ -3,7 +3,7 @@
 // NOT re-declare these; the React screens import them from here.
 
 export const SYSTEM = {
-  // System-states kit (docs/redesign/screens/oneoffs.md `states`).
+  // System-states kit (docs/archive/redesign/screens/oneoffs.md `states`).
   error: {
     title: 'Something went wrong',
     retry: 'Try again', // unifies the decks' mixed "Retry" / "Try again"

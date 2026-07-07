@@ -3,7 +3,7 @@
 > **DRAFT — internal policy pending legal counsel. Not legal advice. [Bracketed] values to confirm.**
 
 **Audience:** Engineering / Ops (operational reference). **Not** the user-facing privacy policy.
-**Status:** Draft · **Last updated:** 2026-06-30 · **Companion docs:** [v1-schema.md](../specs/v1-schema.md) (table definitions, FK behavior), [v1-architecture.md](../specs/v1-architecture.md), [v1-tasklist.md](../planning/v1-tasklist.md) (Phase 6 retention jobs)
+**Status:** Draft · **Last updated:** 2026-06-30 · **Companion docs:** [v1-schema.md](../specs/v1-schema.md) (table definitions, FK behavior), [v1-architecture.md](../specs/v1-architecture.md), [v1-tasklist.md](../archive/planning/v1-tasklist.md) (archived) (Phase 6 retention jobs)
 **Cross-reference:** Retention numbers here MUST stay in sync with the user-facing privacy-policy draft. If one changes, change both.
 
 ---

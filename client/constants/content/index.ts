@@ -5,7 +5,7 @@
 // once (brand / system / personas / safety / chat); screen files hold only their own
 // copy and reference the shared modules. Demo fixtures are separate: @/constants/demo.
 //
-// This module is the source of truth — the redesign decks in docs/redesign/screens/*
+// This module is the source of truth — the archived redesign decks in docs/archive/redesign/screens/*
 // are design-only and no longer carry canonical copy.
 
 export * from './brand';
