@@ -237,7 +237,7 @@ export const PERSONA_VOICE: Record<PersonaKey, PersonaVoice> = {
 // generation) — it does NOT touch voice.
 interface DeliveryIntent { warmth: number; energy: number; pace: number; } // 0..1, pace 0.85..1.1
 
-const WARMTH = { reserved: 0.25, warm: 0.6, affectionate: 0.9 } as const;
+const WARMTH = { reserved: 0.25, warm: 0.6, doting: 0.9 } as const;
 const ENERGY = { calm: 0.2, balanced: 0.5, playful: 0.85 } as const;
 
 export function deliveryIntent(t: PersonaTraits): DeliveryIntent {
@@ -262,7 +262,7 @@ export function resolveCartesia(d: DeliveryIntent) {
 }
 // OpenAI gpt-4o-mini-tts: delivery is a natural-language instruction, NOT sliders.
 export function resolveOpenAIInstruction(d: DeliveryIntent): string {
-  const warmth = d.warmth > 0.7 ? "tender and affectionate" : d.warmth > 0.4 ? "warm and caring" : "calm and attentive";
+  const warmth = d.warmth > 0.7 ? "tender and doting" : d.warmth > 0.4 ? "warm and caring" : "calm and attentive";
   const energy = d.energy > 0.6 ? "lively, with a light, playful lift" : d.energy < 0.35 ? "slow, steady, and grounding" : "an even, natural energy";
   return `Speak in a ${warmth} tone with ${energy}. Sound human and present, never robotic.`;
 }

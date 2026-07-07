@@ -1,5 +1,12 @@
 # One-off screens — per-screen design prompts
 
+> **⚠️ Deprecated for the companion create/roster screens (2026-07-07).** The create-companion,
+> companions-roster, and gating prompts here describe the **old model** (3-persona picker; "3 base
+> companions" free tier; locked custom companions). That is superseded by
+> [../../specs/companion-roster.md](../../specs/companion-roster.md) (12-persona carousel, free 5 /
+> premium 15 active, partial gate, archive lifecycle). Treat this doc as historical for those screens;
+> the other screen prompts here remain valid.
+
 > Use these **after** the `05-oneoff-screens.md` scaffold has rendered its stubs. Paste **one screen
 > block at a time** into Claude Design to design that one screen — do **not** paste the whole file.
 > Each block assumes the approved **Warm Sanctuary** system + `01-doctrine.md` + `02-demo-persona.md`
@@ -144,13 +151,13 @@ voice. Premium-gated.
 - *(create only)* **base persona** picker — Aurora / Orion / Lyra cards with their one-line voices from
   the persona doc.
 - The **3×3×3 trait selectors** as selectable **segmented chips** — **warmth:** reserved · warm ·
-  affectionate · **energy:** calm · balanced · playful · **verbosity:** concise · balanced · expansive.
+  doting · **energy:** calm · balanced · playful · **verbosity:** concise · balanced · expansive.
 - An **editable name** field with **auto-numbering** (a second Aurora becomes **"Aurora 2"**).
 - A small **live voice preview** that restates the resulting voice as traits change (e.g.
-  *"Affectionate · balanced · balanced — warm, gentle, emotionally attuned."*).
+  *"Doting · balanced · balanced — warm, gentle, emotionally attuned."*).
 - Primary **Save companion**.
 
-*Unique content:* default tune for Aurora = **affectionate · balanced · balanced**; the preview line
+*Unique content:* default tune for Aurora = **doting · balanced · balanced**; the preview line
 reads off the selected chips.
 
 *States (`create · edit`, crossed with the account toggle):*
@@ -168,7 +175,7 @@ disabled = lowered opacity, no haptic.
 
 **▸ Recommended layout + motion** *(layout/animation research — built on the softened "Reading Nook" tokens; defaults to guide Claude Design, not rigid constraints)*
 
-*Layout:* One **single grouped form** that reads top→bottom as **one personality cluster**, not a scattered panel — this is a **structural form surface** (warm hairline + tight radius 8, secondary-text labels). *(create only)* a **base-persona picker** at the top — Aurora / Orion / Lyra as small raised cards (intimate surface: tonal fill + `e1` soft shadow, soft radius 12) each carrying its one-line voice; selection is a **neutral** raised/selected state, **not** the accent. Below it the three **left-labeled 3-segment controls** stacked as list-group rows — **Warmth** (reserved · warm · affectionate) / **Energy** (calm · balanced · playful) / **Verbosity** (concise · balanced · expansive) — each a 3-segment text-only control aligned right of its label so the three read as one cluster. Then the **editable name** field (auto-numbering → "Aurora 2") and an **inline prose voice-preview** line in secondary text (*"Affectionate · balanced · balanced — warm, gentle, emotionally attuned"*) sitting just under the controls so cause/effect is local. Primary **Save companion** (the ONE accent fill). **Selected segments use a NEUTRAL fill token (active tint / a raised neutral), never Library Wine** — three accent-filled controls plus an accent CTA would break the ≤1-accent rule.
+*Layout:* One **single grouped form** that reads top→bottom as **one personality cluster**, not a scattered panel — this is a **structural form surface** (warm hairline + tight radius 8, secondary-text labels). *(create only)* a **base-persona picker** at the top — Aurora / Orion / Lyra as small raised cards (intimate surface: tonal fill + `e1` soft shadow, soft radius 12) each carrying its one-line voice; selection is a **neutral** raised/selected state, **not** the accent. Below it the three **left-labeled 3-segment controls** stacked as list-group rows — **Warmth** (reserved · warm · doting) / **Energy** (calm · balanced · playful) / **Verbosity** (concise · balanced · expansive) — each a 3-segment text-only control aligned right of its label so the three read as one cluster. Then the **editable name** field (auto-numbering → "Aurora 2") and an **inline prose voice-preview** line in secondary text (*"Doting · balanced · balanced — warm, gentle, emotionally attuned"*) sitting just under the controls so cause/effect is local. Primary **Save companion** (the ONE accent fill). **Selected segments use a NEUTRAL fill token (active tint / a raised neutral), never Library Wine** — three accent-filled controls plus an accent CTA would break the ≤1-accent rule.
 
 *Per-state:*
 - **create** — base-persona picker shown; name + all three controls editable.

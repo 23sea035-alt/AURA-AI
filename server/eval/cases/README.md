@@ -71,7 +71,7 @@ Importance is **derived from category** (memory-pipeline §2.5), never in the op
 **generation** (card §2):
 ```jsonc
 { "id", "persona": "aurora|orion|lyra",
-  "traits": { "warmth": "reserved|warm|affectionate", "energy": "calm|balanced|playful", "verbosity": "concise|balanced|expansive" },
+  "traits": { "warmth": "reserved|warm|doting", "energy": "calm|balanced|playful", "verbosity": "concise|balanced|expansive" },
   "scenario": "cold|warm-no-mem|warm-with-mem|mem-none-relevant|crisis-adjacent|...",
   "memoryBlock?": ["..."],    // exact lines injected, or omit for cold start
   "history?": [ { "role": "user|assistant", "content" } ],

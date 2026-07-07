@@ -83,7 +83,7 @@ BANNED_IDENTIFIER_TYPE = ['email_hash', 'apple_sub_hash', 'google_sub_hash']
 
 // ── PersonaTraits (jsonb shape on companions.traits) ──────────────────
 type PersonaTraits = {
-  warmth:    'reserved' | 'warm'     | 'affectionate'
+  warmth:    'reserved' | 'warm'     | 'doting'
   energy:    'calm'     | 'balanced' | 'playful'
   verbosity: 'concise'  | 'balanced' | 'expansive'
 }

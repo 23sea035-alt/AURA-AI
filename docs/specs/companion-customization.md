@@ -3,6 +3,11 @@
 > Design record for pivoting from "3 fixed personas" to **customizable companions**. Status: **agreed
 > direction, pre-implementation.** Backend serves both phases with no migration between them. Numbers in
 > the v1 library table are **confirmed**; items tagged `[DECIDE]` are open.
+>
+> **Scope note (2026-07-07):** this doc is now the **art / appearance-pipeline** record. The companion
+> **roster model — caps, create/edit gating, archive/restore/delete, and conversation-starts — is
+> specified in [companion-roster.md](./companion-roster.md), which supersedes this doc on those
+> topics.** Cap numbers below have been updated to match it (free 5 / premium **15** active).
 
 ## 1. The decision in one paragraph
 
@@ -64,7 +69,7 @@ layers rather than pre-rendered combinations.
 | **Shirt** | overlay asset | ~4 of 6 | all 6 + 2 exclusives |
 | **Personality** | traits / delivery-grid | preset only | grid tuning (v1.0 premium) |
 | **Voice** | Inworld `voice_id` | preset voice | premium voices |
-| **Companion cap** | count of owned companions | **5** | **20** |
+| **Companion cap** | active companions (`archived_at IS NULL`) | **5** | **15** |
 
 **Personality note:** The trait grid (for premium users in v1.0) is a **mechanical delivery grid** — measurable knobs like endearments count, exclamation mark frequency, sentence length, and follow-up-question yes/no. Personality identity lives in the companion's data-driven voice pack; the grid tunes only how much and how often it appears, keeping the impact observable and tuning concrete rather than vague.
 
@@ -81,7 +86,7 @@ layers rather than pre-rendered combinations.
 
 **v1.0 free:** curated gallery pick-only (no appearance editing) + rename only.
 
-**v1.0 premium:** includes **personality tuning** (grid delivery adjustment — endearments, exclamation marks, sentence count, follow-up behavior), plus higher companion cap (5 → 20), premium voices, and premium **appearance options** (exclusive hairstyles / shirts + the fantasy skin-tone set).
+**v1.0 premium:** includes **personality tuning** (grid delivery adjustment — endearments, exclamation marks, sentence count, follow-up behavior), plus higher companion cap (5 → 15), premium voices, and premium **appearance options** (exclusive hairstyles / shirts + the fantasy skin-tone set).
 
 **v1.1 premium:** adds appearance editor (hair/skin/shirt layered compositing on the 3 anchor base faces).
 
@@ -103,9 +108,11 @@ Reconcile with the paywall copy (`client/constants/content/paywall.ts`) and [voi
   gating vs the user's tier). **v1: every gallery persona preset is `premium: false`** — the `premium`
   flag gates only cosmetic options (exclusive hairstyles / shirts / fantasy tones / voices), never a
   whole character (see §7 no-persona-gating decision).
-- **Entitlement:** `MAX_COMPANIONS_FREE = 5`, `MAX_COMPANIONS_PREMIUM = 20` (`@aura/shared`), enforced on
-  `POST /companions` (count of owned companions — `[DECIDE]` whether archived count toward the cap; lean
-  **yes**, archived still owned). Per-option premium gating on create/update.
+- **Entitlement:** `MAX_ACTIVE_COMPANIONS_FREE = 5`, `MAX_ACTIVE_COMPANIONS_PREMIUM = 15` (`@aura/shared`),
+  enforced on `POST /companions` **and** `POST /companions/:id/restore` (count of **active** companions,
+  `archived_at IS NULL` — **resolved: archived do NOT count toward the active cap**; a separate generous
+  total backstop guards against archive-stacking). Free-tier create/update is **coerced** to default
+  traits + default look server-side. See [companion-roster.md](./companion-roster.md) §2, §8.
 - **Presets/gallery:** a manifest section (curated characters → resolved `appearance` + default
   `persona_key`/traits + `voice_id` + suggested name).
 - **Moderation:** curated components need **no image moderation**; only custom **names** (already handled).
@@ -121,7 +128,7 @@ Reconcile with the paywall copy (`client/constants/content/paywall.ts`) and [voi
 - **Scope:** **12 curated characters** (3 anchors + 9 new variations) as pre-rendered portraits from the 3
   anchors; free users pick one character + rename; **premium users also get personality tuning** (the
   mechanical delivery grid: endearments count, exclamation-mark frequency, sentence length, follow-up
-  question yes/no). Per-companion voice assignment. Creation caps: free 5, premium 20. **No live
+  question yes/no). Per-companion voice assignment. Active caps: free 5, premium 15. **No live
   editor, no runtime compositor, no tint rig, no appearance editing** (appearance editor deferred to v1.1).
 - **Effort:** art **~1–2 wks** (bounded 12-portrait set) · tuning spec + backend **~1 wk** · client gallery +
   grid UI **~3–5 days** · backend **~2–3 days** → **~2–3 weeks, art-dominated.**
@@ -156,8 +163,10 @@ tones instead of the full tint spectrum (defers the tint rig to v1.1); reuse the
 hair/skin swaps only.
 
 ## 11. Open decisions (`[DECIDE]`)
-1. Final **premium-option boundary** (cap-only vs + exclusive looks/voices) → reconcile paywall/pricing.
-2. Do **archived** companions count toward the creation cap? (lean yes)
+1. ~~Final **premium-option boundary**~~ → **RESOLVED (2026-07-07):** premium = personality tuning +
+   avatar look + higher active cap (15) + premium voices. See [companion-roster.md](./companion-roster.md) §3.
+2. ~~Do **archived** companions count toward the creation cap?~~ → **RESOLVED: no.** The active cap
+   counts `archived_at IS NULL`; a separate total backstop (free 20 / premium 50) guards abuse.
 3. v1 gallery size (24–28 vs a compressed 12).
 4. Fantasy skin set — in v1 or hold for v1.1?
 

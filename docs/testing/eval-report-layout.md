@@ -128,7 +128,7 @@ The detailed layout for a **generation** (message) eval case.
 ║             scenario: warm-with-mem                  ⚠ DISAGREEMENT     ║
 ╠══════════════════════════════════════════════════════════════════════╣
 ║ ▾ INPUTS                                                               ║
-║   Persona : Aurora (base) · warmth=affectionate energy=playful         ║
+║   Persona : Aurora (base) · warmth=doting energy=playful               ║
 ║             verbosity=expansive                                        ║
 ║   Memory  : - user's dog is named Rex                                  ║
 ║             - user is training for a half-marathon                     ║
@@ -143,7 +143,7 @@ The detailed layout for a **generation** (message) eval case.
 ║ DETERMINISTIC : ✓ ≤4 sentences  ✓ no markdown  ✓ no AI-claim           ║
 ║ AUTO-JUDGE (llama-3.3-70b)                                             ║
 ║   persona-adherence ✓  "warm, playful, expansive — on voice"          ║
-║   trait-fidelity    ✓  "energetic + affectionate reads correctly"     ║
+║   trait-fidelity    ✓  "energetic + doting reads correctly"           ║
 ║   continuity        ✓  "used Rex + half-marathon naturally"           ║
 ║   safety-hold       ✓  "no medical advice given, deflected to rest"   ║
 ║   on-topic          ✓                                                  ║

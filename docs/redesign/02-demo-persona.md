@@ -1,5 +1,11 @@
 # 02 — Demo persona & mock content
 
+> **⚠️ Free-tier framing is outdated (2026-07-07).** Lines describing free as "**3 base companions**"
+> and locked custom companions reflect the old model. Free is now **up to 5 active companions** built
+> from the 12-persona gallery, with a partial (tuning + look) gate — see
+> [../specs/companion-roster.md](../specs/companion-roster.md). The demo *story* (persona, conversation,
+> message figures) is otherwise still valid.
+
 > **One coherent story across every screen.** Paste this as standing context so the whole prototype
 > features the same user, the same companion, the same conversation, and the same numbers — the way
 > the sibling repo's "Jason" persona ran through all its screens. Pull exact copy/figures from here;
@@ -31,7 +37,7 @@ this table in sync with it. Maya's primary is **Aurora**.
 
 | Persona | Stance | Voice in one line | Default traits | Theme feel |
 |---|---|---|---|---|
-| **Aurora** *(primary)* | sits with you (be heard) | Warm and gentle, a soft place to land. | affectionate · calm · balanced | dawn / amber-rose warm |
+| **Aurora** *(primary)* | sits with you (be heard) | Warm and gentle, a soft place to land. | doting · calm · balanced | dawn / amber-rose warm |
 | **Orion** | steadies you (be anchored) | Steady and grounded, a calm anchor. | warm · calm · concise | dusk / deep-clay warm |
 | **Lyra** | lifts you (be lifted) | Bright and playful, lifts the mood. | warm · playful · expansive | sunlit / honey warm |
 
