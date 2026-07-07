@@ -81,7 +81,22 @@ Format mirrors personas.md (do / avoid).
 
 Each portrait: warm flat matte-gouache, soft front light, warm palette (cream, warm browns, terracotta,
 wine accent), head-and-shoulders, adult 25+, plain flat cream bg (cut to transparent after), no baked
-circle / watermark / text, resized to **1254×1254**. Named `batch2-01…09`.
+circle / watermark / text, resized to **1254×1254**. Named after the character, lowercase
+(`sage.png`, `amara.png`, …).
+
+**Style canon:** the 3 anchors (aurora/orion/lyra) are the one true look — soft, warm, semi-realistic
+**cel / gouache** painting with smooth gradient shading, rendered hair strands, subtle cheek blush,
+soft-edged forms. NOT flat vector, graphic/editorial, hard-outlined comic, anime, 3D, or photoreal. Every
+avatar must belong to this one family so the gallery reads as a set.
+
+**Gaze (canon):** eyes **engage the viewer by default** — a companion picker runs on eye contact =
+warmth/connection, and all 3 anchors look at the viewer. A slight three-quarter side-glance is allowed
+**only** for the reflective characters (Wren, Soren), and even then **both eyes stay clearly visible —
+never a full profile.** Everyone else looks toward the viewer.
+
+**Framing (canon):** tight **head-and-shoulders** matching the anchors' crop — head near the top with a
+small margin, cut at the upper chest, face large and centered. Do **not** zoom out to show torso or bust
+(keeps every gallery circle at a uniform scale). No hands unless the character's direction calls for one.
 
 **Heritage + skin tone are assigned per character** to make the gallery span pale-fair to deep-brown
 (all 3 anchors sit in one **medium warm-tan** band, so the 9 must carry BOTH the pale/light end and the
