@@ -21,6 +21,25 @@ export function voiceFor(c: Companion): string {
   return canon ?? c.traits.join(' · ');
 }
 
+/** Select-mode leading circle (empty ring → filled check) — the same neutral check-badge pattern
+ * as the create picker (no accent; selection isn't the one-accent moment). Shared by the roster
+ * row and the archived card. */
+export function SelectCircle({ selected }: { selected: boolean }) {
+  const { colors } = useTheme();
+  return (
+    <View
+      style={[
+        styles.selectCircle,
+        selected
+          ? { backgroundColor: colors.textPrimary, borderColor: colors.textPrimary }
+          : { backgroundColor: 'transparent', borderColor: colors.border },
+      ]}
+    >
+      {selected ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+    </View>
+  );
+}
+
 interface CompanionRowProps {
   companion: Companion;
   isHome: boolean;
@@ -35,6 +54,11 @@ interface CompanionRowProps {
   onLongPress: () => void;
   onPin: () => void;
   onArchive: () => void;
+  /** Select mode (roster spec §12): swipe + the long-press entry are disabled, and a leading
+   * selection circle replaces the usual affordances. `onPress` still fires — the parent decides
+   * whether that means "toggle selection" or "open chat". */
+  selecting?: boolean;
+  selected?: boolean;
 }
 
 export function CompanionRow({
@@ -50,6 +74,8 @@ export function CompanionRow({
   onLongPress,
   onPin,
   onArchive,
+  selecting,
+  selected,
 }: CompanionRowProps) {
   const { colors } = useTheme();
   return (
@@ -58,6 +84,7 @@ export function CompanionRow({
         ref={swipeRef}
         friction={2}
         overshootFriction={8}
+        enabled={!selecting}
         onSwipeableWillOpen={onSwipeOpen}
         onSwipeableClose={onSwipeClose}
         renderLeftActions={() => (
@@ -85,9 +112,10 @@ export function CompanionRow({
       >
         <Pressable
           onPress={onPress}
-          onLongPress={onLongPress}
+          onLongPress={selecting ? undefined : onLongPress}
           style={[styles.card, { backgroundColor: colors.raised }]}
         >
+          {selecting ? <SelectCircle selected={!!selected} /> : null}
           <View style={styles.avatarWrap}>
             <Avatar id={c.id} name={c.name} size={56} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
             {isHome ? (
@@ -118,8 +146,11 @@ export function CompanionRow({
               </Text>
             )}
           </View>
-          {/* Subtle long-press hint — not itself interactive; the whole row already is. */}
-          <Ionicons name="ellipsis-horizontal" size={16} color={colors.textTertiary} style={styles.hint} />
+          {/* Subtle long-press hint — not itself interactive; the whole row already is. Hidden in
+              Select mode, where long-press no longer opens anything new. */}
+          {!selecting ? (
+            <Ionicons name="ellipsis-horizontal" size={16} color={colors.textTertiary} style={styles.hint} />
+          ) : null}
         </Pressable>
       </Swipeable>
     </View>
@@ -167,6 +198,16 @@ const styles = StyleSheet.create({
     gap: SPACE.lg,
     borderRadius: RADIUS.card,
     padding: SPACE.lg,
+  },
+  // Select-mode leading circle — same neutral check-badge pattern as the create screen's base
+  // picker (empty ring → filled check; no accent, since selection isn't the one-accent moment).
+  selectCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardText: { flex: 1, gap: 2 },
   cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: SPACE.sm },

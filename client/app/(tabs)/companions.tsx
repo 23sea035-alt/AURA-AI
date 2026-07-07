@@ -3,39 +3,53 @@
 // free/premium gate is partial: tuning + look only, in the creator). Create is the floating "+"
 // FAB — a first-class free action (roster spec §12), shown on the Active subtab only.
 //
-// Each row supports two entry points to the same three actions (Pin/Unpin, Archive, Edit):
-// swipe (right reveals Pin, left reveals Archive) for fast one-handed use, and long-press for an
-// action sheet (also the discoverability fallback for swipe, plus the only path to Edit). Archive
-// is a soft-delete: hidden from this list, messages/memory untouched, restorable from the
-// "Archived" section — the same contract as archiving a conversation thread, not deleting one.
+// Each row supports two entry points to Pin/Archive: swipe (right reveals Pin, left reveals
+// Archive) for fast one-handed use, and long-press to enter Select mode with that row pre-checked
+// (the batch archive/delete/unarchive workflow, spec §12). Edit now lives in the chat header's
+// "Companion settings", not here. Archive is a soft-delete: hidden from this list, messages/memory
+// untouched, restorable from the "Archived" subtab, whose cards open the same read-only archived
+// chat (spec §8) — the same contract as archiving a conversation thread, not deleting one.
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, View, Text, StyleSheet, ScrollView, TextInput } from 'react-native';
 import { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { activeCompanionCap } from '@aura/shared';
+
 import { Avatar } from '@/components/Avatar';
-import BottomSheet from '@/components/BottomSheet';
-import { CompanionRow, voiceFor } from '@/components/companion/CompanionRow';
+import { Button } from '@/components/Button';
+import { CompanionLimitSheet, type CompanionLimitKind } from '@/components/companion/CompanionLimitSheet';
+import { CompanionRow, SelectCircle, voiceFor } from '@/components/companion/CompanionRow';
+import ConfirmSheet from '@/components/ConfirmSheet';
 import { Segmented } from '@/components/Segmented';
+import { Toast } from '@/components/Toast';
 import { PressableScale, enterUp } from '@/components/motion';
 import { COMPANIONS } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { type Companion, useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { activeOf, archivedOf, canArchive as canArchiveIds, canDelete as canDeleteIds } from '@/lib/roster';
 import { useNow } from '@/utils/time';
-
-const editCompanion = (id: string) =>
-  router.push({ pathname: '/companion/create', params: { mode: 'edit', id } });
 
 export default function CompanionsScreen() {
   const { colors, shadows, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { companions, typing, primaryCompanionId, setPrimaryCompanion, archiveCompanion, restoreCompanion } =
-    useApp();
+  const {
+    user,
+    companions,
+    typing,
+    primaryCompanionId,
+    setPrimaryCompanion,
+    archiveCompanion,
+    restoreCompanion,
+    archiveMany,
+    restoreMany,
+    deleteMany,
+  } = useApp();
   // Live relative-time labels (frontend-only: derived from stored ISO stamps).
   const now = useNow();
 
@@ -57,9 +71,11 @@ export default function CompanionsScreen() {
     }
   };
 
-  const active = companions.filter((c) => !c.archivedAt);
-  const archived = companions.filter((c) => c.archivedAt);
-  const canArchive = active.length > 1;
+  const active = activeOf(companions);
+  const archived = archivedOf(companions);
+  // A row's own swipe-to-archive hides itself once it would be the last active survivor —
+  // archiveMany/canArchive enforce the same min-1-active rule for the batch case below.
+  const canArchiveRow = active.length > 1;
 
   // Active / Archived subtabs replace the old scroll-to-the-bottom collapsible; search filters
   // within the selected tab by name.
@@ -69,11 +85,106 @@ export default function CompanionsScreen() {
   const source = tab === 'active' ? active : archived;
   const filtered = q ? source.filter((c) => c.name.toLowerCase().includes(q)) : source;
 
-  const [sheetFor, setSheetFor] = useState<string | null>(null);
+  // ── Select mode (spec §12) — batch archive/restore/delete ─────────────────
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [limitKind, setLimitKind] = useState<CompanionLimitKind | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const enterSelect = () => {
+    closeOpenSwipe();
+    setSelecting(true);
+    setSelectedIds(new Set());
+  };
+  const enterSelectWith = (id: string) => {
+    closeOpenSwipe();
+    setSelecting(true);
+    setSelectedIds(new Set([id]));
+  };
+  const exitSelect = () => {
+    setSelecting(false);
+    setSelectedIds(new Set());
+  };
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const changeTab = (v: 'active' | 'archived') => {
+    setTab(v);
+    // Switching subtabs while selecting keeps Select mode but clears the selection — the
+    // checked ids belong to the list that's no longer showing.
+    if (selecting) setSelectedIds(new Set());
+  };
+
+  // Entry params (spec §4): the at-limit sheets elsewhere navigate here with
+  // `{ select: 'active' | 'archived' }` to drop the user straight into Select on that subtab.
+  const params = useLocalSearchParams<{ select?: string }>();
+  useEffect(() => {
+    if (params.select === 'active' || params.select === 'archived') {
+      setTab(params.select);
+      setSelecting(true);
+      setSelectedIds(new Set());
+      router.setParams({ select: undefined });
+    }
+  }, [params.select]);
+
+  const selIds = Array.from(selectedIds);
+  const archiveCheck = canArchiveIds(companions, selIds);
+  const deleteCheck = canDeleteIds(companions, selIds);
+  const archiveDisabled = selIds.length === 0 || !archiveCheck.ok;
+  const unarchiveDisabled = selIds.length === 0;
+  const deleteDisabled = selIds.length === 0 || !deleteCheck.ok;
+  let actionHint: string | null = null;
+  if (selIds.length > 0) {
+    if (!deleteCheck.ok) {
+      actionHint = deleteCheck.block === 'base_delete' ? COMPANIONS.select.baseDeleteHint : COMPANIONS.select.lastActiveHint;
+    } else if (tab === 'active' && !archiveCheck.ok) {
+      actionHint = COMPANIONS.select.lastActiveHint;
+    }
+  }
+
+  const doArchiveMany = () => {
+    archiveMany(selIds);
+    exitSelect();
+  };
+  const doUnarchiveMany = () => {
+    const { restored, blocked } = restoreMany(selIds);
+    if (blocked > 0) {
+      const cap = activeCompanionCap(!!user?.isPremium);
+      setToastMsg(
+        COMPANIONS.select.restoredPartialTemplate.replace('{restored}', String(restored)).replace('{cap}', String(cap)),
+      );
+    }
+    exitSelect();
+  };
+  const confirmDeleteMany = () => {
+    deleteMany(selIds);
+    setConfirmDeleteOpen(false);
+    exitSelect();
+  };
+
+  const deleteSelectionName = selIds.length === 1 ? companions.find((c) => c.id === selIds[0])?.name ?? '' : '';
+  const deleteTitle =
+    selIds.length === 1
+      ? COMPANIONS.deleteConfirm.titleTemplate.replace('{Companion}', deleteSelectionName)
+      : COMPANIONS.deleteConfirm.title;
+  const deleteBody =
+    selIds.length === 1 ? COMPANIONS.deleteConfirm.body : COMPANIONS.deleteConfirm.bodyBatchTemplate.replace('{n}', String(selIds.length));
+
+  // Single restore honors the active cap (spec §6/§8) — blocked at the cap opens the same
+  // at-limit sheet as create, with entry points back into Select on either subtab.
+  const onRestorePress = (c: Companion) => {
+    const result = restoreCompanion(c.id);
+    if (!result.ok && result.block === 'active_full') setLimitKind('active_full');
+  };
+
   const [undo, setUndo] = useState<{ id: string; name: string } | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const sheetCompanion = active.find((c) => c.id === sheetFor) ?? null;
 
   const doArchive = (c: Companion) => {
     archiveCompanion(c.id);
@@ -89,16 +200,51 @@ export default function CompanionsScreen() {
     setUndo(null);
   };
 
+  // The contextual action bar (tall enough to cover the floating tab bar + its bottom inset)
+  // needs more list clearance than the FAB does.
+  const listBottomPad = insets.bottom + (selecting ? 190 : 110);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
 
-      {/* Header: title only — create moved to the FAB (a first-class free action, spec §12). */}
+      {/* Header: title + the "Select" text control (spec §12/§16) — no icon, since none of the
+          candidates read unambiguously as "enter multi-select". Swaps to a selection count + Done
+          while selecting. */}
       <Animated.View entering={enterUp(0)} style={[styles.header, { paddingTop: insets.top + SPACE.xl }]}>
-        <Text style={[styles.title, { color: colors.textPrimary }]}>{COMPANIONS.title}</Text>
+        {selecting ? (
+          <>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>
+              {COMPANIONS.select.selectedTemplate.replace('{n}', String(selectedIds.size))}
+            </Text>
+            <PressableScale
+              haptic="light"
+              onPress={exitSelect}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={COMPANIONS.select.done}
+            >
+              <Text style={[styles.headerAction, { color: colors.accent }]}>{COMPANIONS.select.done}</Text>
+            </PressableScale>
+          </>
+        ) : (
+          <>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>{COMPANIONS.title}</Text>
+            <PressableScale
+              haptic="light"
+              onPress={enterSelect}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={COMPANIONS.select.enter}
+            >
+              <Text style={[styles.headerAction, { color: colors.textSecondary }]}>{COMPANIONS.select.enter}</Text>
+            </PressableScale>
+          </>
+        )}
       </Animated.View>
 
-      {/* Subtabs + search — fixed above the list; search filters within the selected tab. */}
+      {/* Subtabs + search — fixed above the list; search filters within the selected tab. Both
+          stay live in Select mode (switching subtabs is how you select across lists). */}
       <View style={styles.controls}>
         <View style={[styles.search, { backgroundColor: colors.raised, borderColor: colors.border }]}>
           <Ionicons name="search" size={18} color={colors.textTertiary} />
@@ -124,12 +270,12 @@ export default function CompanionsScreen() {
             </PressableScale>
           ) : null}
         </View>
-        <Segmented options={COMPANIONS.subtabs} value={tab} onChange={(v) => setTab(v as 'active' | 'archived')} />
+        <Segmented options={COMPANIONS.subtabs} value={tab} onChange={(v) => changeTab(v as 'active' | 'archived')} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 110 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: listBottomPad }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={closeOpenSwipe}
@@ -143,76 +289,98 @@ export default function CompanionsScreen() {
           </View>
         ) : tab === 'active' ? (
           filtered.map((c, i) => {
-          const isHome = c.id === primaryCompanionId;
-          return (
-            <Animated.View key={c.id} entering={enterUp(i + 1)} style={[styles.rowShadow, shadows.e2]}>
-              <CompanionRow
-                companion={c}
-                isHome={isHome}
-                canArchive={canArchive}
-                typing={!!typing[c.id]}
-                now={now}
-                swipeRef={swipeRefFor(c.id)}
-                onSwipeOpen={() => {
-                  if (openSwipeId.current && openSwipeId.current !== c.id) closeOpenSwipe();
-                  openSwipeId.current = c.id;
-                }}
-                onSwipeClose={() => {
-                  if (openSwipeId.current === c.id) openSwipeId.current = null;
-                }}
-                onPress={() => {
-                  if (openSwipeId.current) {
+            const isHome = c.id === primaryCompanionId;
+            return (
+              <Animated.View key={c.id} entering={enterUp(i + 1)} style={[styles.rowShadow, shadows.e2]}>
+                <CompanionRow
+                  companion={c}
+                  isHome={isHome}
+                  canArchive={canArchiveRow}
+                  typing={!!typing[c.id]}
+                  now={now}
+                  selecting={selecting}
+                  selected={selectedIds.has(c.id)}
+                  swipeRef={swipeRefFor(c.id)}
+                  onSwipeOpen={() => {
+                    if (openSwipeId.current && openSwipeId.current !== c.id) closeOpenSwipe();
+                    openSwipeId.current = c.id;
+                  }}
+                  onSwipeClose={() => {
+                    if (openSwipeId.current === c.id) openSwipeId.current = null;
+                  }}
+                  onPress={() => {
+                    if (selecting) {
+                      toggleSelect(c.id);
+                      return;
+                    }
+                    if (openSwipeId.current) {
+                      closeOpenSwipe();
+                      return;
+                    }
+                    router.push({ pathname: '/chat/[id]', params: { id: c.id } });
+                  }}
+                  onLongPress={() => enterSelectWith(c.id)}
+                  onPin={() => {
+                    setPrimaryCompanion(isHome ? '' : c.id);
                     closeOpenSwipe();
-                    return;
-                  }
-                  router.push({ pathname: '/chat/[id]', params: { id: c.id } });
-                }}
-                onLongPress={() => {
-                  closeOpenSwipe();
-                  setSheetFor(c.id);
-                }}
-                onPin={() => {
-                  setPrimaryCompanion(isHome ? '' : c.id);
-                  closeOpenSwipe();
-                }}
-                onArchive={() => {
-                  doArchive(c);
-                  closeOpenSwipe();
-                }}
-              />
-            </Animated.View>
-          );
+                  }}
+                  onArchive={() => {
+                    doArchive(c);
+                    closeOpenSwipe();
+                  }}
+                />
+              </Animated.View>
+            );
           })
         ) : (
-          filtered.map((c, i) => (
-            <Animated.View key={c.id} entering={enterUp(i + 1)}>
-              <View style={[styles.archivedCard, { backgroundColor: colors.raised }, shadows.e1]}>
-                <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
-                <View style={styles.archivedText}>
-                  <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
-                    {c.name}
-                  </Text>
-                  <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
-                    {voiceFor(c)}
-                  </Text>
-                </View>
-                <PressableScale
-                  haptic="light"
-                  onPress={() => restoreCompanion(c.id)}
-                  style={[styles.restoreBtn, { borderColor: colors.border }]}
+          filtered.map((c, i) => {
+            const selected = selectedIds.has(c.id);
+            return (
+              <Animated.View key={c.id} entering={enterUp(i + 1)}>
+                <Pressable
+                  onPress={() => {
+                    if (selecting) {
+                      toggleSelect(c.id);
+                      return;
+                    }
+                    // Archived-chat UX (spec §8): opening reads full history read-only; only
+                    // restoring (via the button, or Unarchive in-chat) consumes an active slot.
+                    router.push({ pathname: '/chat/[id]', params: { id: c.id } });
+                  }}
+                  onLongPress={() => enterSelectWith(c.id)}
+                  style={[styles.archivedCard, { backgroundColor: colors.raised }, shadows.e1]}
                 >
-                  <Text style={[styles.restoreText, { color: colors.accent }]}>{COMPANIONS.archivedSection.restore}</Text>
-                </PressableScale>
-              </View>
-            </Animated.View>
-          ))
+                  {selecting ? <SelectCircle selected={selected} /> : null}
+                  <Avatar id={c.id} name={c.name} size={44} colorFrom={c.colorFrom} colorTo={c.colorTo} lookId={c.lookId} />
+                  <View style={styles.archivedText}>
+                    <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
+                      {c.name}
+                    </Text>
+                    <Text style={[styles.voice, { color: colors.textSecondary }]} numberOfLines={1}>
+                      {voiceFor(c)}
+                    </Text>
+                  </View>
+                  {!selecting ? (
+                    <PressableScale
+                      haptic="light"
+                      onPress={() => onRestorePress(c)}
+                      style={[styles.restoreBtn, { borderColor: colors.border }]}
+                    >
+                      <Text style={[styles.restoreText, { color: colors.accent }]}>{COMPANIONS.archivedSection.restore}</Text>
+                    </PressableScale>
+                  ) : null}
+                </Pressable>
+              </Animated.View>
+            );
+          })
         )}
       </ScrollView>
 
-      {/* Create FAB — Active subtab only (hidden on Archived, a management view). Floats above
+      {/* Create FAB — Active subtab only, hidden on Archived (a management view) and while
+          selecting (nothing should fight the contextual action bar for the bottom). Floats above
           the floating tab bar (absolute bar ignores bottom-inset math at 0; ~84pt covers bar +
           margin) and the list's paddingBottom keeps the last row clear of it. */}
-      {tab === 'active' ? (
+      {tab === 'active' && !selecting ? (
         <PressableScale
           haptic="light"
           onPress={() => router.push('/companion/create')}
@@ -235,61 +403,82 @@ export default function CompanionsScreen() {
         </View>
       ) : null}
 
-      <BottomSheet visible={!!sheetCompanion} onClose={() => setSheetFor(null)} scrollable={false}>
-        {sheetCompanion ? (
-          <View style={styles.sheet}>
-            <SheetRow
-              icon="create-outline"
-              label={COMPANIONS.actionSheet.edit}
-              onPress={() => {
-                setSheetFor(null);
-                editCompanion(sheetCompanion.id);
-              }}
-            />
-            <SheetRow
-              icon={sheetCompanion.id === primaryCompanionId ? 'location' : 'location-outline'}
-              label={sheetCompanion.id === primaryCompanionId ? COMPANIONS.swipe.unpin : COMPANIONS.swipe.pin}
-              onPress={() => {
-                const isHome = sheetCompanion.id === primaryCompanionId;
-                setPrimaryCompanion(isHome ? '' : sheetCompanion.id);
-                setSheetFor(null);
-              }}
-            />
-            {canArchive ? (
-              <SheetRow
-                icon="archive-outline"
-                label={COMPANIONS.swipe.archive}
-                danger
-                onPress={() => {
-                  doArchive(sheetCompanion);
-                  setSheetFor(null);
-                }}
+      {/* Contextual action bar (spec §12) — replaces the tab bar visually while selecting. Solid
+          bg surface + hairline top border, tall enough (content + safe-area padding) to cover the
+          floating pill tab bar underneath rather than hiding it via navigation options. */}
+      {selecting ? (
+        <Animated.View
+          entering={enterUp(0)}
+          style={[
+            styles.actionBar,
+            { backgroundColor: colors.bg, borderTopColor: colors.border, paddingBottom: insets.bottom + SPACE.md },
+            shadows.e3,
+          ]}
+        >
+          {actionHint ? <Text style={[styles.actionHint, { color: colors.textTertiary }]}>{actionHint}</Text> : null}
+          <View style={styles.actionRow}>
+            {tab === 'active' ? (
+              <Button
+                label={COMPANIONS.select.archive}
+                variant="secondary"
+                size="md"
+                disabled={archiveDisabled}
+                onPress={doArchiveMany}
+                style={styles.actionBtn}
               />
-            ) : null}
+            ) : (
+              <Button
+                label={COMPANIONS.select.unarchive}
+                variant="secondary"
+                size="md"
+                disabled={unarchiveDisabled}
+                onPress={doUnarchiveMany}
+                style={styles.actionBtn}
+              />
+            )}
+            <Button
+              label={COMPANIONS.select.delete}
+              variant="danger"
+              size="md"
+              disabled={deleteDisabled}
+              onPress={() => setConfirmDeleteOpen(true)}
+              style={styles.actionBtn}
+            />
           </View>
-        ) : null}
-      </BottomSheet>
-    </View>
-  );
-}
+        </Animated.View>
+      ) : null}
 
-function SheetRow({
-  icon,
-  label,
-  onPress,
-  danger,
-}: {
-  icon: React.ComponentProps<typeof Ionicons>['name'];
-  label: string;
-  onPress: () => void;
-  danger?: boolean;
-}) {
-  const { colors } = useTheme();
-  return (
-    <PressableScale haptic="light" onPress={onPress} style={styles.sheetRow}>
-      <Ionicons name={icon} size={18} color={danger ? colors.error : colors.textPrimary} />
-      <Text style={[styles.sheetRowText, { color: danger ? colors.error : colors.textPrimary }]}>{label}</Text>
-    </PressableScale>
+      <ConfirmSheet
+        visible={confirmDeleteOpen}
+        onClose={() => setConfirmDeleteOpen(false)}
+        title={deleteTitle}
+        message={deleteBody}
+        confirmLabel={COMPANIONS.deleteConfirm.confirm}
+        cancelLabel={COMPANIONS.deleteConfirm.cancel}
+        onConfirm={confirmDeleteMany}
+        destructive
+      />
+
+      <CompanionLimitSheet
+        kind={limitKind}
+        onClose={() => setLimitKind(null)}
+        isPremium={!!user?.isPremium}
+        activeCount={active.length}
+        onArchive={() => {
+          setTab('active');
+          setSelecting(true);
+          setSelectedIds(new Set());
+        }}
+        onManageArchived={() => {
+          setTab('archived');
+          setSelecting(true);
+          setSelectedIds(new Set());
+        }}
+        onGoPremium={() => router.push('/premium')}
+      />
+
+      <Toast visible={!!toastMsg} message={toastMsg ?? ''} duration={4000} onHide={() => setToastMsg(null)} />
+    </View>
   );
 }
 
@@ -309,6 +498,7 @@ const styles = StyleSheet.create({
     gap: SPACE.md,
   },
   title: { ...TYPE.headline, flex: 1 },
+  headerAction: { fontFamily: FONTS.body.semibold, fontSize: 16 },
   fab: {
     position: 'absolute',
     right: SPACE.xl,
@@ -375,7 +565,20 @@ const styles = StyleSheet.create({
   },
   undoText: { fontFamily: FONTS.body.regular, fontSize: 14, flex: 1 },
   undoAction: { fontFamily: FONTS.body.semibold, fontSize: 14 },
-  sheet: { paddingTop: SPACE.xs },
-  sheetRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.md },
-  sheetRowText: { ...TYPE.body },
+  // The contextual action bar replaces the tab bar visually — full-width, solid, and tall enough
+  // (paddingTop + button row + optional hint + the safe-area paddingBottom above) to fully cover
+  // the floating pill tab bar rather than layering above a visible sliver of it.
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    paddingTop: SPACE.md,
+    paddingHorizontal: SPACE.xl,
+    gap: SPACE.sm,
+  },
+  actionHint: { ...TYPE.caption, textAlign: 'center' },
+  actionRow: { flexDirection: 'row', gap: SPACE.md },
+  actionBtn: { flex: 1 },
 });
