@@ -6,7 +6,12 @@ export type UserStatus = (typeof USER_STATUS)[number];
 export const AGE_ASSURANCE_METHOD = ['self_declared', 'apple_declared_age_range', 'third_party'] as const;
 export type AgeAssuranceMethod = (typeof AGE_ASSURANCE_METHOD)[number];
 
-export const PERSONA_KEY = ['aurora', 'orion', 'lyra'] as const;
+// The 12 curated gallery presets (3 anchors + 9). The rich voice packs keyed by these ids live in
+// personas.ts (compiler-enforced complete via Record<PersonaKey, ...>). This list is the DB/API enum.
+export const PERSONA_KEY = [
+  'aurora', 'orion', 'lyra',
+  'sage', 'amara', 'eli', 'selene', 'soren', 'juno', 'thea', 'cyrus', 'wren',
+] as const;
 export type PersonaKey = (typeof PERSONA_KEY)[number];
 
 export const MESSAGE_ROLE = ['user', 'assistant'] as const;
@@ -60,15 +65,28 @@ export type ModeratorModel = (typeof MODERATOR_MODEL)[number];
 export const BANNED_IDENTIFIER_TYPE = ['email_hash', 'apple_sub_hash', 'google_sub_hash'] as const;
 export type BannedIdentifierType = (typeof BANNED_IDENTIFIER_TYPE)[number];
 
-export type Warmth = 'reserved' | 'warm' | 'doting';
-export type Energy = 'calm' | 'balanced' | 'playful';
-export type Verbosity = 'concise' | 'balanced' | 'expansive';
+// Runtime value arrays are the single source; the axis types derive from them so the client picker,
+// the tuning UI, and server-side validation share one list (no re-declared TRAITS on the client).
+export const WARMTH_VALUES = ['reserved', 'warm', 'doting'] as const;
+export const ENERGY_VALUES = ['calm', 'balanced', 'playful'] as const;
+export const VERBOSITY_VALUES = ['concise', 'balanced', 'expansive'] as const;
+export type Warmth = (typeof WARMTH_VALUES)[number];
+export type Energy = (typeof ENERGY_VALUES)[number];
+export type Verbosity = (typeof VERBOSITY_VALUES)[number];
 
 export interface PersonaTraits {
   warmth: Warmth;
   energy: Energy;
   verbosity: Verbosity;
 }
+
+// Grid-validated traits — replaces the old untyped z.record so off-grid values are rejected at the
+// API boundary (never trust the client even though it reads the same list from @aura/shared).
+export const PersonaTraitsSchema = z.object({
+  warmth: z.enum(WARMTH_VALUES),
+  energy: z.enum(ENERGY_VALUES),
+  verbosity: z.enum(VERBOSITY_VALUES),
+});
 
 export const FREE_DAILY_LIMIT = 30;
 export const MAX_MESSAGE_CHARS = 2000;
@@ -145,12 +163,13 @@ export const ChatInputSchema = z.object({
 export const CreateCompanionSchema = z.object({
   name: z.string().min(1).max(100),
   personaKey: z.enum(PERSONA_KEY).optional().default('aurora'),
-  traits: z.record(z.string(), z.unknown()).optional().default({}),
+  // Optional: when omitted the server fills the chosen preset's defaultTraits.
+  traits: PersonaTraitsSchema.optional(),
 });
 
 export const UpdateCompanionSchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  traits: z.record(z.string(), z.unknown()).optional(),
+  traits: PersonaTraitsSchema.optional(),
 });
 
 export const UpdateProfileSchema = z.object({

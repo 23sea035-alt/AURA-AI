@@ -21,11 +21,13 @@ neighbours. The fix is two layers.
 
 ```
 { id, name,
+  tagline,       // public picker line ("Warm and gentle, a soft place to land") — client-safe
   stance,        // the relational job: "you help the user feel heard"
   devices[],     // concrete behavioral MOVES ("name the feeling before anything else")
   lexicon,       // diction ("soft address like 'love' fits her")
-  exemplars[],   // 1-2 few-shot turns — show, don't tell (strongest adherence lever)
+  exemplars[],   // 1-2 SHORT few-shot turns — show, don't tell (strongest length+style lever)
   defaultTraits, // this character's default grid point
+  backchannels?, // brief reaction tokens ("oh", "mm") used sparingly — warmth in one syllable
   voiceId? }     // Inworld casting (placeholder until voices are cast)
 ```
 
@@ -42,7 +44,7 @@ ignores tone words:
 |------|-------|
 | warmth | 0 endearments / ~1 warm line / ≥1 endearment + explicit care |
 | energy | 0 exclamations, no jokes / ≤1 exclamation / ≥1 playful move |
-| verbosity | 1–2 sentences, no question / 2–3 sentences / 3–4 sentences |
+| verbosity | ~1 sentence, no follow-up question / 1–3 sentences / a little more room when it fits, never an essay |
 
 The pack is fixed (identity); the grid moves the dials. `assemblePrompt` composes: safety preamble +
 `[Persona: name]` + stance + devices + lexicon + exemplars + the 3 selected grid contracts + output
@@ -69,7 +71,7 @@ The pack is designed to drive spoken voice too (`inworld-tts-2` already supports
 
 ## Phasing
 
-- **v1.0 free:** pick 1 of 15 (3 anchors + 12 gallery) + rename. No editing, no tuning.
+- **v1.0 free:** pick 1 of 12 (3 anchors + 9 gallery) + rename. No editing, no tuning.
 - **v1.0 premium:** grid personality tuning (the mechanical contracts) + higher cap + locked companions.
 - **v1.1:** appearance editor (on the 3 layered base faces only; the 12 gallery portraits stay
   pick-only flat) + deeper device/stance knobs + premium voices + audible prosody.
@@ -77,26 +79,40 @@ The pack is designed to drive spoken voice too (`inworld-tts-2` already supports
 The structured pack is the shared backbone: v1.0 ships it fixed; v1.1 exposes `devices`/`stance` as
 editable knobs. Nothing is re-authored.
 
-## Status (as-built 2026-07-06)
+## Status (as-built 2026-07-07)
 
-**Done + green (542 tests pass):** `@aura/shared` manifest (packs + contracts + `getPersonaPack` /
+**Done + green (553 tests pass):** `@aura/shared` manifest (packs + contracts + `getPersonaPack` /
 `gridContractLines`); `prompt-assembler` composes packs (retired `BASE_VOICES`, fixed Orion's stale
-"coach" voice to the steady-anchor canon); `doting` rename propagated across shared/server/client/eval;
-`eval:persona` extended with the tune-step delta test.
+"coach" voice to the steady-anchor canon); `doting` rename across shared/server/client/eval;
+`eval:persona` tune-step delta + resumable per-cell cache; `eval:edge` companion/assistant-boundary probe.
 
-**Verified qualitatively:** with real packs, replies are visibly distinct (Aurora "sweet one/love" +
-question; Orion short/grounded/no-endearment; Sage spare; Amara endearment-flood; Soren dry; etc.), and
-the warmth/energy contracts bite (reserved drops endearments; playful adds an image).
+**Eval PASSED (2026-07-07, real Groq run on a fresh free-tier daily bucket):** distinctness **36/36**
+blind re-match (Claude-judged, all 3 scenarios, no confusable pair collapsed); tune-step **3/3 axes**
+bite (warmth endearments 0/0/2, energy exclamations 0/0/1, verbosity sentences 1/2/2 with concise
+question-count 0). Did **not** need the paid tier — the full 45-cell run (~55k tokens) fits one free
+100k/day bucket; the probe is resumable if a bucket is mid-depleted.
 
-**Open / not done here:**
-1. **Automated eval gate is blocked** by Groq free-tier token limits (the probe rate-limited to error
-   cells; harness prints a `RATE-LIMITED` warning and is correct). Re-run on the **paid Groq tier** (a
-   known v1 go-live gate) to get the real distinctness + tune-step numbers and gate ≥60% / orderable steps.
-2. **Verbosity-vs-device tension:** on a question-asking persona (Aurora), the `concise` "no follow-up
-   question" contract loses to the always-on "ask a soft question" device + exemplars. Either make
-   `concise` explicitly cancel a trailing question, or scope the device out at the concise level.
-3. **Backend wiring (gated on the eval):** the `companions.persona_key` CHECK is still `in
-   ('aurora','orion','lyra')` — expanding to the 12 preset ids + carrying the pack/`voiceId` on the
-   gallery preset (per customization §8) is a migration, deliberately deferred until the eval passes.
-4. **Crisis-line false-positive** (separate moderation ticket): the safety preamble injects 988 on
-   plain venting ("i'm drained") for some personas — over-triggering; calibrate.
+**Response-shaping (research-backed, commit `fbc729d`):** replies were ~4x human length (fleet 57 words);
+cut to **26 words/reply** via short in-persona exemplars + a turn-matching preamble + reworded verbosity
+contracts + sparing backchannels — without losing distinctness (proven by the 36/36 re-match). Full cited
+report: `docs/research/companion-response-shaping.md`.
+
+**Companion/assistant boundary (commit `fbc729d`, `eval:edge`):** answer direct questions / story /
+options instead of deflecting to feelings; conditioned the Aurora/Wren "ask a question" devices on the
+turn; widened the medical guard to supplements / efficacy / dosage → route to a professional.
+
+**12-gallery wired end-to-end (commit `455630a`):** `PERSONA_KEY` → the 12 ids (single source of truth in
+`@aura/shared`); `PERSONA_PACKS` typed `Record<PersonaKey,...>`; public `PERSONA_PRESETS`
+(id/name/tagline/defaultTraits) for the client; grid-validated `Create/UpdateCompanionSchema`;
+**migration 0004** widens the DB CHECK to 12; create route seeds preset defaults; client re-exports.
+
+**Resolved since 2026-07-06:** verbosity-vs-device tension FIXED (concise now yields ~1 sentence, no
+question); crisis-line 988 false-positive FIXED (`deterministic.ts` downgraded the broad distress pattern
+so L2-omni adjudicates instead of the preamble forcing a hotline).
+
+**Still open (not code — deferred by design):**
+1. **9 gallery avatars** (art-gated): onboarding + the create base-picker show the 3 anchors (they have
+   portraits); the 12 surface via `PERSONA_GALLERY` once the 9 portraits land.
+2. **`voiceId` casting for the 9:** `voice-session.ts` casts only the 3 anchors (env-keyed
+   `INWORLD_VOICE_ID_*`); the 9 fall back to a warm default prosody + the adapter's default voice until
+   Inworld voices are assigned.

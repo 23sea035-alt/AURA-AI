@@ -42,7 +42,7 @@ describe("assemblePrompt", () => {
     const result = assemblePrompt(defaultInput); // warm / balanced / balanced
     expect(result.systemPrompt).toContain("Delivery for this companion:");
     expect(result.systemPrompt).toContain("Warm but restrained"); // warmth=warm contract
-    expect(result.systemPrompt).toContain("two to three sentences"); // verbosity=balanced contract
+    expect(result.systemPrompt).toContain("one to three sentences"); // verbosity=balanced contract
   });
 
   it("reflects the doting warmth level (renamed from affectionate)", () => {
@@ -65,10 +65,18 @@ describe("assemblePrompt", () => {
     expect(result.systemPrompt).not.toContain("<<MEMORY");
   });
 
-  it("includes output constraints in systemPrompt", () => {
+  it("includes turn-matching + no-markdown output constraints", () => {
     const result = assemblePrompt(defaultInput);
-    expect(result.systemPrompt).toContain("2–4 sentences");
-    expect(result.systemPrompt).toContain("plain text");
+    expect(result.systemPrompt).toContain("matched to the user's message length");
+    expect(result.systemPrompt).toContain("no markdown");
+  });
+
+  it("appends a post-history in-character reminder as the last message", () => {
+    const result = assemblePrompt({ ...defaultInput, companionName: "Aurora" });
+    const last = result.messages[result.messages.length - 1];
+    expect(last.role).toBe("user");
+    expect(last.content).toContain("Reply as Aurora");
+    expect(last.content).toContain("not an essay");
   });
 
   it("wraps userMessage in USER_INPUT delimiter", () => {

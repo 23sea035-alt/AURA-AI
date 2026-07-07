@@ -11,6 +11,7 @@
     "eval": "node --env-file=.env --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner.ts",
     "eval:gen": "node --env-file=.env --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner-generation.ts",
     "eval:persona": "node --env-file=.env --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner-persona-probe.ts",
+    "eval:edge": "node --env-file=.env --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner-edge-probes.ts",
     "eval:consolidation": "node --env-file=.env --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner-consolidation.ts",
     "eval:retrieval": "node --import ./node_modules/tsx/dist/esm/index.mjs src/eval/runner-retrieval.ts",
     "build:eval": "esbuild src/eval/runner.ts --bundle --platform=node --format=esm --external:'../services/moderation/*' --external:'../db/src/*' --outfile=eval/runner.bundle.mjs"

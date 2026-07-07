@@ -2,7 +2,8 @@
 
 > Curated-gallery roster for v1: the **3 locked anchors** (Aurora / Orion / Lyra, see
 > [personas.md](./personas.md)) **+ 9 new characters** defined here. Status: **identities locked
-> 2026-07-06, pending the differentiation eval** ([persona-probe](#eval-gate)). These are the
+> 2026-07-06; differentiation eval PASSED 2026-07-07** (36/36 blind re-match, 3/3 tune axes) and
+> **wired end-to-end** (migration 0004, `PERSONA_KEY`→12) — see [#eval-gate](#eval-gate). These are the
 > `presetId` characters the curated gallery in [companion-customization.md](./companion-customization.md)
 > §9 renders; each expands into a resolved `appearance` + `persona voice` + `traits` + suggested name.
 
@@ -22,13 +23,16 @@ The voice system is built: each character is a **structured voice pack** (`Perso
 contracts (retired `BASE_VOICES`; fixed Orion's stale coach voice). All 12 packs authored. See
 [personality-voice-system.md](./personality-voice-system.md) for the architecture.
 
-**Still gated on the eval (deliberately not done):**
-- `companions.persona_key` CHECK is still `in ('aurora','orion','lyra')` — expanding to the 12 preset
-  ids is a **migration**, held until the persona-probe gate passes on the paid Groq tier.
-- Carry the pack's `voiceId` (Inworld casting) on the gallery preset (customization §8); currently
-  env-keyed to the 3 anchors.
+**Wired end-to-end (2026-07-07, eval passed):**
+- `companions.persona_key` CHECK **widened to the 12 preset ids** (migration `0004_widen_persona_key_check`).
+  `PERSONA_KEY` in `@aura/shared` now spans 12 and is the single source of truth — client picker,
+  API schema, and the DB check all derive from it; a public `PERSONA_PRESETS` projection
+  (id/name/tagline/defaultTraits) drives the client without shipping the prompt IP.
+- **Remaining (deferred, not code):** the 9 non-anchor **avatars** (art) and per-preset **`voiceId`**
+  Inworld casting (currently env-keyed to the 3 anchors; the 9 fall back to a default voice).
 
-The eval below is the gate; the live 3-anchor path already runs on the new packs.
+The live path already runs all 12 on the new packs; only the gallery UI is art-gated (still shows the 3
+anchors until the 9 portraits ship, then surfaces the rest via `PERSONA_GALLERY`).
 
 ## The 12
 
@@ -52,7 +56,8 @@ Trait axes: **warmth** (reserved/warm/doting) · **energy** (calm/balanced/playf
 
 Gender spread: fem (Amara, Selene, Thea, Juno) · masc (Eli, Cyrus, + Soren-leaning) · neutral (Sage,
 Wren). Merge-risk (1 weak axis from an anchor): **Sage** vs Orion; **Thea/Selene** stance-overlap with
-Aurora — hold their art until the eval clears them.
+Aurora — the eval **CLEARED all 12** (36/36 blind re-match, no pair collapsed, 2026-07-07), so art can
+proceed.
 
 ## Voice specs (for eval + backend wiring)
 
@@ -130,16 +135,21 @@ a better ref for the medium-to-deep men; skip if avoiding any anchor churn. Beca
 medium-tan, the 9 deliberately anchor the extremes: Soren (pale) + Wren (light) at the top, Sage + Thea
 (deep) at the bottom.
 
-## <a id="eval-gate"></a>Eval gate
+## <a id="eval-gate"></a>Eval gate — PASSED (2026-07-07)
 
-Before wiring any of the 9 into the backend, run the persona-probe differentiation eval:
+Ran on a real Groq generation pass (fresh free-tier daily bucket): **distinctness 36/36** blind re-match
+(Claude-judged, all 3 scenarios, no confusable pair collapsed) and **tune-step 3/3 axes** bite. All 12
+cleared the bar (target was ≥0.6 + no pair collapsing); backend wiring (migration 0004) shipped.
+
+Re-run:
 
 ```
-cd server && npm run eval:persona
+cd server && npm run eval:persona   # full 45-cell distinctness + tune-step (~55k tok, fits one free 100k/day bucket)
+cd server && npm run eval:edge      # companion/assistant boundary probe (answer vs deflect, medical, story)
 ```
 
-It builds a **data-driven** system prompt per persona (the proposed design), generates replies to 4
-probe messages, and runs a **blind re-match** (an LLM judge re-assigns anonymized replies → personas).
-Reports land in `server/eval/reports/persona-probe*.md`. **Gate:** re-match accuracy should clear a set
-bar (target ≥ ~0.6 and no confusable pair collapsing); characters the judge can't tell apart get
-merged, sharpened, or dropped before art + backend wiring.
+It builds a **data-driven** system prompt per persona, generates replies to the probe messages, then
+Claude **blind re-matches** anonymized replies → personas (`persona-probe-blind.md` scored vs
+`persona-probe-key.md`; the product model never grades itself); tuning is verified by **deterministic
+marker counts**. Reports land in `server/eval/reports/persona-probe*.md`. The probe is resumable
+(`--all` / resume / `--rerun-failed`) and per-cell cached against the daily token limit.
