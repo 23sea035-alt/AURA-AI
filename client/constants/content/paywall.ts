@@ -8,18 +8,29 @@ export const PAYWALL = {
   // proposed; the deck left the subline unspecified ("+ one supportive subline") — review.
   subline: 'Unlimited time with your companion, and more ways to make them yours.',
   ownedHeadline: "You're on {AppName} Premium",
+  // Roster model (docs/specs/companion-roster.md): free users are real creators — up to 5 active
+  // companions from the full gallery of 12. Premium raises the cap to 15 and unlocks the two things
+  // that were always the paid surface: personality tuning + avatar looks. The 30/day message cap is
+  // PER USER, shared across all companions — more companions never buys more messages.
   features: {
-    free: ['3 base companions', 'Default personalities', '30 messages/day', '20 min of voice / month'],
+    free: [
+      'Up to 5 companions from the full gallery',
+      'Default personalities and looks',
+      '30 messages/day, shared across companions',
+      '20 min of voice / month',
+    ],
     premium: [
       'Unlimited messages',
       '10 hours of voice / month',
       'Personality tuning: warmth, energy, and style',
-      'Create extra companions',
+      'Avatar looks',
+      'Up to 15 companions',
       'Priority responses',
     ],
   },
   // honest free baseline (quiet, not a cold matrix) — shown only in the non-owned state.
-  freeBaseline: 'Free always includes 3 base companions, their default personalities, and 30 messages a day.',
+  freeBaseline:
+    'Free always includes up to 5 companions with their default personalities, and 30 messages a day shared across them.',
   subscribeCta: 'Subscribe',
   currentPlanCta: 'Current plan',
   manageSubscription: 'Manage subscription',

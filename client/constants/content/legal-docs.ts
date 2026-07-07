@@ -31,7 +31,7 @@ export const TERMS_OF_SERVICE = {
     },
     {
       title: 'Subscriptions & billing',
-      body: 'The free tier includes 3 base companions, their default personalities, 30 messages a day, and 20 minutes of voice a month. Premium is a recurring subscription billed through the Apple App Store, unlocking unlimited messages, 10 hours of voice a month, custom companions, and personality tuning. Subscriptions renew automatically until canceled; manage or cancel anytime in your App Store settings. Deleting your account does not cancel an Apple subscription. Refunds are handled by Apple under its own policies.',
+      body: 'The free tier includes up to 5 companions with their default personalities and looks, 30 messages a day shared across all companions, and 20 minutes of voice a month. Premium is a recurring subscription billed through the Apple App Store, unlocking unlimited messages, 10 hours of voice a month, up to 15 companions, personality tuning, and avatar looks. Subscriptions renew automatically until canceled; manage or cancel anytime in your App Store settings. Deleting your account does not cancel an Apple subscription. Refunds are handled by Apple under its own policies.',
     },
     {
       title: 'Acceptable use',
