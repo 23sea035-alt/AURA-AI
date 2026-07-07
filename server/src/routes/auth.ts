@@ -7,7 +7,6 @@ import { UpdateProfileSchema } from "@aura/shared";
 import { logger } from "../lib/logger.js";
 
 const EIGHTEEN_YEARS_MS = 18 * 365.25 * 24 * 60 * 60 * 1000;
-const AGE_GUARD_ERROR = { error: "Age verification required. Complete onboarding before using this endpoint." };
 
 function isAdult(dateOfBirth: string): boolean {
   return Date.now() - new Date(dateOfBirth).getTime() >= EIGHTEEN_YEARS_MS;
@@ -22,45 +21,6 @@ function isPlausibleDob(dateOfBirth: string): boolean {
 }
 
 const router = Router();
-
-// Default trait points match the persona canon (docs/specs/personas.md); premium tuning moves from here.
-const DEFAULT_COMPANIONS = [
-  { personaKey: "aurora", name: "Aurora", traits: { warmth: "doting", energy: "calm", verbosity: "balanced" }, lastMessage: "I'm right here with you, whenever you're ready.", isDefault: true },
-  { personaKey: "orion", name: "Orion", traits: { warmth: "warm", energy: "calm", verbosity: "concise" }, lastMessage: "Take a breath. We'll take it one piece at a time.", isDefault: true },
-  { personaKey: "lyra", name: "Lyra", traits: { warmth: "warm", energy: "playful", verbosity: "expansive" }, lastMessage: "There's a brighter angle in here somewhere, let's find it.", isDefault: true },
-];
-
-// POST /api/auth/seed-companions — seed default companions for newly registered users
-router.post("/auth/seed-companions", requireAuth, async (req: AuthRequest, res) => {
-  try {
-    const [user] = await db.select({ ageVerified: usersTable.ageVerified, onboardingDone: usersTable.onboardingDone }).from(usersTable).where(eq(usersTable.id, req.userId!)).limit(1);
-    if (!user) { res.status(404).json({ error: "User not found" }); return; }
-    if (!user.ageVerified || !user.onboardingDone) { res.status(403).json(AGE_GUARD_ERROR); return; }
-
-    const existing = await db.select().from(companionsTable).where(eq(companionsTable.userId, req.userId!)).limit(1);
-    if (existing.length > 0) {
-      res.json({ seeded: false, message: "Companions already exist" });
-      return;
-    }
-
-    for (const comp of DEFAULT_COMPANIONS) {
-      await db.insert(companionsTable).values({
-        userId: req.userId!,
-        personaKey: comp.personaKey,
-        name: comp.name,
-        traits: comp.traits,
-        isDefault: comp.isDefault,
-        lastMessage: comp.lastMessage,
-        messageCount: 0,
-      });
-    }
-
-    res.status(201).json({ seeded: true });
-  } catch (err) {
-    logger.error({ err }, "Failed to seed companions");
-    res.status(500).json({ error: "Failed to seed companions" });
-  }
-});
 
 // GET /api/auth/me
 router.get("/auth/me", requireAuth, async (req: AuthRequest, res) => {

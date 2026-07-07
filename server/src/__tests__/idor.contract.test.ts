@@ -60,7 +60,6 @@ describe("IDOR prevention — contract", () => {
 
   it("auth routes use req.userId! for all user data access", () => {
     // Audit result: all auth routes use req.userId!:
-    //   POST /auth/seed-companions → eq(usersTable.id, req.userId!)
     //   GET  /auth/me             → eq(usersTable.id, req.userId!)
     //   PUT  /auth/me             → eq(usersTable.id, req.userId!)
     // Verified by reading server/src/routes/auth.ts
