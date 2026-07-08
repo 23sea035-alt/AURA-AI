@@ -297,3 +297,14 @@ All three eval runners executed against real Groq/NVIDIA APIs. Pre-condition ver
 - **SUPERSEDED 2026-07-02** — this run used NVIDIA, not the production Groq pipeline. See 2026-07-02 entry above for the corrected re-run on Groq.
 
 **Signed verdict:** V2-FINAL-2026-07-01.md — GO on safety (moderation), GO on generation *(superseded by V2.1-GROQ-2026-07-02.md)*, GO on crisis response, GO on injection resistance, GO on medical boundaries.
+
+## 2026-07-09 — batch 3 companion avatar iteration
+
+### Task: Batch 3 avatar refinements per handoff doc
+
+- **Regens (4):** Cyrus, Juno, Sage, Wren — user-generated with thea.png + anchor as dual refs; rembg bg removal; padded 1024→1254. No magenta fringing.
+- **Refines (2):** Eli, Soren — new user-generated versions; ✦ sparkle watermark detected via bright-pixel clustering and inpainted (scipy); rembg bg removal; padded 1024→1254.
+- **Selene:** skin warmth reduced (R: 219→205, G: 199→207, B: 174→184; warmth delta 44.7→21.7 via gaussian-feathered blend).
+- **Locks (2):** Thea, Amara — kept as-is.
+- All 9 files in `client/assets/avatars/batch2/` at 1254×1254 RGBA with transparent backgrounds.
+- `notes.md` updated with batch 3 summary.

@@ -84,8 +84,16 @@ Grading: Pending — run rubric via vision AI
 - Skin tones: pale → deep (Soren pale, Wren light, Amara wheatish, Eli warm brown, Selene olive, Cyrus olive-deep, Juno golden, Sage deep, Thea deep)
 - Age range: 25+ (Sage, Amara, Eli, Juno, Thea, Wren) · 50s–60s (Selene, Cyrus) · 25+ androgynous/masc (Soren)
 
+## Batch 3 Completed (2026-07-09)
+All 9 images processed per companion-avatar-batch-3-handoff.md.
+- **Regens** (Cyrus, Juno, Sage, Wren): user-generated with thea.png + anchor as dual refs, rembg bg removal, pad 1024→1254. No magenta fringes.
+- **Refines** (Eli, Soren): user-generated new versions, ✦ sparkle watermark detected & inpainted (bright-pixel cluster removal via scipy), rembg bg removal, pad 1024→1254. Eli: 24 sparkle pixels in 14 clusters (largest near x=667,y=287 — left elbow). Soren: 23 sparkle pixels in 5 clusters (largest 18-pixel cluster at x=460,y=344 — left sleeve).
+- **Selene**: skin warmth reduced (R mean 219→205, G mean 199→207, B mean 174→184; warmth delta 44.7→21.7 on skin pixels via scipy gaussian-feathered blend).
+- **Locks** (Thea, Amara): kept as-is.
+
 ## To Do
 - [ ] Fill iteration counts per avatar
 - [ ] Grade each with the rubric via vision AI (paste rubric from companion-avatar-batch-1.md Step 4 + attach image)
 - [ ] Replace placeholder scores with actual grader verdicts
-- [ ] Visually verify programmatic watermark removal (Eli/Soren) and bg cutout quality (Sage's cream top especially)
+- [ ] Visually verify programmatic watermark removal (Eli/Soren) and bg cutout quality
+- [ ] Run grader on all 9 to confirm style consistency with anchors
