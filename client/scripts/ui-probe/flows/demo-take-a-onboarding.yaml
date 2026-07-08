@@ -1,0 +1,100 @@
+appId: com.aura.ai.companion
+env:
+  EMAIL: demo-maya@example.com
+  PASSWORD: demopass1234
+---
+# RECORDING TAKE — onboarding (Segment A), paced for camera. Welcome -> full 12-card persona
+# showcase -> select the LAST card (Wren) -> first chat. Each in-app content screen gets a ~2.5s
+# dwell (evalScript busy-wait — Maestro has no sleep, and waitForAnimationToEnd is a no-op on
+# static screens). Selectors validated in demo-segment-a-onboarding.yaml.
+#
+# PRECONDITION: app launched to WELCOME (signed-out). Off-camera before recording:
+#   for k in user companions messages primaryCompanionId usage voiceUsage mock:accountStatus mock:isPremium; do
+#     python3 client/scripts/dev/sim-storage.py del "$k"; done
+#   xcrun simctl launch booted com.aura.ai.companion   # wait for Welcome, THEN start recordVideo
+
+# 1. Welcome — no explicit dwell: Maestro's one-time ~4.5s startup already lands here, so the
+#    screen sits long enough on its own. Record with a small pre-buffer (PRE=0 or 1).
+- assertVisible: "Get started.*"
+- tapOn: "Get started.*"
+
+# 2. Register
+- assertVisible: "Create your account"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn:
+    point: "50%,49%"
+- inputText: "${EMAIL}"
+- tapOn: "Create your account"
+- tapOn:
+    point: "50%,58%"
+- inputText: "${PASSWORD}"
+- tapOn: "Create your account"
+- tapOn:
+    point: "10%,65%"
+- tapOn: "Create account"
+
+# 3. Verify email
+- assertVisible: "Check your email"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn:
+    point: "50%,31%"
+- inputText: "123456"
+- tapOn: "Verify"
+
+# 4. Intro carousel — dwell on each of the 3 slides
+- assertVisible: "Meet a companion who remembers you."
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Continue.*"
+- assertVisible: "A calm, private place to talk."
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Continue.*"
+- assertVisible: "Here whenever you need."
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Continue.*"
+
+# 5. Age gate
+- assertVisible: "How old are you?"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Continue.*"
+
+# 6. AI-nature disclosure
+- assertVisible: "A few things to know."
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*I understand my companion is an AI.*"
+- tapOn: "Continue.*"
+
+# 7. Third-party-AI consent
+- assertVisible: "How your messages work"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*I agree that my messages.*"
+- tapOn: "Agree and continue"
+
+# 8. Name entry
+- assertVisible: "What should your companion call you?"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn:
+    point: "50%,34%"
+- inputText: "Maya"
+- tapOn: "Continue.*"
+
+# 9. Persona pick — SHOWCASE all 12 cards, then select the last (Wren).
+#    Swipe until the "12 / 12" indicator (no looping — over-swipe safely pins at the end),
+#    dwelling ~1s per card so each avatar reads on camera.
+- assertVisible: "Who would you like to talk with?"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+# Advance one card at a time (a full fling jumps ~2-3). 11 controlled swipes = card 1 -> card 12
+# (Wren); the final tapOn covers the last card even if a swipe under-shoots. ~1.2s per card.
+- repeat:
+    times: 11
+    commands:
+      - swipe:
+          start: "78%, 46%"
+          end: "30%, 46%"
+      - evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*Wren.*"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Start chatting with Wren.*"
+
+# 10. First chat with Wren
+- assertVisible: "Message Wren.*"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}

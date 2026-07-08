@@ -1,0 +1,237 @@
+appId: com.apple.springboard
+---
+# RECORDING TAKE — the Maya demo (Segment B), paced for camera. Cold-opens from Home page 2 (tap the
+# Aura icon -> splash/logo -> Home), then the signed-in Maya story: chat + message timestamp + a sent
+# reply, a voice call (5s linger), archive/restore + delete in Companions, create a companion with a
+# custom name, and the You page (appearance toggle + every access point). ~2.5s dwell per in-app
+# content screen (evalScript busy-wait — Maestro has no sleep). Selectors validated in
+# scratchpad/segB-validate.yaml + you-probe.yaml.
+#
+# PRECONDITION: reset-demo (signed-in Maya), app TERMINATED, sim parked on Home PAGE 2 (Aura icon
+# visible), Maestro driver warm. Record with record.sh (pre-buffer shows page 2 before the tap). The
+# brief Maestro-runner install badge on page 2 during the open is acceptable.
+
+# ── Cold open: tap the app icon -> splash logo animation -> Home (Maya) ──
+- tapOn: "Aura AI"
+- extendedWaitUntil:
+    visible: "Aurora remembers.*"
+    timeout: 20000
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+
+# ── Chat: open, reveal a message timestamp, send a reply ──
+- tapOn: "Continue your conversation.*"
+- assertVisible: "Message Aurora.*"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*tools and the lingo.*"          # tap a message -> reveals its timestamp
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Message Aurora.*"
+- inputText: "that really helps, thank you"
+- tapOn: "Send message"
+- evalScript: ${(function(){var e=Date.now()+3000;while(Date.now()<e){};return 1;})()}  # watch the reply reveal
+
+# ── Voice call (5s linger — rings + caption) ──
+- tapOn: "Start a voice call with Aurora"
+- assertVisible: "Mute"
+- evalScript: ${(function(){var e=Date.now()+5000;while(Date.now()<e){};return 1;})()}
+- tapOn: "End call"
+- assertVisible: "Message Aurora.*"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+
+# ── Companions: show the roster ──
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "Companions, tab, .*"
+    timeout: 8000
+- tapOn: "Companions, tab, .*"
+- assertVisible: "Search companions"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+
+# ── Archive Orion (Select mode) ──
+- tapOn: "Select"
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*Orion.*"
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- tapOn: "Archive"
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+
+# ── Archived subtab -> restore Orion (nested Restore button = point tap) ──
+- tapOn: "Archived"
+- extendedWaitUntil:
+    visible: ".*Orion.*"
+    timeout: 8000
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+- tapOn:
+    point: "80%,31%"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+
+# ── Active subtab -> delete Lyra (any companion is deletable now) ──
+- tapOn: "Active"
+- assertVisible: ".*Lyra.*"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Select"
+- tapOn: ".*Lyra.*"
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- tapOn: "Delete"
+- extendedWaitUntil:
+    visible: "Delete Lyra?"
+    timeout: 6000
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+- tapOn: "Delete"
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+
+# ── Create a companion with a custom name -> lands on the roster -> open its chat ──
+- tapOn: "New companion"
+- assertVisible: "Save companion"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn:
+    point: "50%,30%"                          # name field (pre-filled with the base persona name)
+- eraseText
+- inputText: "Nova"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Save companion"
+- extendedWaitUntil:
+    visible: ".*Nova.*"
+    timeout: 8000
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+- tapOn: ".*Nova.*"
+- assertVisible: "Message Nova.*"             # custom name landed in the chat
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Back"
+
+# ── You page: appearance toggle + ONE clean pass through every access point (in scroll order).
+#    Each screen gets a quick scroll; Privacy policy + Terms scroll continuously to the bottom (no
+#    mid-stops). scrollUntilVisible re-finds each row after a pop (the You tab keeps its scroll). ──
+- tapOn: "You, tab, .*"
+- assertVisible: "Appearance"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+# Appearance: show dark mode, back to light
+- tapOn: "Dark"
+- evalScript: ${(function(){var e=Date.now()+2500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Light"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+
+# Edit profile
+- tapOn: ".*Edit profile.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Sign-in & security
+- tapOn: ".*Sign-in & security.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Subscription -> paywall (mock): toggle monthly<->annual (both ways), scroll through, then Close
+- tapOn: ".*Subscription.*"
+- extendedWaitUntil:
+    visible: "Go further with Aurora"
+    timeout: 8000
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+- tapOn: "Annual"
+- evalScript: ${(function(){var e=Date.now()+2000;while(Date.now()<e){};return 1;})()}
+- tapOn: "Monthly"
+- evalScript: ${(function(){var e=Date.now()+1400;while(Date.now()<e){};return 1;})()}
+- tapOn: "Annual"
+- evalScript: ${(function(){var e=Date.now()+1400;while(Date.now()<e){};return 1;})()}
+# Scroll through the paywall to reveal the full value list. The floating footer overlays the
+# bottom, so a *directional* swipe starts its gesture ON the footer and never reaches the
+# ScrollView (no scroll). Swipe from a point that's ON the scroll content (58%) instead. Only
+# swipe UP — a swipe DOWN would trigger the page-sheet's dismiss. Close stays fixed top-right.
+- swipe: { start: "50%, 58%", end: "50%, 22%" }
+- evalScript: ${(function(){var e=Date.now()+2600;while(Date.now()<e){};return 1;})()}  # linger on the full value list (all 6 premium features)
+- swipe: { start: "50%, 58%", end: "50%, 40%" }
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- tapOn: "Close"
+
+# Notifications
+- tapOn: ".*Notifications.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Voice
+- tapOn: ".*Voice.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Safety center
+- scrollUntilVisible: { element: { text: ".*Safety center.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Safety center.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Privacy policy — scroll to the bottom, continuous (no stops between swipes)
+- scrollUntilVisible: { element: { text: ".*Privacy policy.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Privacy policy.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1300;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Terms of service — scroll to the bottom, continuous (no stops between swipes)
+- scrollUntilVisible: { element: { text: ".*Terms of service.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Terms of service.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1300;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Manage your data
+- scrollUntilVisible: { element: { text: ".*Manage your data.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Manage your data.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Help
+- scrollUntilVisible: { element: { text: ".*Help.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Help.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+# Rate Aura
+- scrollUntilVisible: { element: { text: ".*Rate Aura.*" }, direction: DOWN, centerElement: true }
+- tapOn: ".*Rate Aura.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+800;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- tapOn: "Go back"
+
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
