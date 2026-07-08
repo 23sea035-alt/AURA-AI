@@ -33,7 +33,7 @@ import type {
   TurnResult,
 } from '@/lib/models';
 import type { UserProfile } from '@/lib/profile';
-import { configurePurchases, getPremiumPrices, purchasePlan, restoreFromStore } from '@/lib/purchases';
+import { configurePurchases, getPremiumPrices, getRenewalDate, purchasePlan, restoreFromStore } from '@/lib/purchases';
 
 // ── Server row shapes (routes define these ad hoc; @aura/shared only carries
 //    request DTOs, so the response models live here) ─────────────────────────
@@ -64,6 +64,7 @@ interface ServerCompanion {
   lastActiveAt: string | null;
   messageCount: number;
   archivedAt: string | null;
+  rememberQuestion: string | null;
 }
 
 interface ServerMessage {
@@ -122,6 +123,7 @@ function mapCompanion(row: ServerCompanion): Companion {
     lastActiveAt: row.lastActiveAt ?? undefined,
     messageCount: row.messageCount ?? 0,
     archivedAt: row.archivedAt ?? null,
+    rememberQuestion: row.rememberQuestion ?? null,
   };
 }
 
@@ -237,6 +239,7 @@ const PROFILE_FIELDS = [
   'dateOfBirth',
   'onboardingDone',
   'aiDisclosureAccepted',
+  'tosAcceptedVersion',
   'avatarColor',
 ] as const;
 
@@ -277,7 +280,7 @@ export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
       aiDisclosure: boolean;
     }>(`/companions/${req.companionId}/chat`, {
       method: 'POST',
-      body: { content: req.content },
+      body: { content: req.content, turnId: req.turnId },
     });
     return {
       reply: data.aiMessage?.content ?? '',
@@ -292,6 +295,10 @@ export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
       // else stays a throw → the optimistic bubble goes to tap-to-retry.
       if (err.code === 'BLOCKED') return { inputBlocked: true };
       if (err.code === 'LIMIT_REACHED') return { limitReached: req.usage };
+      // Abuse backstop (1000/day) — retrying won't help today, so restore the draft via the
+      // cap sheet. RATE_LIMITED (30/min) deliberately stays a throw: tap-to-retry fits a
+      // transient throttle.
+      if (err.code === 'DAILY_CAP') return { limitReached: req.usage };
     }
     throw err;
   }
@@ -493,6 +500,11 @@ export async function purchasePremium(plan: 'monthly' | 'yearly' = 'monthly'): P
 export async function restorePurchases(): Promise<{ restored: boolean; isPremium: boolean }> {
   const active = await restoreFromStore();
   return { restored: active, isPremium: active };
+}
+
+/** Store-truth renewal date for the owned state; null hides the "Renews …" line. */
+export async function fetchRenewalDate(): Promise<string | null> {
+  return getRenewalDate();
 }
 
 export async function fetchEntitlements(): Promise<{ isPremium: boolean }> {

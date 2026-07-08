@@ -19,13 +19,10 @@ import { Skeleton } from '@/components/Skeleton';
 import { Toast } from '@/components/Toast';
 import { PressableScale, enterUp } from '@/components/motion';
 import { PAYWALL, SYSTEM, withAppName } from '@/constants/content';
-import { DEMO } from '@/constants/demo';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { fetchStorePrice } from '@/lib/backend';
-
-const RENEW_DATE = DEMO.renewDate; // demo; the real app reads this from the store
+import { fetchRenewalDate, fetchStorePrice } from '@/lib/backend';
 
 export default function PaywallScreen() {
   const { colors, mode, shadows } = useTheme();
@@ -40,6 +37,8 @@ export default function PaywallScreen() {
   // Store-price seam: RevenueCat resolves the localized price; the mock returns
   // null so the placeholder slot renders (the price is NEVER hardcoded).
   const [price, setPrice] = useState<string | null | undefined>(undefined); // undefined = loading
+  // Store-truth renewal date (mock = demo date); null hides the "Renews …" line.
+  const [renewDate, setRenewDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -47,6 +46,9 @@ export default function PaywallScreen() {
     let live = true;
     fetchStorePrice().then((p) => {
       if (live) setPrice(p);
+    });
+    fetchRenewalDate().then((d) => {
+      if (live) setRenewDate(d);
     });
     return () => {
       live = false;
@@ -112,7 +114,9 @@ export default function PaywallScreen() {
         {companion ? (
           <Animated.View entering={enterUp(0)} style={styles.hero}>
             <CompanionPresence
-              id={companion.id}
+              // Base persona key, not the row id: live-mode rows have server UUIDs and the
+              // portrait/duotone resolve off the persona key (same rule as Home).
+              id={companion.personaKey ?? companion.id}
               name={name}
               size={104}
               colorFrom={companion.colorFrom}
@@ -150,9 +154,11 @@ export default function PaywallScreen() {
 
         <View style={styles.priceBlock}>
           {owned ? (
-            <Text style={[styles.renews, { color: colors.textSecondary }]}>
-              {PAYWALL.renewsTemplate.replace('{renewDate}', RENEW_DATE)}
-            </Text>
+            renewDate ? (
+              <Text style={[styles.renews, { color: colors.textSecondary }]}>
+                {PAYWALL.renewsTemplate.replace('{renewDate}', renewDate)}
+              </Text>
+            ) : null
           ) : price === undefined ? (
             // Store price resolving — never a hardcoded figure.
             <Skeleton width={130} height={30} />

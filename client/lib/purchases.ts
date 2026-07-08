@@ -80,3 +80,19 @@ export async function restoreFromStore(): Promise<boolean> {
   if (!purchasesEnabled) return false;
   return hasActiveEntitlement(await Purchases.restorePurchases());
 }
+
+/**
+ * Localized renewal date of the active subscription ("Jul 14, 2026"), or null when there's
+ * no active entitlement / the SDK is unconfigured — callers hide the "Renews …" line on null.
+ */
+export async function getRenewalDate(): Promise<string | null> {
+  if (!purchasesEnabled) return null;
+  try {
+    const info = await Purchases.getCustomerInfo();
+    const iso = info.latestExpirationDate;
+    if (!iso) return null;
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return null;
+  }
+}

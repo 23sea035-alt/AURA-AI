@@ -190,7 +190,8 @@ export default function VoiceCallScreen() {
         <>
           <View style={styles.stage}>
             <CompanionPresence
-              id={cid}
+              // Persona key, not the row id — live rows have server UUIDs (same rule as Home).
+              id={companion?.personaKey ?? cid}
               name={name}
               size={PRESENCE_SIZE}
               colorFrom={companion?.colorFrom}
@@ -222,7 +223,7 @@ export default function VoiceCallScreen() {
               {state === 'listening' && !muted ? <ListeningRing color={ringColor} /> : null}
               {state === 'thinking' || state === 'connecting' ? <PulseRing color={ringColor} /> : null}
               <CompanionPresence
-                id={cid}
+                id={companion?.personaKey ?? cid}
                 name={name}
                 size={PRESENCE_SIZE}
                 colorFrom={companion?.colorFrom}

@@ -22,6 +22,9 @@ export interface Companion {
   lookId?: string;
   /** Set when archived (soft-deleted): hidden from the roster, messages/memory untouched, restorable. */
   archivedAt?: string | null;
+  /** Home "remembers" card line from the consolidation cache (companions.remember_question).
+   * Absent = no resurfaced memory yet; the card is hidden. */
+  rememberQuestion?: string | null;
 }
 
 /**
@@ -49,6 +52,12 @@ export interface Message {
   aiDisclosure?: boolean;
   /** Mirrors MESSAGE_STATUS (@aura/shared); absent = complete. */
   status?: 'failed' | 'blocked';
+  /**
+   * Idempotency key for a user turn, kept on the bubble so tap-to-retry re-sends under the
+   * SAME key — a turn the server committed but whose response was lost dedupes instead of
+   * double-charging the daily limit (unique(turn_id, role) server-side).
+   */
+  turnId?: string;
 }
 
 export interface TurnRequest {
@@ -64,6 +73,8 @@ export interface TurnRequest {
   /** Free-tier usage; the server enforces the daily cap. */
   usage: { used: number; limit: number };
   isPremium: boolean;
+  /** Idempotency key (uuid) — stable across retries of the same logical turn. */
+  turnId?: string;
 }
 
 export interface TurnResult {

@@ -91,20 +91,23 @@ export default function HomeScreen() {
           ) : null}
         </Animated.View>
 
-        {!isEmpty ? (
+        {!isEmpty && companion.rememberQuestion ? (
           <Animated.View entering={FadeIn.delay(220)} style={styles.stretch}>
-            {/* Read-only resurfaced memory — a serif moment, not a data card.
-                Backed by companions.remember_question once the API lands. */}
+            {/* Read-only resurfaced memory — a serif moment, not a data card. Backed by
+                companions.remember_question (consolidation cache); hidden until one exists,
+                so a brand-new user is never shown a memory that isn't theirs. */}
             <PressableScale
               haptic="light"
               onPress={() => openChat()}
-              accessibilityLabel={`${withName(HOME.remembersLabel)}: ${HOME.remembersLine}`}
+              accessibilityLabel={`${withName(HOME.remembersLabel)}: ${companion.rememberQuestion}`}
               style={[styles.remembers, { backgroundColor: colors.raised }, shadows.e1]}
             >
               <Text style={[styles.remembersLabel, { color: colors.textTertiary }]}>
                 {withName(HOME.remembersLabel).toUpperCase()}
               </Text>
-              <Text style={[styles.remembersLine, { color: colors.textPrimary }]}>{HOME.remembersLine}</Text>
+              <Text style={[styles.remembersLine, { color: colors.textPrimary }]}>
+                {companion.rememberQuestion}
+              </Text>
             </PressableScale>
           </Animated.View>
         ) : null}

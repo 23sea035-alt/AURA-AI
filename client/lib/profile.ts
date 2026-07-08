@@ -14,6 +14,8 @@ export interface UserProfile {
   ageVerified?: boolean;
   onboardingDone?: boolean;
   aiDisclosureAccepted?: boolean;
+  /** TOS_VERSION (@aura/shared) accepted at register; server stamps tos_accepted_at. */
+  tosAcceptedVersion?: string;
   /** Apple 5.1.2(i) — unbundled consent to third-party AI processing (timestamp = auditable). */
   thirdPartyAiConsentAt?: string | null;
   isPremium?: boolean;

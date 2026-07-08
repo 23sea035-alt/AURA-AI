@@ -3,7 +3,7 @@
 // user makes this pick explicitly by tapping a card, never a pre-highlighted default. Continue
 // creates the real companion and lands straight in its chat, where the persona's seeded opener
 // is already waiting (createCompanion seeds it automatically — the roster is empty at onboarding).
-import { type PersonaPreset } from '@aura/shared';
+import { TOS_VERSION, type PersonaPreset } from '@aura/shared';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
@@ -39,7 +39,10 @@ export default function PersonaScreen() {
       colorFrom: pc?.from ?? LOGO_COLORS.wine,
       colorTo: pc?.to ?? LOGO_COLORS.honey,
     });
-    updateUser({ onboardingDone: true });
+    // tosAcceptedVersion: the register checkbox is the acceptance moment, but the PUT is
+    // captured here where a verified session is guaranteed (register's own PUT would race
+    // the user.created webhook mirror).
+    updateUser({ onboardingDone: true, tosAcceptedVersion: TOS_VERSION });
     router.replace('/(tabs)');
     // Straight into the first chat (spec §10). Deferred a tick: a push issued in the same frame
     // as the replace gets dropped while the navigator is mid-transition (verified on sim).

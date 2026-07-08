@@ -3,7 +3,7 @@
 // premium users see renewal + App Store management.
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Linking } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,12 +13,10 @@ import { Toast } from '@/components/Toast';
 import { TopBar } from '@/components/TopBar';
 import { PressableScale } from '@/components/motion';
 import { SYSTEM } from '@/constants/content';
-import { DEMO } from '@/constants/demo';
 import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-
-const RENEW_DATE = DEMO.renewDate; // demo; the real app reads this from the store
+import { fetchRenewalDate } from '@/lib/backend';
 
 export default function SubscriptionScreen() {
   const { colors, mode } = useTheme();
@@ -26,6 +24,18 @@ export default function SubscriptionScreen() {
   const { user, restorePurchases } = useApp();
   const isPremium = !!user?.isPremium;
   const [toast, setToast] = useState<string | null>(null);
+  // Store-truth renewal date (mock = demo date); null renders "Active" instead.
+  const [renewDate, setRenewDate] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    fetchRenewalDate().then((d) => {
+      if (live) setRenewDate(d);
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
 
   const handleRestore = async () => {
     // RevenueCat drop-in point: Purchases.restorePurchases().
@@ -44,7 +54,7 @@ export default function SubscriptionScreen() {
       >
         <ListGroup label="Current plan">
           {isPremium ? (
-            <ListRow first label="Premium" detail={`Renews ${RENEW_DATE}`} />
+            <ListRow first label="Premium" detail={renewDate ? `Renews ${renewDate}` : 'Active'} />
           ) : (
             // sub, not detail: the long line renders under the label at full
             // width instead of crushing "Free" out of the row.

@@ -165,7 +165,7 @@ export default function ChatScreen() {
     setToast('Copied');
   };
 
-  const sendContent = async (content: string, opts?: { inputModality?: 'text' | 'voice'; audioUri?: string }) => {
+  const sendContent = async (content: string, opts?: { inputModality?: 'text' | 'voice'; audioUri?: string; turnId?: string }) => {
     setThinking(true);
     sessionTurns.current += 1;
     scrollToBottom();
@@ -203,11 +203,12 @@ export default function ChatScreen() {
     await sendContent(content, { inputModality: draft ? 'voice' : 'text', audioUri: draft?.audioUri });
   };
 
-  // Failed-send retry: take the failed bubble back and re-send its content.
+  // Failed-send retry: take the failed bubble back and re-send its content under the SAME
+  // turnId — if the original send actually committed server-side, the retry dedupes.
   const retry = (m: Message) => {
     if (thinking) return;
     removeMessage(cid, m.id);
-    void sendContent(m.content, { inputModality: m.inputModality, audioUri: m.audioUri });
+    void sendContent(m.content, { inputModality: m.inputModality, audioUri: m.audioUri, turnId: m.turnId });
   };
 
   // Archived-chat composer replacement (spec §8): only re-activating consumes a slot, so it's

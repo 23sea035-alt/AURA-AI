@@ -170,6 +170,14 @@ const SEED_USAGE: Usage = { used: DEMO.user.usage.used, limit: FREE_DAILY_LIMIT,
 let seedCounter = 0;
 const localId = () => `local-${Date.now().toString(36)}-${(seedCounter++).toString(36)}`;
 
+// v4-shaped idempotency key for chat turns (ChatInputSchema wants a uuid; Math.random is
+// plenty — the key only needs to be unique per logical turn, not unguessable).
+const turnUuid = () =>
+  'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+
 /** Aurora's canonical in-progress conversation, timed to "earlier today". */
 function seedConversation(): Record<string, Message[]> {
   const base = Date.now() - 1000 * 60 * 42; // started ~42 minutes ago
@@ -450,7 +458,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             });
           }
         })
-        .catch(() => {});
+        .catch((err) => {
+          // Fire-and-forget by design, but a swallowed 400 cost us a live bug
+          // (name save rejected → hydrate stomped the local value). Surface it in dev.
+          // eslint-disable-next-line no-console
+          if (__DEV__) console.warn('[profile] remote mirror failed:', err instanceof Error ? err.message : err);
+        });
     },
     [applyHydration],
   );
@@ -460,7 +473,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setPrimaryCompanion = useCallback((id: string) => {
     setPrimaryCompanionId(id);
     AsyncStorage.setItem('primaryCompanionId', id).catch(() => {});
-    void backend.remoteSetPrimary(id);
+    // A local optimistic id never hits the wire (primaryCompanionId is a uuid server-side;
+    // the server auto-pins companion #1 and the create mirror re-pins with the adopted UUID).
+    if (!id.startsWith('local-')) void backend.remoteSetPrimary(id);
   }, []);
 
   const primaryRef = useRef(primaryCompanionId);
@@ -721,7 +736,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       companionId: string,
       content: string,
       sessionTurnCount: number,
-      opts?: { inputModality?: 'text' | 'voice'; audioUri?: string },
+      opts?: { inputModality?: 'text' | 'voice'; audioUri?: string; turnId?: string },
     ): Promise<SendResult> => {
       const currentUsage = usageRef.current;
       const isPremium = !!(DEV_FORCE_PREMIUM || userRef.current?.isPremium);
@@ -741,7 +756,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         (m) => m.role === 'assistant',
       ).length;
 
-      // Optimistic user bubble.
+      // Optimistic user bubble. The turnId rides on it so a failed send retries under the
+      // same idempotency key (a committed-but-response-lost turn dedupes server-side).
+      const turnId = opts?.turnId ?? turnUuid();
       const userMsgId = localId();
       appendMessage(companionId, {
         id: userMsgId,
@@ -750,6 +767,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         createdAt: new Date().toISOString(),
         inputModality: opts?.inputModality,
         audioUri: opts?.audioUri,
+        turnId,
       });
 
       setTyping((prev) => ({ ...prev, [companionId]: true }));
@@ -764,6 +782,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           sessionTurnCount,
           usage: { used: currentUsage.used, limit: currentUsage.limit },
           isPremium,
+          turnId,
         });
       } catch {
         // The send never reached the server — keep the bubble, mark it failed

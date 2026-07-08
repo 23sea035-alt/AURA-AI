@@ -260,6 +260,11 @@ export async function purchasePremium(_plan: 'monthly' | 'yearly' = 'monthly'): 
 /** Purchases.configure({ appUserID }) — nothing to bind in mock mode. */
 export async function configurePayments(_userId: string): Promise<void> {}
 
+/** CustomerInfo.latestExpirationDate → display date; the demo story's fixed date here. */
+export async function fetchRenewalDate(): Promise<string | null> {
+  return DEMO.renewDate;
+}
+
 /** Purchases.restorePurchases() → whether an entitlement was found. */
 export async function restorePurchases(): Promise<{ restored: boolean; isPremium: boolean }> {
   await simulateLatency(900);

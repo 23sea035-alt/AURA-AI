@@ -14,7 +14,8 @@ export const DEMO = {
   },
 
   primaryCompanion: 'Aurora',
-  renewDate: 'Jul 14, 2026', // premium renewal (subscription management)
+  renewDate: 'Jul 14, 2026', // premium renewal (mock seam; live reads the store's expiration)
+  rememberLine: 'You started a new job. How’s it going?', // Aurora's resurfaced-memory card (demo roster only)
 
   // Aurora's memories about Maya (Memory screen + Home resurfaced chip), newest first.
   // Categories map to the schema's MEMORY_CATEGORY.

@@ -5,7 +5,7 @@ export const HOME = {
   greetingTemplate: '{greeting}, {firstName}', // demo: "Good afternoon, Maya"
   // header AI marker: see CHAT.aiMarker
   remembersLabel: '{Companion} remembers', // card eyebrow (uppercased in UI)
-  remembersLine: 'You started a new job. How’s it going?', // demo; from the consolidation "remembers" cache
+  // card line comes from companion.rememberQuestion (consolidation cache); demo line in demo.ts
   // Starter chips. Tapping one opens the chat with ONE of its `templates`
   // pre-filled at random: each template is a sentence OPENER the user finishes,
   // so their words append only at the end (never a fill-in-the-middle blank).

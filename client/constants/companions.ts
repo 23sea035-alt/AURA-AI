@@ -53,4 +53,6 @@ export const DEFAULT_COMPANIONS: Companion[] = (
   isDefault: true,
   ...seed,
   messageCount: key === 'aurora' ? DEMO.conversation.length : 0,
+  // Aurora carries the demo "remembers" card; live rows get theirs from remember_question.
+  rememberQuestion: key === 'aurora' ? DEMO.rememberLine : undefined,
 }));

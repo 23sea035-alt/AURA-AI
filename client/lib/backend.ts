@@ -73,6 +73,7 @@ export const fetchStorePrice = impl.fetchStorePrice;
 export const purchasePremium = impl.purchasePremium;
 export const restorePurchases = impl.restorePurchases;
 export const fetchEntitlements = impl.fetchEntitlements;
+export const fetchRenewalDate = impl.fetchRenewalDate;
 
 // Voice metering
 export const fetchVoiceUsage = impl.fetchVoiceUsage;
