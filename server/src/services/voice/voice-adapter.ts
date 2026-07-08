@@ -22,23 +22,38 @@ export function makeVoiceAdapter(
 ): ChatSessionCallbacks {
   let frameIndex = 0;
 
+  let captionIndex = 0;
+  // Synthesis runs CONCURRENTLY through the shared Inworld budget (enqueueTts), but this
+  // connection's SENDS are chained: audio frames go out in caption order, and voice_complete
+  // trails the last frame — the ttsQueue's concurrency (> 1) makes queue position alone
+  // meaningless for ordering (observed live: completion overtook its own turn's audio).
+  let sendChain: Promise<void> = Promise.resolve();
+
   return {
     onToken(replyText: string, opts?: { crisis?: boolean }) {
       session.transitionTo("AI_SPEAKING");
-      enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }), { isPremium })
-        .then((audio) => {
-          sendBinaryFrame(ws, frameIndex++, audio);
+      // Caption rides ahead of its audio frame, so clients with captions on can show the
+      // sentence as it's spoken.
+      sendJsonFrame(ws, { type: "voice_caption", companionId, index: captionIndex++, text: replyText });
+      const idx = frameIndex++;
+      const synthesis = enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }), {
+        isPremium,
+      });
+      sendChain = sendChain.then(async () => {
+        try {
+          const audio = await synthesis;
+          sendBinaryFrame(ws, idx, audio);
           // Meter synthesized speech against the per-call + monthly voice budgets.
           const seconds = estimateSpeechSeconds(replyText);
           session.addCallSeconds(seconds);
           recordVoiceUsage(session.params.userId, companionId, seconds, "tts", TTS_MODEL_ID)
             .catch((err) => logger.error({ err }, "VoiceAdapter TTS usage record failed"));
-        })
-        .catch((err) => {
+        } catch (err) {
           logger.error({ err }, "VoiceAdapter TTS synthesis failed");
           const fallback = session.nextFillerClip();
-          if (fallback) sendBinaryFrame(ws, frameIndex++, fallback);
-        });
+          if (fallback) sendBinaryFrame(ws, idx, fallback);
+        }
+      });
     },
 
     onAbort(reason: AbortReason, detail?: string) {
@@ -47,15 +62,17 @@ export function makeVoiceAdapter(
     },
 
     onComplete(result: ChatSessionResult) {
-      session.transitionTo("IDLE");
-      sendJsonFrame(ws, {
-        type: "voice_complete",
-        turnId: result.turnId,
-        companionId,
-        memoriesUsed: result.memoriesUsed,
-        breakReminder: result.breakReminder ?? null,
-        aiDisclosure: result.aiDisclosure ?? false,
-        crisisResources: result.crisisResources ?? null,
+      sendChain = sendChain.then(() => {
+        session.transitionTo("IDLE");
+        sendJsonFrame(ws, {
+          type: "voice_complete",
+          turnId: result.turnId,
+          companionId,
+          memoriesUsed: result.memoriesUsed,
+          breakReminder: result.breakReminder ?? null,
+          aiDisclosure: result.aiDisclosure ?? false,
+          crisisResources: result.crisisResources ?? null,
+        });
       });
     },
   };

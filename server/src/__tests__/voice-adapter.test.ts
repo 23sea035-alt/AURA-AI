@@ -117,6 +117,9 @@ describe("makeVoiceAdapter", () => {
       turnId: "t1",
       memoriesUsed: false,
     });
+    // Completion rides the per-connection send chain (it must trail every audio frame of
+    // the turn), so it lands a microtask later — flush before asserting.
+    await new Promise((r) => setTimeout(r, 0));
     expect(mockSendJsonFrame).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ type: "voice_complete", turnId: "t1" }));
   });
 });
