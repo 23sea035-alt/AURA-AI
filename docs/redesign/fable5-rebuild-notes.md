@@ -469,3 +469,29 @@ the pass, all fixed + re-verified same session:
   (server side verified by hand-delivering the real nested shape through the tunnel); push
   registration + WS/voice remain unwired (server code exists, dark); reset-demo fixture refresh;
   eval GO/NO-GO gate; the 9 gallery portraits.
+
+## reset-demo rebuild + away-reply push wiring — 2026-07-07 (late night)
+
+- **reset-demo is delete-driven now** (`scripts/dev/sim-storage.py`): it writes the one key the
+  app can't invent — the Maya profile, from `scripts/dev/demo-user.fixture.json`, drift-tested by
+  `lib/__tests__/demo-user-fixture.test.ts` — then deletes every seedable key so the next launch
+  re-seeds canonically from client code (trio + pin from `DEFAULT_COMPANIONS`/state defaults,
+  Aurora's thread from `seedConversation()`, 18/30 from `SEED_USAGE`). No roster fixture to rot
+  when the Companion model changes. Sim-verified from live-polluted storage: Maya greeting, trio
+  with portraits, pin, remembers card, 18/30. (RC-dashboard follow-through from the live pass also
+  landed: webhook secret ROTATED to a dedicated value — it had been the client-bundled test_ SDK
+  key — and RC's own test event authenticated through the tunnel.)
+- **Away-reply push registration wired** (the dark half of `device_tokens`): new `lib/push.ts`
+  (permission + RAW APNs device token via expo-notifications — the server sends through APNs
+  itself; foreground presentation suppressed so an open chat never banners over itself) + seam
+  `registerPushToken`/`unregisterPushToken` (POST/DELETE `/api/notifications/register`);
+  `usePushRegistration` in the tabs layout asks ONCE on the first post-auth Home arrival and
+  mirrors the token; the notifications-screen toggle registers/unregisters for real (a denied
+  permission flips it back); logout drops the device token before the session dies. New native
+  dep `expo-notifications` (expo install + pods + rebuild) + `aps-environment` entitlement.
+  **Live-verified on the 16e (Apple-silicon sims get real APNs sandbox tokens): permission
+  prompt → token → device_tokens row in Neon → real chat turn → `maybeSendReplyPush` fired and
+  correctly reported "APNs not configured"** — actual delivery is blocked ONLY on the Apple
+  Developer .p8 key + APNS_KEY_ID/TEAM_ID (all three empty in server/.env).
+- Moderation field note: the prompt-guard blocked an instruction-shaped probe ("…probe, just say
+  hi") from a REAL session — the injection layer works live; phrase test messages naturally.
