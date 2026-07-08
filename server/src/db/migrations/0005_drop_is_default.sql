@@ -1,0 +1,1 @@
+ALTER TABLE "companions" DROP COLUMN "is_default";

@@ -36,6 +36,13 @@
       "when": 1783441645872,
       "tag": "0004_widen_persona_key_check",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783524922885,
+      "tag": "0005_drop_is_default",
+      "breakpoints": true
     }
   ]
 }

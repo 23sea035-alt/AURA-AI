@@ -82,7 +82,7 @@ export interface SendResult {
 /** Everything a create needs from the screen; lifecycle fields are the context's business. */
 export type CreateCompanionInput = Omit<
   Companion,
-  'id' | 'isDefault' | 'archivedAt' | 'lastMessage' | 'lastActiveAt' | 'messageCount'
+  'id' | 'archivedAt' | 'lastMessage' | 'lastActiveAt' | 'messageCount'
 >;
 
 /** Create either lands (with the new local id) or names which at-limit sheet to show (spec §4). */
@@ -292,15 +292,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (storedCompanions) {
         // Migrations for rows persisted by earlier builds: `lastActive` display string →
         // ISO `lastActiveAt` (from the thread's newest message); missing first-class
-        // `personaKey` → inferred once here (gallery id → name → traits heuristic); missing
-        // `isDefault` → the anchor trio (their mock row id IS the persona key).
+        // `personaKey` → inferred once here (gallery id → name → traits heuristic).
         const parsedCompanions = JSON.parse(storedCompanions) as (Companion & { lastActive?: string })[];
         const parsedMsgs: Record<string, Message[]> = storedMessages ? JSON.parse(storedMessages) : {};
         const migrated = parsedCompanions.map(({ lastActive: _legacy, ...c }) => {
           const next: Companion = {
             ...c,
             personaKey: c.personaKey ?? inferPersonaKey(c),
-            isDefault: c.isDefault ?? ['aurora', 'orion', 'lyra'].includes(c.id),
           };
           if (!next.lastActiveAt) {
             const thread = parsedMsgs[c.id];

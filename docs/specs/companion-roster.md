@@ -95,11 +95,11 @@ Edit opens the editor for one companion; Select is batch archive/delete/unarchiv
   active-full). Batch restore **restores up to the remaining slots and informs** the user of the rest
   (e.g. "Restored 2, you're at your 5 limit — archive more to bring the others back"), rather than
   half-failing silently. *This guard does not exist server-side today and must be added.*
-- **Delete** = permanent. **Custom companions are deletable by anyone (incl. free).** The **3 anchor
-  base personas are archive-only** (server returns `CANNOT_DELETE_BASE`). Delete is a secondary,
-  destructive action behind a confirm that names what's lost: *"Delete {Name}? This removes your
-  conversation and memories with them. This can't be undone."* Archive is the prominent, reversible
-  default.
+- **Delete** = permanent, and **any companion is deletable by anyone (incl. free)** — there is no
+  base-persona restriction (the `isDefault` anchor concept is deprecated; onboarding seeds one
+  companion at a time). Delete is a secondary, destructive action behind a confirm that names what's
+  lost: *"Delete {Name}? This removes your conversation and memories with them. This can't be undone."*
+  Archive is the prominent, reversible default; the only delete guard is **min-1-active** (below).
 - **Minimum 1 active.** A user can never archive or delete their **last active** companion (Home needs
   a pinned companion). Single-item and batch both enforce it; the server already returns
   `LAST_ACTIVE_COMPANION` for archive and must extend it to delete + batch.
@@ -222,9 +222,8 @@ in **Appendix A**.
     the bottom. Header shows a selection count + **Done**.
   - **Actions are contextual to the subtab:** Active → `Archive`, `Delete`. Archived → `Unarchive`,
     `Delete`.
-  - **`Delete` is disabled when the selection contains a base persona** (Aurora / Orion / Lyra), with
-    the reason surfaced ("Base companions can be archived, not deleted"). Cleaner than a partial delete
-    that silently skips some.
+  - **`Delete` is only blocked by min-1-active** (you can't delete every active companion at once), with
+    the reason surfaced. There is no base-persona restriction — any companion is deletable.
   - **Batch `Unarchive` honors the active cap** — restores up to the remaining slots and informs (§6).
   - **Minimum 1 active** — a batch can't archive/delete every active companion (§6).
   - **`Delete` confirms** with the destructive copy from §6; Archive/Unarchive apply directly.

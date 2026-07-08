@@ -12,8 +12,6 @@ export interface Companion {
   traits: string[];
   colorFrom: string;
   colorTo: string;
-  /** Server-seeded anchor (Aurora/Orion/Lyra trio): archive-only, never deletable. */
-  isDefault?: boolean;
   lastMessage?: string;
   /** ISO timestamp of the last exchange — display strings are derived live (utils/time). */
   lastActiveAt?: string;

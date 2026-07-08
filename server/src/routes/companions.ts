@@ -262,8 +262,8 @@ router.post("/companions/:id/restore", requireAuth, async (req: AuthRequest, res
 
 // DELETE /api/companions/:id — permanent, irreversible delete. Cascades to messages, memories,
 // memory_jobs, and voice_usage; safety_events + users.primaryCompanionId are set null by their FKs.
-// The three base personas (isDefault) can be archived but never permanently deleted. Deleting the
-// user's last ACTIVE companion is blocked (deleting an archived one never trips this).
+// Any companion is deletable; the only guard is min-1-active — deleting the user's last ACTIVE
+// companion is blocked (deleting an archived one never trips this).
 router.delete("/companions/:id", requireAuth, async (req: AuthRequest, res) => {
   try {
     const companionId = req.params.id as string;
@@ -275,10 +275,6 @@ router.delete("/companions/:id", requireAuth, async (req: AuthRequest, res) => {
       .where(and(eq(companionsTable.id, companionId), eq(companionsTable.userId, req.userId!)))
       .limit(1);
     if (!companion) { sendError(res, "Companion not found", 404); return; }
-    if (companion.isDefault) {
-      sendError(res, "Base companions can't be deleted. You can archive it instead.", 403, "CANNOT_DELETE_BASE");
-      return;
-    }
 
     if (!companion.archivedAt) {
       const [{ active }] = await db

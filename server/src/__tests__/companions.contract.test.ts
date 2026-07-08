@@ -411,14 +411,6 @@ describe("Companion delete — DELETE /companions/:id", () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 
-  it("refuses to delete a base (default) companion (403)", async () => {
-    mockSelect.mockReturnValueOnce(selectChain([{ id: ID, userId: "u1", isDefault: true }]));
-    const res = await request(app).delete(`/api/companions/${ID}`);
-    expect(res.status).toBe(403);
-    expect(res.body.code).toBe("CANNOT_DELETE_BASE");
-    expect(mockDelete).not.toHaveBeenCalled();
-  });
-
   it("404 when the companion is not found", async () => {
     mockSelect.mockReturnValueOnce(selectChain([]));
     const res = await request(app).delete(`/api/companions/${ID}`);

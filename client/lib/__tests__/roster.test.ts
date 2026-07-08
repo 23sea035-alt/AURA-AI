@@ -85,12 +85,6 @@ describe('canArchive (min-1-active)', () => {
 });
 
 describe('canDelete', () => {
-  it('base personas disable delete for the whole selection', () => {
-    const base = companion({ isDefault: true });
-    const custom = companion();
-    expect(canDelete([base, custom], [base.id, custom.id])).toEqual({ ok: false, block: 'base_delete' });
-  });
-
   it('custom companions are deletable (including by free users)', () => {
     const cs = roster(2, 0);
     expect(canDelete(cs, [cs[0].id])).toEqual({ ok: true });

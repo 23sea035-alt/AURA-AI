@@ -29,7 +29,6 @@ export const COMPANIONS = {
     archive: 'Archive',
     unarchive: 'Unarchive',
     delete: 'Delete',
-    baseDeleteHint: 'Base companions can be archived, not deleted.',
     lastActiveHint: 'You need at least one active companion.',
     // Batch unarchive honors the active cap: fills the remaining slots and says so (spec §6).
     restoredPartialTemplate: 'Restored {restored}. You’re at your {cap} limit, archive more to bring the others back.',

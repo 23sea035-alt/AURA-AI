@@ -59,7 +59,6 @@ interface ServerCompanion {
   personaKey: string;
   name: string;
   traits: (Partial<PersonaTraits> & Record<string, unknown>) | null;
-  isDefault: boolean;
   lastMessage: string | null;
   lastActiveAt: string | null;
   messageCount: number;
@@ -113,7 +112,6 @@ function mapCompanion(row: ServerCompanion): Companion {
     id: row.id,
     name: row.name,
     personaKey: preset.id,
-    isDefault: row.isDefault || undefined,
     persona: stash?.persona ?? preset.tagline,
     traits: chips,
     colorFrom: stash?.colorFrom ?? pc?.from ?? LOGO_COLORS.wine,

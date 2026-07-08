@@ -1,4 +1,4 @@
-import { pgTable, text, boolean, timestamp, uuid, integer, jsonb, index, check, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, integer, jsonb, index, check, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 import { memoriesTable } from "./memories.js";
@@ -9,12 +9,11 @@ export const companionsTable = pgTable("companions", {
   personaKey: text("persona_key").notNull(),
   name: text("name").notNull(),
   traits: jsonb("traits").notNull(),
-  isDefault: boolean("is_default").notNull().default(false),
   lastMessage: text("last_message"),
   lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   messageCount: integer("message_count").notNull().default(0),
   // Archive is a reversible soft-remove (null = active). The roster is fetched whole and filtered
-  // client-side into Active/Archived; base companions can be archived but not permanently deleted.
+  // client-side into Active/Archived.
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   // "Remembers" Home-card cache (read-only on Home; upserted by the consolidation job).
   // A surfaced memory + a Groq-generated follow-up question. FK set null if the memory is deleted.

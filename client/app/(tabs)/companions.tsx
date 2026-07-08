@@ -154,9 +154,7 @@ export default function CompanionsScreen() {
   const deleteDisabled = selIds.length === 0 || !deleteCheck.ok;
   let actionHint: string | null = null;
   if (selIds.length > 0) {
-    if (!deleteCheck.ok) {
-      actionHint = deleteCheck.block === 'base_delete' ? COMPANIONS.select.baseDeleteHint : COMPANIONS.select.lastActiveHint;
-    } else if (tab === 'active' && !archiveCheck.ok) {
+    if (!deleteCheck.ok || (tab === 'active' && !archiveCheck.ok)) {
       actionHint = COMPANIONS.select.lastActiveHint;
     }
   }

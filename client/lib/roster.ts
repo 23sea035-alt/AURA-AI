@@ -1,5 +1,5 @@
 // Roster lifecycle policy (docs/specs/companion-roster.md) — pure functions, no IO, unit-tested.
-// The client's single source for cap checks, min-1-active guards, base-persona delete rules,
+// The client's single source for cap checks, min-1-active guards, delete gating,
 // batch-restore planning, and the pinned-companion fallback. AppContext consumes these before its
 // optimistic writes; the server re-enforces the same rules authoritatively (spec §9).
 import { activeCompanionCap, totalCompanionCap, PERSONA_PRESETS } from '@aura/shared';
@@ -7,7 +7,7 @@ import { activeCompanionCap, totalCompanionCap, PERSONA_PRESETS } from '@aura/sh
 import type { Companion } from '@/lib/models';
 
 /** Why a roster action was refused — maps 1:1 onto the server's 409 codes. */
-export type RosterBlock = 'active_full' | 'total_full' | 'last_active' | 'base_delete';
+export type RosterBlock = 'active_full' | 'total_full' | 'last_active';
 
 export type RosterCheck = { ok: true } | { ok: false; block: RosterBlock };
 
@@ -35,13 +35,10 @@ export function canArchive(companions: Companion[], ids: string[]): RosterCheck 
 }
 
 /**
- * Delete gate (spec §6): base personas are archive-only (a selection containing one disables the
- * whole delete — cleaner than a partial delete that silently skips); deleting archived rows never
- * trips min-1-active.
+ * Delete gate (spec §6): any companion is deletable — the only guard is min-1-active (you can't
+ * delete your last active companion). Deleting archived rows never trips it.
  */
 export function canDelete(companions: Companion[], ids: string[]): RosterCheck {
-  const selected = companions.filter((c) => ids.includes(c.id));
-  if (selected.some((c) => c.isDefault)) return { ok: false, block: 'base_delete' };
   const active = activeOf(companions);
   const leaving = active.filter((c) => ids.includes(c.id)).length;
   if (leaving > 0 && leaving >= active.length) return { ok: false, block: 'last_active' };
