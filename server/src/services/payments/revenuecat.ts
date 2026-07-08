@@ -2,7 +2,7 @@ import { db, usersTable, subscriptionsTable } from "../../db/src/index.js";
 import { eq, and, sql } from "drizzle-orm";
 import { getEnv } from "../../config/env.js";
 import { logger } from "../../lib/logger.js";
-import { createHmac, timingSafeEqual } from "crypto";
+import { timingSafeEqual } from "crypto";
 
 interface RevenueCatWebhookPayload {
   event: string;
@@ -48,30 +48,46 @@ function normalizePeriodType(raw: string | null | undefined): string | null {
   return PERIOD_MAP[raw.toUpperCase()] ?? null; // PROMOTIONAL / unknown → null (column is nullable)
 }
 
-function verifyWebhookSignature(body: string, signature: string): boolean {
+/**
+ * RevenueCat webhooks carry no body signature — the dashboard's "Authorization header"
+ * value is sent VERBATIM with every event (RC docs: verify by comparing that header).
+ * Constant-time match against REVENUECAT_WEBHOOK_SECRET; "Bearer " prefix optional.
+ * (The previous HMAC-of-body scheme could never pass with real RC traffic — found in
+ * the 2026-07-07 live pass when a Test Store purchase's webhook 400'd.)
+ */
+function verifyWebhookAuth(authHeader: string): boolean {
   const secret = getEnv().REVENUECAT_WEBHOOK_SECRET;
-  const expected = createHmac("sha256", secret).update(body).digest("hex");
+  const presented = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : authHeader;
   try {
-    const expectedBuf = Buffer.from(expected);
-    const sigBuf = Buffer.from(signature);
-    if (expectedBuf.length !== sigBuf.length) return false;
-    return timingSafeEqual(expectedBuf, sigBuf);
+    const presentedBuf = Buffer.from(presented);
+    const secretBuf = Buffer.from(secret);
+    if (presentedBuf.length !== secretBuf.length) return false;
+    return timingSafeEqual(presentedBuf, secretBuf);
   } catch (err) {
-    logger.warn({ err }, "RevenueCat webhook signature verification failed");
+    logger.warn({ err }, "RevenueCat webhook auth verification failed");
     return false;
   }
 }
 
 export async function handleRevenueCatWebhook(
   rawBody: string,
-  signature: string,
+  authHeader: string,
 ): Promise<{ received: boolean }> {
-  if (!verifyWebhookSignature(rawBody, signature)) {
+  if (!verifyWebhookAuth(authHeader)) {
     logger.warn("RevenueCat webhook signature verification failed");
     throw new Error("Invalid webhook signature");
   }
 
-  const payload: RevenueCatWebhookPayload = JSON.parse(rawBody);
+  const parsed = JSON.parse(rawBody) as Record<string, unknown>;
+  // Real RC v1.0 bodies nest every field under `event` with the kind in `event.type`
+  // ({api_version, event:{type, app_user_id, …}}); the flat `event: "TYPE"` shape is kept
+  // for fixtures/back-compat. Found in the 2026-07-07 live pass: a Test Store purchase's
+  // webhook was "received" but matched no event and never granted premium.
+  const nested = parsed.event;
+  const payload: RevenueCatWebhookPayload =
+    typeof nested === "object" && nested !== null
+      ? ({ ...(nested as Record<string, unknown>), event: (nested as { type?: string }).type ?? "" } as unknown as RevenueCatWebhookPayload)
+      : (parsed as unknown as RevenueCatWebhookPayload);
   const { event, app_user_id, environment, product_id, store, period_type, expiration_at_ms, original_transaction_id, event_timestamp_ms } = payload;
 
   if (!app_user_id) {

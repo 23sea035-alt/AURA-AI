@@ -9,8 +9,20 @@ import { SAFE_FALLBACK_REPLY } from "@aura/shared";
 import type { LLMProvider } from "../llm/index.js";
 import { getLLMProvider } from "../llm/index.js";
 import { createTaskSpecificProvider } from "../llm/model-selector.js";
+import { logger } from "../../lib/logger.js";
+import { incrementMetric } from "../../lib/metrics.js";
 
 const POLICY_VERSION = "2026-06-23-001";
+
+/**
+ * Degraded runs must be loud: a 429ing omni key otherwise routes EVERY turn through the
+ * safeguard fallback with zero log evidence (observed live 2026-07-07 — prod could run
+ * degraded for weeks unnoticed). WARN once per turn + a counter on /api/admin/metrics.
+ */
+function noteDegraded(layer: "L2" | "L3", error: string | undefined): void {
+  incrementMetric(`moderation.${layer.toLowerCase()}_degraded`);
+  logger.warn({ layer, error }, "Omni moderation degraded — safeguard fallback in use");
+}
 
 export class ModerationEngine implements Moderator {
   private inputGuardProvider?: LLMProvider;
@@ -83,6 +95,7 @@ export class ModerationEngine implements Moderator {
       l1Category = l1Result.action === "escalate" ? "injection" : undefined;
 
       if (l2Result.error) {
+        noteDegraded("L2", l2Result.error);
         const fallback = await adjudicate(text, l1Category, [], this.getOutputGuardProvider(), "L2_degraded_fallback").catch(() => null);
         if (!fallback || fallback.action === "block") {
           return {
@@ -161,6 +174,7 @@ export class ModerationEngine implements Moderator {
     try {
       const l3 = await runL3Output(text);
       if (l3.error) {
+        noteDegraded("L3", l3.error);
         const fallback = await runOutputFallback(text, this.getOutputGuardProvider(), "L3_degraded_fallback").catch(() => null);
         if (fallback?.action === "allow") {
           return {

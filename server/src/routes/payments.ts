@@ -10,12 +10,13 @@ import { webhookLimiter } from "../middleware/rate-limit.js";
 
 const router = Router();
 
-// POST /api/payments/webhook — RevenueCat webhook
+// POST /api/payments/webhook — RevenueCat webhook. RC authenticates by echoing the
+// dashboard-configured Authorization header on every event (no body signature).
 router.post("/payments/webhook", webhookLimiter, async (req, res) => {
   try {
-    const signature = req.headers["x-revenuecat-signature"] as string;
-    if (!signature) {
-      res.status(400).json({ error: "Missing x-revenuecat-signature header" });
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      res.status(401).json({ error: "Missing Authorization header" });
       return;
     }
 
@@ -24,7 +25,7 @@ router.post("/payments/webhook", webhookLimiter, async (req, res) => {
       res.status(400).json({ error: "Missing raw body" });
       return;
     }
-    const result = await handleRevenueCatWebhook(rawBody, signature);
+    const result = await handleRevenueCatWebhook(rawBody, authHeader);
     res.json(result);
   } catch (err: any) {
     logger.error({ err }, "RevenueCat webhook error");

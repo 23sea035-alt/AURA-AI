@@ -89,6 +89,11 @@ export const PersonaTraitsSchema = z.object({
 });
 
 export const FREE_DAILY_LIMIT = 30;
+
+// Version stamp recorded on users.tos_accepted_version when the register checkbox is
+// accepted (captured at onboarding completion, when a session is guaranteed). Bump when
+// counsel-approved terms ship; drafts live in docs/compliance/.
+export const TOS_VERSION = "draft-2026-06";
 export const MAX_MESSAGE_CHARS = 2000;
 
 // ── Companion roster caps (docs/specs/companion-roster.md §2) ────────────
@@ -200,7 +205,14 @@ export const UpdateCompanionSchema = z.object({
 
 export const UpdateProfileSchema = z.object({
   firstName: z.string().min(1).max(100).optional(),
-  lastName: z.string().min(1).max(100).optional(),
+  // Last name is optional in every form; an empty submit means "no last name" — normalized
+  // to null (clears) so a blank field can't 400 the whole profile update.
+  lastName: z
+    .string()
+    .max(100)
+    .transform((v) => (v.trim() === "" ? null : v))
+    .nullable()
+    .optional(),
   dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD").optional(),
   onboardingDone: z.boolean().optional(),
   aiDisclosureAccepted: z.boolean().optional(),

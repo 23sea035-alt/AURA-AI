@@ -63,6 +63,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api", apiLimiter);
 app.use("/api", router);
 
+// Unknown /api paths reply in the JSON envelope — the Express default is an HTML 404 page.
+app.use("/api", (_req, res) => {
+  res.status(404).json({ success: false, error: "Not found", code: "NOT_FOUND" });
+});
+
 // Create HTTP server for WebSocket support
 const server = http.createServer(app);
 

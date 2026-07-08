@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createHmac } from "crypto";
+
 
 const WEBHOOK_SECRET = "test_whsec_abc123";
 
@@ -55,8 +55,10 @@ vi.mock("../lib/logger.js", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
-function signBody(body: string): string {
-  return createHmac("sha256", WEBHOOK_SECRET).update(body).digest("hex");
+// RC echoes the dashboard-configured Authorization header verbatim (no body signature);
+// the handler accepts it with or without a "Bearer " prefix.
+function signBody(_body: string): string {
+  return `Bearer ${WEBHOOK_SECRET}`;
 }
 
 function makePayload(overrides?: Record<string, unknown>): string {
@@ -114,32 +116,47 @@ describe("RevenueCat webhook — contract", () => {
     });
   });
 
-  describe("signature verification", () => {
-    it("processes event with valid signature", async () => {
-      const body = makePayload();
-      const signature = signBody(body);
+  describe("real RC body shape (fields nested under `event`)", () => {
+    it("unwraps {api_version, event:{type,…}} and processes the purchase", async () => {
+      const flat = JSON.parse(makePayload());
+      // Drop the flat-shape's `event` (string kind) and `type` ("subscription" product class):
+      // in the real nested shape, `type` IS the event kind.
+      const { event: _drop, type: _class, ...fields } = flat;
+      const body = JSON.stringify({ api_version: "1.0", event: { ...fields, type: "INITIAL_PURCHASE" } });
 
       const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
-      const result = await handleRevenueCatWebhook(body, signature);
+      const result = await handleRevenueCatWebhook(body, signBody(body));
+
+      expect(result).toEqual({ received: true });
+      expect(mockInsert).toHaveBeenCalled();
+      expect(mockUpdate).toHaveBeenCalled();
+    });
+  });
+
+  describe("authorization verification", () => {
+    it("processes event with the configured Authorization header (Bearer form)", async () => {
+      const body = makePayload();
+
+      const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
+      const result = await handleRevenueCatWebhook(body, `Bearer ${WEBHOOK_SECRET}`);
 
       expect(result).toEqual({ received: true });
     });
 
-    it("throws on invalid signature", async () => {
+    it("processes event with the bare token (no Bearer prefix)", async () => {
       const body = makePayload();
-      const badSig = "invalidsignature";
 
       const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
-      await expect(handleRevenueCatWebhook(body, badSig)).rejects.toThrow("Invalid webhook signature");
+      const result = await handleRevenueCatWebhook(body, WEBHOOK_SECRET);
+
+      expect(result).toEqual({ received: true });
     });
 
-    it("throws on tampered body", async () => {
+    it("throws on a wrong token", async () => {
       const body = makePayload();
-      const signature = signBody(body);
-      const tamperedBody = makePayload({ product_id: "different_product" });
 
       const { handleRevenueCatWebhook } = await import("../services/payments/revenuecat.js");
-      await expect(handleRevenueCatWebhook(tamperedBody, signature)).rejects.toThrow("Invalid webhook signature");
+      await expect(handleRevenueCatWebhook(body, "Bearer not-the-secret")).rejects.toThrow("Invalid webhook signature");
     });
   });
 
