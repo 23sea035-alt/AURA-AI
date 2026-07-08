@@ -4,7 +4,7 @@
 // creates the real companion and lands straight in its chat, where the persona's seeded opener
 // is already waiting (createCompanion seeds it automatically — the roster is empty at onboarding).
 import { TOS_VERSION, type PersonaPreset } from '@aura/shared';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
@@ -24,6 +24,7 @@ export default function PersonaScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
   const { createCompanion, updateUser } = useApp();
+  const navigation = useNavigation();
   const [selected, setSelected] = useState<PersonaPreset | null>(null);
   const copy = ONBOARDING.persona;
 
@@ -43,11 +44,17 @@ export default function PersonaScreen() {
     // captured here where a verified session is guaranteed (register's own PUT would race
     // the user.created webhook mirror).
     updateUser({ onboardingDone: true, tosAcceptedVersion: TOS_VERSION });
-    router.replace('/(tabs)');
-    // Straight into the first chat (spec §10). Deferred a tick: a push issued in the same frame
-    // as the replace gets dropped while the navigator is mid-transition (verified on sim).
+    // Land directly in the first chat with the tabs behind it (back → Home) in ONE atomic reset,
+    // so Home never flashes on the way. The old replace('/(tabs)') + deferred push visibly bounced
+    // through the Home screen before the chat slid over (a push in the same frame as the replace
+    // gets dropped, hence the tick defer — which is exactly what exposed Home).
     if (result.ok) {
-      setTimeout(() => router.push({ pathname: '/chat/[id]', params: { id: result.id } }), 0);
+      navigation.reset({
+        index: 1,
+        routes: [{ name: '(tabs)' }, { name: 'chat/[id]', params: { id: result.id } }],
+      } as never);
+    } else {
+      router.replace('/(tabs)');
     }
   };
 
