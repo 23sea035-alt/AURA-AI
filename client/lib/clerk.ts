@@ -39,6 +39,19 @@ setTokenProvider(async () => {
   }
 });
 
+/**
+ * Current session JWT for transports that can't reach api.ts's module-private provider —
+ * the WebSocket carries it as a ?token= query param (RN WebSocket can't set headers).
+ */
+export async function getSessionToken(): Promise<string | null> {
+  if (!clerkEnabled) return null;
+  try {
+    return (await loaded()).session?.getToken() ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** Human-readable message out of a Clerk API error (field issues included). */
 function friendly(err: unknown): Error {
   if (isClerkAPIResponseError(err)) {

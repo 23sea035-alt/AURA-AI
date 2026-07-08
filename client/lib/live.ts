@@ -280,7 +280,7 @@ export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
       aiDisclosure: boolean;
     }>(`/companions/${req.companionId}/chat`, {
       method: 'POST',
-      body: { content: req.content, turnId: req.turnId },
+      body: { content: req.content, turnId: req.turnId, sessionStartedAt: req.sessionStartedAt },
     });
     return {
       reply: data.aiMessage?.content ?? '',

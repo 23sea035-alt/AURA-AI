@@ -58,6 +58,11 @@ export interface Message {
    * double-charging the daily limit (unique(turn_id, role) server-side).
    */
   turnId?: string;
+  /**
+   * Server message id for a STREAMED assistant bubble. The row keeps its local id so the
+   * in-flight reveal never remounts; Report and other server calls use remoteId ?? id.
+   */
+  remoteId?: string;
 }
 
 export interface TurnRequest {
@@ -75,6 +80,8 @@ export interface TurnRequest {
   isPremium: boolean;
   /** Idempotency key (uuid) — stable across retries of the same logical turn. */
   turnId?: string;
+  /** When this sitting began (drives server-side break-reminder timing). */
+  sessionStartedAt?: string;
 }
 
 export interface TurnResult {

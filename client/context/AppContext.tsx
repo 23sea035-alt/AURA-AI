@@ -17,6 +17,7 @@ import { DEMO } from '@/constants/demo';
 import { DEV_FORCE_PREMIUM, DEV_USE_MOCKS } from '@/constants/devFlags';
 import { ApiError } from '@/lib/api';
 import * as backend from '@/lib/backend';
+import { ChatSocket } from '@/lib/websocket';
 import type {
   AccountStatus,
   Companion,
@@ -74,6 +75,8 @@ export interface SendResult {
   failed?: boolean;
   /** Input moderation held the message back — the user message is marked 'blocked'. */
   blocked?: boolean;
+  /** The reply already streamed into the thread sentence-by-sentence — skip the reveal pass. */
+  streamed?: boolean;
 }
 
 /** Everything a create needs from the screen; lifecycle fields are the context's business. */
@@ -95,6 +98,8 @@ interface AppContextType {
   messages: Record<string, Message[]>;
   /** Companions with a reply currently in flight — surfaces "typing…" outside the chat. */
   typing: Record<string, boolean>;
+  /** companionId → assistant message id currently STREAMING in (drives the live word reveal). */
+  streaming: Record<string, string | null>;
   usage: Usage;
   voiceUsage: VoiceUsage;
   /** Add elapsed call seconds to this month's voice meter (mock of server-side metering). */
@@ -131,13 +136,20 @@ interface AppContextType {
   addMessage: (companionId: string, message: Omit<Message, 'id'>) => void;
   /** Remove a message (used by the failed-send retry, which re-sends the content). */
   removeMessage: (companionId: string, messageId: string) => void;
-  /** Send a turn through the (mock) chat pipeline; appends both sides + returns the assistant turn. */
+  /** Send a turn through the chat pipeline; appends both sides + returns the assistant turn. */
   sendTurn: (
     companionId: string,
     content: string,
     sessionTurnCount: number,
-    opts?: { inputModality?: 'text' | 'voice'; audioUri?: string },
+    opts?: { inputModality?: 'text' | 'voice'; audioUri?: string; turnId?: string; sessionStartedAt?: string },
   ) => Promise<SendResult>;
+  /**
+   * Open/close the live streaming socket for a chat screen. While attached, replies stream
+   * sentence-by-sentence AND the server sees the user as present (no away-reply push).
+   * No-ops in mock mode and for not-yet-adopted local ids.
+   */
+  attachChatStream: (companionId: string) => void;
+  detachChatStream: (companionId: string) => void;
 
   loadMemories: (companionId: string) => Promise<void>;
   editMemory: (companionId: string, id: string, fact: string) => Promise<void>;
@@ -202,6 +214,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [messages, setMessages] = useState<Record<string, Message[]>>({});
   const [typing, setTyping] = useState<Record<string, boolean>>({});
+  const [streamingIds, setStreamingIds] = useState<Record<string, string | null>>({});
   const [usage, setUsage] = useState<Usage>(SEED_USAGE);
   const [voiceUsage, setVoiceUsage] = useState<VoiceUsage>({ seconds: 0, month: thisMonth() });
   const [memories, setMemories] = useState<Record<string, MemoryRow[] | undefined>>({});
@@ -431,6 +444,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Streaming sockets die with the session.
+    chatSocketsRef.current.forEach((socket) => socket.close());
+    chatSocketsRef.current.clear();
     // Drop this device's push token first — after sign-out there's no session to authorize it.
     const pushToken = await AsyncStorage.getItem('pushToken').catch(() => null);
     if (pushToken) void backend.unregisterPushToken(pushToken).catch(() => {});
@@ -734,12 +750,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  /** Grow a streaming assistant bubble by one sentence chunk (WS token frames). */
+  const growMessage = useCallback((companionId: string, messageId: string, extra: string) => {
+    setMessages((prev) => {
+      const updated = {
+        ...prev,
+        [companionId]: (prev[companionId] ?? []).map((m) =>
+          m.id === messageId ? { ...m, content: m.content + extra } : m,
+        ),
+      };
+      persistMessages(updated);
+      return updated;
+    });
+  }, []);
+
+  /** In-place patch by id — finalizes a streamed bubble with its server identity/flags. */
+  const patchMessage = useCallback((companionId: string, messageId: string, patch: Partial<Message>) => {
+    setMessages((prev) => {
+      const updated = {
+        ...prev,
+        [companionId]: (prev[companionId] ?? []).map((m) => (m.id === messageId ? { ...m, ...patch } : m)),
+      };
+      persistMessages(updated);
+      return updated;
+    });
+  }, []);
+
+  // ── Streaming sockets ──────────────────────────────────────────────────────
+  // One live socket per OPEN chat screen. Presence is deliberate: while attached, the
+  // server delivers over WS and skips the away-reply push for that companion.
+  const chatSocketsRef = useRef<Map<string, ChatSocket>>(new Map());
+
+  const attachChatStream = useCallback((companionId: string) => {
+    // Mock mode has no WS; a not-yet-adopted local id can't bind (server wants a uuid).
+    if (DEV_USE_MOCKS || companionId.startsWith('local-')) return;
+    const sockets = chatSocketsRef.current;
+    if (sockets.has(companionId)) return;
+    const socket = new ChatSocket(companionId);
+    socket.open();
+    sockets.set(companionId, socket);
+  }, []);
+
+  const detachChatStream = useCallback((companionId: string) => {
+    const sockets = chatSocketsRef.current;
+    sockets.get(companionId)?.close();
+    sockets.delete(companionId);
+  }, []);
+
   const sendTurn = useCallback(
     async (
       companionId: string,
       content: string,
       sessionTurnCount: number,
-      opts?: { inputModality?: 'text' | 'voice'; audioUri?: string; turnId?: string },
+      opts?: { inputModality?: 'text' | 'voice'; audioUri?: string; turnId?: string; sessionStartedAt?: string },
     ): Promise<SendResult> => {
       const currentUsage = usageRef.current;
       const isPremium = !!(DEV_FORCE_PREMIUM || userRef.current?.isPremium);
@@ -774,6 +837,129 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       });
 
       setTyping((prev) => ({ ...prev, [companionId]: true }));
+
+      // Post-reply bookkeeping shared by the streaming and REST paths.
+      const finalizeReply = (assistant: Message, breakReminder?: string | null) => {
+        if (!isPremium) {
+          setUsage((prev) => {
+            const next = { ...prev, used: prev.used + 1, day: today() };
+            AsyncStorage.setItem('usage', JSON.stringify(next)).catch(() => {});
+            return next;
+          });
+        }
+        setCompanions((prev) => {
+          const updated = prev.map((c) =>
+            c.id === companionId
+              ? {
+                  ...c,
+                  lastMessage: (assistant.content || content).slice(0, 80),
+                  lastActiveAt: new Date().toISOString(),
+                  messageCount: (c.messageCount ?? 0) + 1,
+                }
+              : c,
+          );
+          persistCompanions(updated);
+          return updated;
+        });
+        if (breakReminder) {
+          setSafetyState((prev) => ({ ...prev, breakReminder }));
+        }
+      };
+
+      // WS-first: when the chat screen holds an open socket for this companion, the reply
+      // streams in sentence-by-sentence. Any failure BEFORE the first chunk falls back to
+      // REST with the SAME turnId (the server replays committed turns, so it's safe).
+      const socket = chatSocketsRef.current.get(companionId);
+      if (socket?.ready) {
+        const wsResult = await new Promise<SendResult | null>((resolve) => {
+          const assistantId = `ws-${turnId}`;
+          let acc = '';
+          let settled = false;
+          const settle = (r: SendResult | null) => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(watchdog);
+            setTyping((prev) => ({ ...prev, [companionId]: false }));
+            setStreamingIds((prev) => ({ ...prev, [companionId]: null }));
+            resolve(r);
+          };
+          const watchdog = setTimeout(() => {
+            if (acc) {
+              // Chunks arrived but no complete — a dropped turn. Clear the partial bubble;
+              // tap-to-retry replays the turnId and gets the committed reply whole.
+              removeMessage(companionId, assistantId);
+              setMessageStatus(companionId, userMsgId, 'failed');
+              settle({ failed: true });
+            } else {
+              settle(null); // nothing streamed yet — REST takes over safely
+            }
+          }, 90_000);
+          const sent = socket.sendTurn(content, turnId, opts?.sessionStartedAt, {
+            onToken: (sentence) => {
+              if (settled) return;
+              if (!acc) {
+                setTyping((prev) => ({ ...prev, [companionId]: false }));
+                setStreamingIds((prev) => ({ ...prev, [companionId]: assistantId }));
+                appendMessage(companionId, {
+                  id: assistantId,
+                  role: 'assistant',
+                  content: sentence,
+                  createdAt: new Date().toISOString(),
+                });
+              } else {
+                growMessage(companionId, assistantId, sentence);
+              }
+              acc += sentence;
+            },
+            onComplete: (c) => {
+              if (settled) return;
+              const assistant: Message = {
+                // The row KEEPS its local id so the in-flight word reveal never remounts;
+                // the server id rides on remoteId (Report and other server calls use it).
+                id: assistantId,
+                remoteId: c.aiMessageId,
+                role: 'assistant',
+                content: acc.trimEnd(),
+                createdAt: new Date().toISOString(),
+                safetyFlagged: (c.crisisResources?.length ?? 0) > 0 || undefined,
+                aiDisclosure: c.aiDisclosure || undefined,
+              };
+              if (acc) {
+                patchMessage(companionId, assistantId, {
+                  remoteId: assistant.remoteId,
+                  content: assistant.content,
+                  safetyFlagged: assistant.safetyFlagged,
+                  aiDisclosure: assistant.aiDisclosure,
+                });
+              } else {
+                // Idempotent replay of a committed turn arrives whole, with no token frames.
+                appendMessage(companionId, assistant);
+              }
+              finalizeReply(assistant, c.breakReminder);
+              settle({ assistant, streamed: !!acc });
+            },
+            onAbort: (code) => {
+              if (settled) return;
+              if (acc) removeMessage(companionId, assistantId);
+              if (code === 'input_blocked') {
+                setMessageStatus(companionId, userMsgId, 'blocked');
+                settle({ blocked: true });
+              } else if (code === 'free_limit_reached') {
+                removeMessage(companionId, userMsgId);
+                settle({ limitReached: { used: currentUsage.used, limit: currentUsage.limit } });
+              } else {
+                // rate_limited / internal_error / mid-turn drop → tap-to-retry (same turnId).
+                setMessageStatus(companionId, userMsgId, 'failed');
+                settle({ failed: true });
+              }
+            },
+          });
+          if (!sent) settle(null);
+        });
+        if (wsResult) return wsResult;
+        setTyping((prev) => ({ ...prev, [companionId]: true })); // restore for the REST leg
+      }
+
       let result: TurnResult;
       try {
         result = await backend.sendTurn({
@@ -786,6 +972,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           usage: { used: currentUsage.used, limit: currentUsage.limit },
           isPremium,
           turnId,
+          sessionStartedAt: opts?.sessionStartedAt,
         });
       } catch {
         // The send never reached the server — keep the bubble, mark it failed
@@ -819,37 +1006,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         aiDisclosure: result.aiDisclosure,
       };
       appendMessage(companionId, assistant);
-
-      if (!isPremium) {
-        setUsage((prev) => {
-          const next = { ...prev, used: prev.used + 1, day: today() };
-          AsyncStorage.setItem('usage', JSON.stringify(next)).catch(() => {});
-          return next;
-        });
-      }
-
-      setCompanions((prev) => {
-        const updated = prev.map((c) =>
-          c.id === companionId
-            ? {
-                ...c,
-                lastMessage: (result.reply ?? content).slice(0, 80),
-                lastActiveAt: new Date().toISOString(),
-                messageCount: (c.messageCount ?? 0) + 1,
-              }
-            : c,
-        );
-        persistCompanions(updated);
-        return updated;
-      });
-
-      if (result.breakReminder) {
-        setSafetyState((prev) => ({ ...prev, breakReminder: result.breakReminder! }));
-      }
+      finalizeReply(assistant, result.breakReminder);
 
       return { assistant };
     },
-    [appendMessage, removeMessage, setMessageStatus],
+    [appendMessage, removeMessage, setMessageStatus, growMessage, patchMessage],
   );
 
   const addVoiceSeconds = useCallback((seconds: number) => {
@@ -965,6 +1126,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         messages,
         typing,
+        streaming: streamingIds,
         usage,
         voiceUsage,
         addVoiceSeconds,
@@ -990,6 +1152,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addMessage,
         removeMessage,
         sendTurn,
+        attachChatStream,
+        detachChatStream,
         loadMemories,
         editMemory,
         removeMemory,

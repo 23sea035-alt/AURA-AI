@@ -22,6 +22,8 @@ interface MessageBubbleProps {
   onLongPress?: () => void;
   /** Word-by-word typing reveal (the newest assistant reply only). */
   reveal?: boolean;
+  /** The reply is still streaming in — the reveal keeps its caret between chunks. */
+  streaming?: boolean;
   onRevealProgress?: () => void;
   onRevealDone?: () => void;
   /** Continues a run of same-sender messages — tighter gap above. */
@@ -37,6 +39,7 @@ export function MessageBubble({
   onPress,
   onLongPress,
   reveal,
+  streaming,
   onRevealProgress,
   onRevealDone,
   grouped,
@@ -60,7 +63,13 @@ export function MessageBubble({
         />
       ) : null}
       {reveal && !isUser ? (
-        <RevealingText text={text} style={textStyle} onProgress={onRevealProgress} onDone={onRevealDone} />
+        <RevealingText
+          text={text}
+          style={textStyle}
+          streaming={streaming}
+          onProgress={onRevealProgress}
+          onDone={onRevealDone}
+        />
       ) : (
         <Text style={textStyle}>{text}</Text>
       )}

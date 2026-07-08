@@ -9,7 +9,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Platform, ScrollView } from 'react-native';
 import Animated, { Extrapolation, interpolate, useAnimatedStyle } from 'react-native-reanimated';
 // The built-in RN KeyboardAvoidingView drives its padding via LayoutAnimation, which doesn't
@@ -67,6 +67,10 @@ export default function ChatScreen() {
     companions,
     getMessagesForCompanion,
     sendTurn,
+    attachChatStream,
+    detachChatStream,
+    typing,
+    streaming,
     removeMessage,
     safetyState,
     setBreakReminder,
@@ -86,6 +90,16 @@ export default function ChatScreen() {
 
   const listRef = useRef<FlatList<Row>>(null);
   const sessionTurns = useRef(0);
+  // This sitting's start — server break-reminder timing (rides both WS and REST turns).
+  const sessionStartedAt = useRef(new Date().toISOString());
+
+  // Live streaming socket while this chat is open. Presence is part of the contract:
+  // an attached socket also tells the server "deliver over WS, no away-push".
+  useEffect(() => {
+    if (!cid || archived) return;
+    attachChatStream(cid);
+    return () => detachChatStream(cid);
+  }, [cid, archived, attachChatStream, detachChatStream]);
 
   // Home's starter chips arrive pre-filled, ready to send — never auto-sent;
   // otherwise an unsent draft (persisted per companion) is restored.
@@ -170,7 +184,10 @@ export default function ChatScreen() {
     sessionTurns.current += 1;
     scrollToBottom();
 
-    const result = await sendTurn(cid, content, sessionTurns.current, opts);
+    const result = await sendTurn(cid, content, sessionTurns.current, {
+      ...opts,
+      sessionStartedAt: sessionStartedAt.current,
+    });
     setThinking(false);
 
     if (result.limitReached) {
@@ -185,9 +202,10 @@ export default function ChatScreen() {
       return;
     }
     if (result.assistant) {
-      // The reveal is the payoff — a soft tick marks the reply landing.
+      // The reveal is the payoff — a soft tick marks the reply landing. A streamed reply
+      // already revealed itself sentence-by-sentence; re-running the word reveal would replay it.
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setRevealId(result.assistant.id);
+      if (!result.streamed) setRevealId(result.assistant.id);
       if (showJumpRef.current) setNewReply(true);
     }
   };
@@ -266,7 +284,17 @@ export default function ChatScreen() {
           contentContainerStyle={styles.thread}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
-          maintainVisibleContentPosition={{ minIndexForVisible: 0 }}
+          // minIndexForVisible holds the reader's place when content lands at index 0 — but a
+          // reader AT the bottom must follow the conversation: autoscrollToTopThreshold releases
+          // the hold within a bubble's height of the bottom, so new turns slide up into view
+          // while someone scrolled back to reread stays put (the jump pill takes over).
+          maintainVisibleContentPosition={{ minIndexForVisible: 0, autoscrollToTopThreshold: 120 }}
+          // A STREAMED reply grows an existing bubble (no insert, so mVCP won't track it):
+          // re-pin to the bottom on every content-size change unless the reader scrolled away —
+          // the composer glides down with the text, keeping the newest sentence in view.
+          onContentSizeChange={() => {
+            if (!showJumpRef.current) scrollToBottom(false);
+          }}
           onEndReached={loadOlder}
           onEndReachedThreshold={0.4}
           scrollEventThrottle={48}
@@ -276,8 +304,10 @@ export default function ChatScreen() {
             setShowJump(away);
             if (!away) setNewReply(false);
           }}
-          // Inverted list: header = visual bottom, footer = visual top.
-          ListHeaderComponent={thinking ? <ThinkingIndicator /> : null}
+          // Inverted list: header = visual bottom, footer = visual top. Context typing clears
+          // at the FIRST streamed sentence (WS) or at completion (REST) — the dots never sit
+          // alongside a bubble that's already talking.
+          ListHeaderComponent={typing[cid] ? <ThinkingIndicator /> : null}
           ListFooterComponent={
             loadingOlder ? (
               <View style={styles.olderLoading}>
@@ -342,7 +372,10 @@ export default function ChatScreen() {
               );
             }
             const m = item.msg;
-            const revealing = m.id === revealId;
+            // Two reveal drivers: revealId (a complete REST reply animating once) and the
+            // streaming id (a WS reply revealing continuously as sentences land).
+            const isStreaming = m.id === (streaming[cid] ?? null);
+            const revealing = m.id === revealId || isStreaming;
             const held = m.status === 'failed' || m.status === 'blocked';
             return (
               <View style={held ? styles.heldBubble : null}>
@@ -353,6 +386,7 @@ export default function ChatScreen() {
                   onPress={() => setTimeFor((cur) => (cur === m.id ? null : m.id))}
                   onLongPress={() => setMsgSheetFor(m)}
                   reveal={revealing}
+                  streaming={isStreaming}
                   onRevealProgress={() => scrollToBottom(false)}
                   onRevealDone={() => setRevealId(null)}
                   grouped={item.grouped}
@@ -483,10 +517,11 @@ export default function ChatScreen() {
               // iOS can't present a Modal while this sheet is dismissing — wait
               // out the exit animation before mounting the report sheet.
               go: () =>
-                setTimeout(
-                  () => openReport([...messages].reverse().find(isReportable)?.id ?? null),
-                  DURATION.normal + 30,
-                ),
+                setTimeout(() => {
+                  // Streamed bubbles keep a local row id; the server id rides on remoteId.
+                  const target = [...messages].reverse().find(isReportable);
+                  openReport(target ? (target.remoteId ?? target.id) : null);
+                }, DURATION.normal + 30),
               danger: true,
             },
           ].map((row) => (
@@ -521,7 +556,7 @@ export default function ChatScreen() {
             <PressableScale
               haptic="light"
               onPress={() => {
-                const id = msgSheetFor.id;
+                const id = msgSheetFor.remoteId ?? msgSheetFor.id;
                 setMsgSheetFor(null);
                 // iOS can't present a Modal while this sheet is dismissing.
                 setTimeout(() => openReport(id), DURATION.normal + 30);

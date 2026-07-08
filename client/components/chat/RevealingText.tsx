@@ -17,16 +17,22 @@ const SENTENCE_END = /[.!?…]["')\]]?$/;
 interface RevealingTextProps {
   text: string;
   style?: StyleProp<TextStyle>;
+  /** The text is still GROWING (WS streaming): keep the caret while caught-up, never restart. */
+  streaming?: boolean;
   /** Fires as words land (throttled by cadence) — used to keep the thread pinned to the bottom. */
   onProgress?: () => void;
   onDone?: () => void;
 }
 
-export function RevealingText({ text, style, onProgress, onDone }: RevealingTextProps) {
+export function RevealingText({ text, style, streaming = false, onProgress, onDone }: RevealingTextProps) {
   const { colors } = useTheme();
   const reduceMotion = useReducedMotion();
   const words = useMemo(() => text.split(' '), [text]);
   const [shown, setShown] = useState(reduceMotion ? words.length : 0);
+  // Progress survives text growth: a streamed bubble's text extends sentence-by-sentence,
+  // and the reveal must CONTINUE from where it left off — restarting on every chunk would
+  // replay the whole bubble each time a sentence lands.
+  const shownRef = useRef(reduceMotion ? words.length : 0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const doneRef = useRef(false);
 
@@ -35,6 +41,7 @@ export function RevealingText({ text, style, onProgress, onDone }: RevealingText
 
   useEffect(() => {
     if (reduceMotion) {
+      shownRef.current = words.length;
       setShown(words.length);
       if (!doneRef.current) {
         doneRef.current = true;
@@ -42,19 +49,21 @@ export function RevealingText({ text, style, onProgress, onDone }: RevealingText
       }
       return;
     }
-    let count = 0;
+    if (shownRef.current >= words.length) return; // caught up — idle until more words arrive
+    doneRef.current = false;
     const step = () => {
-      count += 1;
-      setShown(count);
+      const next = shownRef.current + 1;
+      shownRef.current = next;
+      setShown(next);
       onProgress?.();
-      if (count >= words.length) {
+      if (next >= words.length) {
         if (!doneRef.current) {
           doneRef.current = true;
           onDone?.();
         }
         return;
       }
-      const pause = SENTENCE_END.test(words[count - 1]) ? TYPING.sentencePauseMs : 0;
+      const pause = SENTENCE_END.test(words[next - 1]) ? TYPING.sentencePauseMs : 0;
       timer.current = setTimeout(step, wordMs + pause);
     };
     timer.current = setTimeout(step, wordMs);
@@ -64,7 +73,7 @@ export function RevealingText({ text, style, onProgress, onDone }: RevealingText
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, reduceMotion]);
 
-  const revealing = shown < words.length;
+  const revealing = shown < words.length || streaming;
 
   return (
     <Text style={style}>
