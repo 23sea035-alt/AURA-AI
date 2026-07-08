@@ -11,6 +11,28 @@ task queue this line referred to is archived at [archive/TODO-backend-era.md](ar
 
 ---
 
+## 2026-07-08 — voice loop wire-verified; three server fixes it took (branch `redesign`)
+
+First real traffic through the WS voice path (Node probe: WAV utterance → STT → LLM →
+Inworld TTS → framed MP3), which found and fixed:
+
+- **STT container sniffing** (`stt.ts`): every utterance was labeled `audio/webm` — a raw
+  binary WS frame carries no mime, and iOS records wav/m4a/caf. Magic-byte sniffing picks
+  the Whisper decoder (wav/m4a/caf/ogg/webm/mp3; wav fallback). 7 unit tests.
+- **`voice_caption` frame** (`voice-adapter.ts`): the sentence text now rides just ahead of
+  its audio frame, so clients can caption the spoken reply (the mock UX had captions; the
+  live path had no text at all).
+- **`voice_complete` ordering**: completion used to race the turn's own audio — the TTS
+  queue is CONCURRENT (Inworld budget), so queue position guarantees nothing; observed live
+  as complete-before-audio. The adapter now chains each connection's sends: frames go out
+  in caption order and completion trails the last frame. Spec table updated.
+
+Also verified live: fillers pre-generate per call, metering decrements per turn
+(voice_ready remainingSeconds), and **Inworld auth works but all three configured
+`INWORLD_VOICE_ID_*` values are invalid** ("Unknown voice" — they look like unsaved
+voice-design draft ids; stock voices like Ashley/Edward/Olivia synthesize fine and can be
+env-overridden for testing). Suite 643 passing.
+
 ## 2026-07-07 — roster server layer + live-pass fixes (branch `redesign`)
 
 - **Companion-roster enforcement (earlier today, spec §9):** create guarded by total-then-active

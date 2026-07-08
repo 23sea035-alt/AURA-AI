@@ -295,8 +295,9 @@ audio. On the server, check `typeof message === 'string'` vs `message instanceof
 > | C→S | `{ type: "voice_interrupt", transcript? }` | barge-in: aborts the in-flight reply; server classifies the interjection |
 > | C→S | `{ type: "voice_stop" }` | end the call |
 > | S→C | `{ type: "voice_ready", companionId, remainingSeconds }` | call open, ready for audio |
+> | S→C | `{ type: "voice_caption", companionId, index, text }` | sentence text just ahead of its audio frame (client captions) — added 2026-07-08 |
 > | S→C | *(binary)* `[4-byte BE index][mp3 bytes]` | one synthesized sentence of the reply |
-> | S→C | `{ type: "voice_complete", turnId, companionId, memoriesUsed, breakReminder, crisisResources }` | reply finished |
+> | S→C | `{ type: "voice_complete", turnId, companionId, memoriesUsed, breakReminder, crisisResources }` | reply finished — **guaranteed to trail every audio frame of the turn** (the adapter chains this connection's sends; synthesis itself stays concurrent under the Inworld budget). Wire-verified 2026-07-08 |
 > | S→C | `{ type: "voice_interrupted", class, companionId }` | class = resume / interjection / detour (client drives the follow-up) |
 > | S→C | `{ type: "voice_busy", companionId }` | an utterance is already in flight — one at a time |
 > | S→C | `{ type: "abort", code, companionId }` | code = voice_limit_reached / utterance_too_large / rate_limited / internal_error |

@@ -535,3 +535,35 @@ unchanged during the turn = presence suppressed the away-push).
   a premature name match); `restart-driver.sh` for the stale-XCUITest-runner failure mode;
   `signup-throwaway.yaml` fixed for the broken-on-iOS-26 `hideKeyboard`. Full surface map +
   mock-first testing rule captured in the verify-ui skill.
+
+## Voice-call live loop — 2026-07-08 (small hours)
+
+The call screen's mock timer loop is now MOCK-MODE ONLY; live mode runs the real pipeline:
+Apple-VAD utterances (expo-speech-recognition, `continuous:false` + `persist` — the same
+module dictation uses) ship as ONE binary WS frame; the reply returns as per-sentence
+Inworld MP3 frames + `voice_caption` text, played in order through expo-audio temp files.
+
+- **`useVoiceCall`** owns the half-duplex machine (connecting → listening → thinking →
+  speaking → listening): REST `/voice/start` budget-gates BEFORE the mic runs; `voice_ready`
+  carries the server-authoritative remaining seconds (first one wins over the local mirror);
+  `voice_limit_reached` lands in the existing out-of-time UI; a dead socket ends the call
+  calmly. Silence keeps re-arming the mic (no-speech "errors" are the idle loop, not faults).
+- **One socket, both modalities**: the transport gained voice frames + binary decode
+  (`[u32 BE index][MP3]`), and the per-companion socket now lives in a refcounted registry —
+  the chat screen and the call screen HOLD THE SAME INSTANCE (the server evicts duplicate
+  sockets per companion with close code 4000).
+- **`useDictation` is session-guarded now**: speech events are module-global, so without the
+  guard the call's recognition would have dumped transcripts into the chat composer
+  underneath.
+- New native dep `expo-file-system` (utterance bytes in, MP3 frames out) — pods + rebuild.
+- **Wire-verified end-to-end** (Node WS probe + on-sim): spoken-WAV utterance → sniffed
+  container → Whisper → contextual reply → caption → real MP3 audio frame → ordered
+  complete; metering decremented per turn; on-sim call opens to Listening with the capture
+  loop stable. Server-side finds it took: see `CHANGELOG.md` 2026-07-08.
+- **Still open**: the audible in-app leg needs a mic path into the sim — `voice-probe.sh
+  setup` (BlackHole, needs admin) then `mic-on` + relaunch, or just test on the 16e by
+  speaking; **the three `INWORLD_VOICE_ID_*` values in server/.env are invalid** (Inworld
+  "Unknown voice" — save/publish the voice designs in the portal and paste the SAVED ids;
+  stock voices Ashley/Edward/Olivia work and can be env-overridden meanwhile); the 9 gallery
+  personas stay silent until cast (client shows thinking→listening with no audio — a "voice
+  coming soon" state is a nice-to-have).
