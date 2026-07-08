@@ -495,3 +495,43 @@ the pass, all fixed + re-verified same session:
   Developer .p8 key + APNS_KEY_ID/TEAM_ID (all three empty in server/.env).
 - Moderation field note: the prompt-guard blocked an instruction-shaped probe ("…probe, just say
   hi") from a REAL session — the injection layer works live; phrase test messages naturally.
+
+## WS streaming chat — 2026-07-07 (late night, after push)
+
+Replies now stream over the WebSocket with a CONTINUOUS word-by-word reveal. Live-verified on
+the 16e (burst screenshots: "The ▍" → first sentence + held caret → full reply; APNs warn count
+unchanged during the turn = presence suppressed the away-push).
+
+- **`lib/websocket.ts` is the real transport now** (the old draft contract was wrong on every
+  frame): sends `{type:'turn', companionId, content, turnId, sessionStartedAt}`; receives
+  `token` (one per output-moderated SENTENCE) / `complete` (carries aiMessageId, breakReminder,
+  aiDisclosure, crisisResources) / `abort` / `error`; auth via `?token=` (Clerk JWT from new
+  `getSessionToken()` in lib/clerk.ts), `refresh_auth` every ~55s, cycle on `auth_expired`,
+  backoff reconnect. One socket = presence for ONE companion (server delivers over WS instead
+  of pushing while the chat is open).
+- **AppContext**: sockets attach/detach with the chat screen (`attachChatStream`, live-mode
+  only, never for local ids); `sendTurn` goes WS-first and falls back to REST with the SAME
+  turnId (idempotent replay makes that safe — a replayed turn arrives whole with no token
+  frames and is appended directly); new `growMessage`/`patchMessage` mutators;
+  `streaming[companionId]` exposes the in-flight assistant message id.
+- **The streamed bubble keeps its LOCAL row id forever** — the server id rides on the new
+  `Message.remoteId` (Report uses `remoteId ?? id`). Swapping ids at complete would remount
+  the bubble and restart the reveal.
+- **`RevealingText` survives growing text**: progress lives in a ref, so each arriving
+  sentence CONTINUES the word cadence instead of restarting/popping; a `streaming` prop keeps
+  the caret while caught-up between chunks; the ≤6s compression still applies. REST replies
+  keep the classic one-shot reveal (mock-verified unchanged).
+- **The thread follows new content now** (the bug that hid streaming): mVCP's
+  `minIndexForVisible` was holding the view in place on every insert — added
+  `autoscrollToTopThreshold: 120` (readers at the bottom follow; readers scrolled up stay put)
+  plus an `onContentSizeChange` re-pin gated by the jump-pill flag, which also tracks bubble
+  GROWTH mid-stream. Mock- and live-verified with the keyboard up.
+- ThinkingIndicator is driven by context `typing` (clears at the FIRST streamed sentence);
+  `sessionStartedAt` now rides both transports (server break-reminder timing).
+- **Maestro tooling refreshed** (a lot had drifted): flows `goto-tab` / `open-chat` /
+  `send-message` / `signout` / `allow-notifications` keyed to the real a11y labels (tab labels
+  are "X, tab, N of 3"; roster rows LEAD with a glyph → match `.*Name.*` unanchored; wait for
+  the tab bar + "Search companions" before row taps — Home's pinned-companion label satisfies
+  a premature name match); `restart-driver.sh` for the stale-XCUITest-runner failure mode;
+  `signup-throwaway.yaml` fixed for the broken-on-iOS-26 `hideKeyboard`. Full surface map +
+  mock-first testing rule captured in the verify-ui skill.
