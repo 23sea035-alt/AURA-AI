@@ -94,10 +94,11 @@ populates the crisis interstitial state, not the happy conversation.
 
 ## Subscription & paywall
 
-- **Free:** 3 base companions, default personalities, **30 messages/day**.
-- **Premium — $9.99/mo:** unlimited messages, **personality tuning (3×3×3 traits)**, **create extra
-  companions**, priority responses. *(Render the price from StoreKit/RevenueCat — the "$9.99/mo"
-  string here is a placeholder for the localized store price.)*
+- **Free:** up to 5 companions from the full 12-persona gallery (default personalities),
+  **30 messages/day shared across them** (roster model — `specs/companion-roster.md`).
+- **Premium — $12.99/mo (or $99.99/yr):** unlimited messages, **personality tuning (3×3×3
+  traits)**, avatar looks, up to 15 companions, priority responses. *(Render the price from
+  StoreKit/RevenueCat — the figure here is a placeholder for the localized store price.)*
 - Paywall must include a **Restore Purchases** action and the standard auto-renew legal line.
 - **Subscription management (premium):** plan = Premium, renews **Jul 14, 2026**, **Manage in App
   Store**, Restore Purchases.

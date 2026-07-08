@@ -291,7 +291,7 @@ subscriptions
   updated_at               timestamptz notNull default now()
 ```
 Notes: updated by the **verified** RevenueCat webhook, which also flips `users.is_premium`
-(→ drives the companion downgrade-lock). Plan: single **Premium $9.99/month**. Handle the
+(→ drives the companion downgrade-lock). Plan: **Premium $12.99/month (+ $99.99/year)**. Handle the
 sandbox-vs-production webhook environment flag.
 
 ### 8. `device_tokens`

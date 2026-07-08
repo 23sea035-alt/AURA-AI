@@ -11,6 +11,36 @@ task queue this line referred to is archived at [archive/TODO-backend-era.md](ar
 
 ---
 
+## 2026-07-07 — roster server layer + live-pass fixes (branch `redesign`)
+
+- **Companion-roster enforcement (earlier today, spec §9):** create guarded by total-then-active
+  caps; free-tier trait/`lookId` coercion on create + patch; first companion gets a server-written
+  opener (cap/LLM-exempt) + auto-pin; restore gained the active-cap guard; delete gained
+  min-1-active + read-pin-before-delete re-pin; new clear (`DELETE /:id/messages`) + forget
+  (`POST /:id/forget`) routes; `/auth/seed-companions` removed. 35 companions contract tests.
+  (Client side: `redesign/fable5-rebuild-notes.md` 2026-07-07 entries.)
+- **RevenueCat webhook actually works now (live-pass find):** the handler required an
+  `x-revenuecat-signature` HMAC-of-body header — **RC sends neither**; it echoes the
+  dashboard-configured `Authorization` header verbatim, with every field nested under `event`
+  (`{api_version, event:{type,…}}`). Real events could never pass. Verification is now a
+  constant-time match of the Authorization header against `REVENUECAT_WEBHOOK_SECRET`
+  (`Bearer ` optional) and the parser unwraps the nested shape (flat fixture shape still
+  accepted). Verified live end-to-end: Test Store purchase → webhook → `is_premium` flip →
+  entitlements. Contract tests updated + a real-nested-shape test added.
+- **`UpdateProfileSchema.lastName` accepts empty → null (live-pass find):** a blank last name
+  400'd the whole profile PUT, so the first name silently never saved ("Good evening, there").
+  Empty string now normalizes to null (also makes clearing a last name possible).
+- **Moderation degradation is loud now:** when omni L2/L3 errors (e.g. OpenAI 429 — the org
+  needs prepaid credits) and the Groq safeguard fallback carries the turn, the server logs a
+  WARN + increments `moderation.l2_degraded`/`l3_degraded` (visible on `/api/admin/metrics`).
+  Previously a degraded prod could run for weeks with zero log evidence.
+- **JSON catch-all 404** for unknown `/api` paths (`{success:false, code:"NOT_FOUND"}`) instead
+  of Express's HTML page.
+- **Idempotent REST chat turns end-to-end:** the client now sends a stable `turnId` (kept on the
+  bubble across tap-to-retry); verified live — same `turnId` twice returned the same
+  `aiMessage.id`, no duplicate row, no double free-tier charge.
+- Suite **634 passing**; typecheck + lint green.
+
 ## 2026-07-02 (redesign merge + companion archive/delete) — branch `backend`
 
 - **Merged `origin/redesign` → `backend`.** Brought the full RN client (Warm Sanctuary port) onto the

@@ -122,14 +122,14 @@ Monetized via subscription (free tier with daily message cap; premium unlimited)
 - **Decision:** iOS subscriptions via **RevenueCat on top of StoreKit (Apple IAP)**. Enroll in the
   **Apple Small Business Program (15%)**. Keep Stripe for *future* web billing — under RevenueCat
   Web Billing, mapping to the same entitlements.
-- **Plan & pricing (v1.0):** One paid tier — **Premium at $9.99/month** (monthly billing), unlimited
+- **Plan & pricing (v1.0):** One paid tier — **Premium at $12.99/month (+ $99.99/year)**, unlimited
   text. Free tier = **30 messages/day** (a `@aura/shared` constant; daily UTC reset; counts only
   completed turns; A/B-tunable — a *secondary* funnel since features already gate). Tier on *features*,
   not message count. Rules: (a) "unlimited" text carries an **invisible anti-abuse ceiling** (per-minute rate
   limit + generous daily hard cap) to stop scripted abuse — no human hits it; (b) **voice is always
-  metered, never unlimited** (STT/TTS cost asymmetry). Net ~$8.49/sub after Apple 15%; inference is
-  pennies/user — high margin. Annual plan, intro free trial, and feature-based multi-tier are
-  deferred (see §8).
+  metered, never unlimited** (STT/TTS cost asymmetry). Net ~$11/sub after Apple 15%; inference is
+  pennies/user — high margin. Intro free trial and feature-based multi-tier are
+  deferred (see §8; the annual plan shipped — pricing basis in `voice-pricing-economics.md`).
 - **Why:** Apple requires IAP for in-app digital subscriptions; embedding Stripe = rejection.
   RevenueCat handles receipt validation, entitlements, cross-platform sync, and webhooks.
 - **Consequences:** New iOS purchase flow (RevenueCat SDK + StoreKit). Backend syncs entitlements

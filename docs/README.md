@@ -5,8 +5,8 @@
 An iOS AI-companion chat app (**18+, US-first**). Users build a roster of companions from a
 **curated gallery of 12 personas** (3 anchors + 9), each a distinct voice pack with persistent
 per-companion memory — one companion = one continuous conversation. Free tier: **up to 5 active
-companions** and **30 messages/day (per user, shared across companions)**; premium ($9.99/month via
-RevenueCat) raises the cap to 15 and unlocks personality tuning + avatar looks. Differentiator:
+companions** and **30 messages/day (per user, shared across companions)**; premium ($12.99/month or
+$99.99/year via RevenueCat) raises the cap to 15 and unlocks personality tuning + avatar looks. Differentiator:
 safety-first, regulation-aware design. The roster/gating model is specified in
 [`specs/companion-roster.md`](specs/companion-roster.md).
 

@@ -72,16 +72,19 @@ Every var below is declared `sync: false` in `render.yaml` and **must be set in 
 
 ## Gate 2 — Point webhooks at production
 
-- [ ] **RevenueCat** webhook → `https://<prod-host>/api/payments/webhook`, auth secret =
-  `REVENUECAT_WEBHOOK_SECRET`.
-- [ ] **Clerk** webhook → `https://<prod-host>/api/webhooks`, signing secret = `CLERK_WEBHOOK_SECRET`.
+- [ ] **RevenueCat** webhook → `https://<prod-host>/api/payments/webhook`; set the dashboard's
+  **Authorization header value** to `REVENUECAT_WEBHOOK_SECRET` (RC echoes it verbatim on every
+  event — no body signature; the server does a constant-time match, `Bearer ` prefix optional).
+- [ ] **Clerk** webhook → `https://<prod-host>/api/webhooks/clerk` (svix), signing secret =
+  `CLERK_WEBHOOK_SECRET`.
 - [ ] Fire a test event from each provider dashboard; confirm a 2xx and no error logs.
 
 ---
 
 ## Gate 3 — Deploy
 
-- [ ] Push `backend` and deploy on Render (build + start commands are in `render.yaml`).
+- [ ] Push `redesign` (or the release branch cut from it) and deploy on Render (build + start
+  commands are in `render.yaml`).
 - [ ] Confirm the boot log shows **migrations applied** against Neon (no pending-migration errors).
 - [ ] `GET /api/healthz` returns `200 {"status":"ok","checks":{"database":"ok"}}`
   (returns `503 degraded` if the DB check fails — this is the Render health-check path).

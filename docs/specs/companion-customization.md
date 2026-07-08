@@ -1,8 +1,12 @@
 # Companion Customization — Design & Phasing
 
-> Design record for pivoting from "3 fixed personas" to **customizable companions**. Status: **agreed
-> direction, pre-implementation.** Backend serves both phases with no migration between them. Numbers in
-> the v1 library table are **confirmed**; items tagged `[DECIDE]` are open.
+> Design record for pivoting from "3 fixed personas" to **customizable companions**. Status: **future
+> direction (v1.1+), partially superseded for v1.0** — what shipped for appearance is a much simpler
+> premium **"Change look" system: five brightness/saturation filter moods of each base portrait**
+> (`client/constants/looks.ts`, rendered via `FilteredAvatar`), not the layered hair/shirt/skin-tint
+> compositor specified in §4–§9, which remains the post-v1.0 plan. Backend serves both phases with no
+> migration between them. Numbers in the v1 library table are **confirmed**; items tagged `[DECIDE]`
+> are open.
 >
 > **Scope note (2026-07-07):** this doc is now the **art / appearance-pipeline** record. The companion
 > **roster model — caps, create/edit gating, archive/restore/delete, and conversation-starts — is

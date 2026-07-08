@@ -1,9 +1,11 @@
 # Fable 5 rebuild — notes
 
-> Branch: `fable5-rebuild` (off `redesign`). Everything runs on mock data with wire-ready seams;
-> no Clerk / RevenueCat / APNs / REST / WS integration. `pnpm typecheck` green; iOS JS bundle
-> export green. This file records what changed per screen, the design calls, divergences from the
-> existing design, and every seam left for wiring.
+> Change log for the client rebuild + wiring arcs. Started on `fable5-rebuild` (mock-only, wire-ready
+> seams); merged into `redesign` 2026-07-07. Clerk / RevenueCat / REST went live in the 2026-07-06
+> wiring arc and were **live-verified end-to-end 2026-07-07**; APNs and WS remain unwired. Entries
+> are dated and append-only — trust the newest entry over older prose (e.g. the original `firstchat`
+> screen described below was superseded by the roster model's onboarding, which lands straight in
+> the real chat).
 
 ## The take, in one paragraph
 
@@ -261,7 +263,8 @@ Implemented after the full-app audit (rubric: `audit-rubric-supplement.md`), all
   convention, theme-independent); `ErrorFallback`'s dev modal keeps one `#000` shadow. Everything
   else in `app/` and `components/` (outside the documented bespoke onboarding art + GoogleG) is
   token-clean — verified by grep.
-- `lib/api.ts` + `lib/websocket.ts` are unreferenced but kept as the reference contract for wiring.
+- `lib/websocket.ts` is unreferenced but kept as the reference contract for the WS arc.
+  (`lib/api.ts` graduated: rewritten in the 2026-07-06 wiring arc, now core live-mode code.)
 - `react-query` provider still mounts (harmless, unused) — remove or use at wiring time.
 - Typed-routes file (`.expo/types/router.d.ts`) was regenerated for the two new routes; any
   `expo start` keeps it fresh.
@@ -424,3 +427,45 @@ the 16e in both themes. Shared → server → client, committed per layer.
   companions fixture predates `personaKey`/`isDefault` and the roster model — needs a fixture
   refresh (staged manually this session); live-mode wiring landed but is UNTESTED (mock-only
   session per the handoff constraints).
+
+## Live-mode test pass + fix batch — 2026-07-07 (night)
+
+Full end-to-end live pass on the 16e (Clerk dev + Neon + local server + ngrok tunnel + RevenueCat
+Test Store): fresh register → email code → carousel → age gate → AI disclosure → third-party-AI
+consent → name → 1-of-12 pick (Orion) → real `POST /companions` + seeded opener → live Groq chat
+turn (OpenAI moderation 429s → Groq safeguard carried it, verified) → memory consolidation ran →
+roster ops (create Sage w/ duotone fallback avatar, clear conversation, archive, restore — each
+verified in Neon) → Test Store purchase → webhook → entitlements → premium gates. Bugs found by
+the pass, all fixed + re-verified same session:
+
+- **Name save 400'd silently** (`lastName: ''` vs schema `min(1)`; fire-and-forget mirror swallowed
+  it; hydrate stomped local "Jason" → "Good evening, there"). Schema now normalizes '' → null;
+  the mirror failure `console.warn`s in dev.
+- **First-create pin fired a guaranteed-invalid PUT** (local `local-…` id sent to the uuid-typed
+  `primaryCompanionId`); local ids no longer hit the wire (server auto-pins #1; the create mirror
+  re-pins with the adopted UUID).
+- **Paywall + voice-call heroes lost portraits in live mode** — both passed the server-UUID row id
+  to `CompanionPresence`; now `personaKey ?? id` (same rule Home already had).
+- **RevenueCat webhook could never verify real events** (invented HMAC header + flat body shape) —
+  server-side fix; see `CHANGELOG.md` 2026-07-07.
+- **REST chat turns are idempotent now**: stable `turnId` minted per logical turn, kept on the
+  bubble so tap-to-retry re-sends under the same key; live-verified (same turnId → same
+  `aiMessage.id`, one row, one free-tier charge). `DAILY_CAP` now maps to the cap sheet
+  (RATE_LIMITED stays tap-to-retry).
+- **Home "remembers" card no longer shows the demo line as a false memory** — wired to
+  `companions.remember_question` via hydrate (`Companion.rememberQuestion`), hidden until one
+  exists; the demo roster's Aurora carries the canonical line (`DEMO.rememberLine`).
+- **Owned-state renew date is store truth** — new `fetchRenewalDate` seam (RC
+  `CustomerInfo.latestExpirationDate`; mock = demo date); "Renews Jul 14, 2026" hardcode gone from
+  paywall + subscription (null hides the line / falls back to "Active").
+- `tosAcceptedVersion` (@aura/shared `TOS_VERSION`) is now captured at onboarding completion
+  (register checkbox is the acceptance moment; the PUT waits for a guaranteed session).
+- Gotchas earned: **iOS Keychain persists the Clerk session across app uninstall** (a "fresh
+  install" can boot signed-in — sign out first when testing registration); **shared/ edits need
+  `pnpm --dir shared build`** before the server bundle or Metro see them (stale `dist/` cost one
+  confused retest); the free-tier day resets at **UTC midnight** (8pm ET) — the counter dropping
+  mid-evening is correct behavior, not a bug.
+- **Still open after this pass**: RC dashboard webhook not yet pointed at the tunnel/prod URL
+  (server side verified by hand-delivering the real nested shape through the tunnel); push
+  registration + WS/voice remain unwired (server code exists, dark); reset-demo fixture refresh;
+  eval GO/NO-GO gate; the 9 gallery portraits.

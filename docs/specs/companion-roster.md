@@ -1,6 +1,9 @@
 # Companion Roster, Gating & First-Conversation — v1 Spec
 
-> **Status: agreed direction, pre-implementation (2026-07-07).** The single build-against doc for the
+> **Status: IMPLEMENTED (2026-07-07)** — shipped in full across shared/server/client (see
+> `docs/redesign/fable5-rebuild-notes.md`, 2026-07-07 entries), sim-verified end-to-end in mock mode
+> and re-verified against the live server (Clerk + Neon + RevenueCat Test Store) the same day. Body
+> text keeps its original spec voice ("must be added" = was added). The single build-against doc for the
 > companion *roster lifecycle*: how many companions a user can have, what free vs premium can do when
 > creating/editing them, how archive/restore/delete/clear work, how the picker is presented, and how a
 > conversation begins. Companion *identity* (the 12 voice packs) lives in
