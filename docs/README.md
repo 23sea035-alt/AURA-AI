@@ -103,6 +103,7 @@ and is **frozen history — not authoritative**.
 | **Frontend change log (what shipped, client)** | [`redesign/fable5-rebuild-notes.md`](redesign/fable5-rebuild-notes.md) |
 | **Backend change log (what shipped, server)** | [`CHANGELOG.md`](CHANGELOG.md) |
 | Go-live checklist (ops/config/legal) | [`GO-LIVE.md`](GO-LIVE.md) |
+| **What stands between here and v1.0 (living checklist)** | [`../todos.md`](../todos.md) |
 | Post-launch roadmap (incl. triaged leftovers) | [`planning/post-v1.0-roadmap.md`](planning/post-v1.0-roadmap.md) |
 | Live-voice arc research | [`planning/realtime-voice-call-research.md`](planning/realtime-voice-call-research.md) |
 | Response-shaping research | [`research/companion-response-shaping.md`](research/companion-response-shaping.md) |
