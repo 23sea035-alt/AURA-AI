@@ -44,7 +44,10 @@ def read_key(base: Path, manifest: dict, key: str):
     """Returns (parsed_value, location) — location is 'manifest', an overflow filename, or None."""
     raw = manifest.get(key)
     if raw is not None:
-        return json.loads(raw), "manifest"
+        try:
+            return json.loads(raw), "manifest"
+        except json.JSONDecodeError:
+            return raw, "manifest"  # raw-string keys (e.g. primaryCompanionId) aren't JSON-encoded
     overflow = base / hashlib.md5(key.encode()).hexdigest()
     if key in manifest and overflow.exists():  # manifest value null → overflow file
         raw = overflow.read_text()
@@ -74,16 +77,24 @@ def delete_key(base: Path, manifest: dict, key: str) -> None:
 
 
 def reset_demo(base: Path, manifest: dict) -> None:
-    """Canonical demo story: seeded Aurora thread only, no drafts, fresh mock server state."""
-    msgs, loc = read_key(base, manifest, "messages")
-    if msgs:
-        msgs = {"aurora": [m for m in msgs.get("aurora", []) if str(m.get("id", "")).startswith("seed-")]}
-        write_key(base, manifest, "messages", msgs, loc)
+    """Canonical demo story (the signed-in Maya). Writes the one key the app can't invent
+    (the Maya profile — fixture JSON next to this script, drift-tested by
+    client/lib/__tests__/demo-user-fixture.test.ts), then DELETES every seedable key so the
+    next launch re-seeds canonically from client code: the trio roster + aurora pin come from
+    DEFAULT_COMPANIONS/state defaults, Aurora's thread from seedConversation(), and the 18/30
+    usage story from SEED_USAGE. No roster fixture to drift when the Companion model changes.
+    Mock mode only — run with the app TERMINATED, then relaunch."""
+    fixture = json.loads((Path(__file__).parent / "demo-user.fixture.json").read_text())
+    _, loc = read_key(base, manifest, "user")
+    write_key(base, manifest, "user", fixture, loc)
+    manifest = load_manifest(base)
+    seedable = ("companions", "messages", "primaryCompanionId", "usage", "voiceUsage",
+                "mock:accountStatus", "mock:isPremium")
     for key in list(manifest.keys()):
-        if key.startswith("draft:") or key in ("mock:accountStatus", "mock:isPremium", "voiceUsage", "usage"):
+        if key.startswith("draft:") or key in seedable:
             delete_key(base, manifest, key)
             manifest = load_manifest(base)
-    print("demo state reset (relaunch the app to re-seed usage/voice meters)")
+    print("demo state staged (relaunch the app: roster, thread, and meters re-seed canonically)")
 
 
 def main() -> None:
