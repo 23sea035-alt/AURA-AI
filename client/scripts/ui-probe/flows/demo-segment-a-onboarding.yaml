@@ -1,0 +1,106 @@
+appId: com.aura.ai.companion
+env:
+  EMAIL: demo-maya@example.com
+  PASSWORD: demopass1234
+---
+# SEGMENT A — full landing + onboarding, Welcome -> first chat with Aurora, asserting the
+# landing screen at every step so a missed transition FAILS LOUDLY.
+#
+# PRECONDITION: a SIGNED-OUT state = boot on Welcome. The in-app "Sign out" DOES NOT do this in
+# mock (it only clears the name; you stay on the tabs). Stage it deterministically instead — with
+# the app TERMINATED, delete the signed-in keys, then relaunch:
+#   for k in user companions messages primaryCompanionId usage voiceUsage mock:accountStatus mock:isPremium; do
+#     python3 client/scripts/dev/sim-storage.py del "$k"; done
+#   xcrun simctl launch booted com.aura.ai.companion   # splash -> Welcome (no user -> onboarding)
+# Mock mode: authVerifyEmail accepts ANY 6 digits; register always advances to verify-email.
+# The register-screen POINT taps mirror the sim-proven signup-throwaway.yaml — re-derive via
+# `maestro hierarchy` if the register layout changes (hideKeyboard is broken on the iOS 26 sim,
+# so tapping the static title dismisses the keyboard instead).
+
+# 1. Welcome
+- extendedWaitUntil:
+    visible: "Get started.*"
+    timeout: 15000
+- tapOn: "Get started.*"
+
+# 2. Register  (point taps: label focus is unreliable on this screen)
+- extendedWaitUntil:
+    visible: "Create your account"
+    timeout: 10000
+- tapOn:
+    point: "50%,49%" # email field
+- inputText: "${EMAIL}"
+- tapOn: "Create your account" # static title dismisses the keyboard
+- tapOn:
+    point: "50%,58%" # password field
+- inputText: "${PASSWORD}"
+- tapOn: "Create your account"
+- tapOn:
+    point: "10%,65%" # terms checkbox
+- tapOn: "Create account" # submit CTA
+
+# 3. Verify email  (no auto-submit; mock accepts any 6 digits). The hidden input auto-focuses on
+#    mount; the visible target is the 6-cell row (the "Verification code" input isn't matchable).
+- extendedWaitUntil:
+    visible: "Check your email"
+    timeout: 10000
+- tapOn:
+    point: "50%,31%" # the 6 code cells — focuses the hidden input
+- inputText: "123456"
+- tapOn: "Verify"
+
+# 4. Intro carousel — 3 slides, gate on each headline
+- extendedWaitUntil:
+    visible: "Meet a companion who remembers you."
+    timeout: 10000
+- tapOn: "Continue.*"
+- extendedWaitUntil:
+    visible: "A calm, private place to talk."
+    timeout: 8000
+- tapOn: "Continue.*"
+- extendedWaitUntil:
+    visible: "Here whenever you need."
+    timeout: 8000
+- tapOn: "Continue.*"
+
+# 5. Age gate — default DOB is an adult, so Continue passes with no wheel interaction
+- extendedWaitUntil:
+    visible: "How old are you?"
+    timeout: 10000
+- tapOn: "Continue.*"
+
+# 6. AI-nature disclosure — tick the acknowledgment (Continue is gated on it), then Continue
+- extendedWaitUntil:
+    visible: "A few things to know."
+    timeout: 10000
+- tapOn: ".*I understand my companion is an AI.*"
+- tapOn: "Continue.*"
+
+# 7. Third-party-AI consent — tick, then Agree
+- extendedWaitUntil:
+    visible: "How your messages work"
+    timeout: 10000
+- tapOn: ".*I agree that my messages.*"
+- tapOn: "Agree and continue"
+
+# 8. Name entry  (tap the field by point — the "First name" label isn't a focus target)
+- extendedWaitUntil:
+    visible: "What should your companion call you?"
+    timeout: 10000
+- tapOn:
+    point: "50%,34%" # first-name input box
+- inputText: "Maya"
+- tapOn: "Continue.*"
+
+# 9. Persona pick — choose Aurora (card a11y is "Aurora. <tagline>"), then start chatting.
+#    The CTA names the COMPANION, not the user: "Start chatting with Aurora".
+- extendedWaitUntil:
+    visible: "Who would you like to talk with?"
+    timeout: 10000
+- tapOn: ".*Aurora.*"
+- tapOn: "Start chatting with Aurora.*"
+
+# 10. First chat with Aurora (seeded opener waiting; composer = "Message Aurora…")
+- extendedWaitUntil:
+    visible: "Message Aurora.*"
+    timeout: 12000

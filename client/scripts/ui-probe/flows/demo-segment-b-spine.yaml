@@ -1,0 +1,71 @@
+appId: com.aura.ai.companion
+---
+# READINESS PROOF — walks the full Segment B demo spine, asserting the landing screen
+# after every navigation so a missed transition FAILS LOUDLY (no screenshot-eyeballing).
+# Assumes the canonical Maya state (reset-demo) and mock mode.
+
+# 1. Home (canonical Maya state)
+- extendedWaitUntil:
+    visible: "Aurora remembers.*"
+    timeout: 15000
+
+# 2. Home -> chat (tap the "Aurora remembers" memory card)
+- tapOn: "Aurora remembers.*"
+- extendedWaitUntil:
+    visible: "Message Aurora.*"
+    timeout: 10000
+
+# 3. chat -> voice call
+- tapOn: "Start a voice call with Aurora"
+- extendedWaitUntil:
+    visible: "Mute"
+    timeout: 10000
+
+# 4. voice call -> back to chat
+- tapOn: "End call"
+- extendedWaitUntil:
+    visible: "Message Aurora.*"
+    timeout: 10000
+
+# 5. chat -> Home (header back)
+- tapOn: "Back"
+- extendedWaitUntil:
+    visible: "Companions, tab, .*"
+    timeout: 10000
+
+# 6. Home -> Companions tab
+- tapOn: "Companions, tab, .*"
+- extendedWaitUntil:
+    visible: "Search companions"
+    timeout: 10000
+
+# 7. Companions -> create flow (FAB)
+- tapOn: "New companion"
+- extendedWaitUntil:
+    visible: "Save companion"
+    timeout: 10000
+
+# 8. create -> paywall (free-tier "Change look" is gated -> /premium modal)
+#    a11y label when locked is "Premium: Change look" — match unanchored (Maestro regex is full-match)
+- tapOn: ".*Change look.*"
+- extendedWaitUntil:
+    visible: "Go further with Aurora"
+    timeout: 10000
+
+# 9. paywall modal -> back to create (circular Close)
+- tapOn: "Close"
+- extendedWaitUntil:
+    visible: "Save companion"
+    timeout: 10000
+
+# 10. create -> Companions (TopBar back is labeled "Go back", unlike the chat header's "Back")
+- tapOn: "Go back"
+- extendedWaitUntil:
+    visible: "Search companions"
+    timeout: 10000
+
+# 11. Companions -> You tab ("Subscription" is below the fold; "Appearance" group label is above it)
+- tapOn: "You, tab, .*"
+- extendedWaitUntil:
+    visible: "Appearance"
+    timeout: 8000

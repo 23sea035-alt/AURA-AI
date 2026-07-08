@@ -1,0 +1,65 @@
+appId: com.aura.ai.companion
+---
+# ACCESS-POINT TOUR — appended to the Segment B clip. Starts on the You tab scrolled to the bottom
+# (light). Opens each doc/support access point with a quick scroll, then backs out. Back is "Go back"
+# on every one (TopBar + BackChevron both use it). scrollUntilVisible re-finds each row in case the
+# You tab resets its scroll after a pop.
+
+- assertVisible: "You, tab, .*"
+
+# Privacy policy
+- scrollUntilVisible: { element: { text: ".*Privacy policy.*" }, direction: DOWN }
+- tapOn: ".*Privacy policy.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1200;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- evalScript: ${(function(){var e=Date.now()+600;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Terms of service
+- scrollUntilVisible: { element: { text: ".*Terms of service.*" }, direction: DOWN }
+- tapOn: ".*Terms of service.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1200;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- evalScript: ${(function(){var e=Date.now()+600;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Manage your data
+- scrollUntilVisible: { element: { text: ".*Manage your data.*" }, direction: DOWN }
+- tapOn: ".*Manage your data.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1200;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- evalScript: ${(function(){var e=Date.now()+600;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Help (FAQ)
+- scrollUntilVisible: { element: { text: ".*Help.*" }, direction: DOWN }
+- tapOn: ".*Help.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1200;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- evalScript: ${(function(){var e=Date.now()+600;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+# Rate Aura
+- scrollUntilVisible: { element: { text: ".*Rate Aura.*" }, direction: DOWN }
+- tapOn: ".*Rate Aura.*"
+- assertVisible: "Go back"
+- evalScript: ${(function(){var e=Date.now()+1200;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: UP }
+- evalScript: ${(function(){var e=Date.now()+1000;while(Date.now()<e){};return 1;})()}
+- swipe: { direction: DOWN }
+- evalScript: ${(function(){var e=Date.now()+600;while(Date.now()<e){};return 1;})()}
+- tapOn: "Go back"
+
+- evalScript: ${(function(){var e=Date.now()+1500;while(Date.now()<e){};return 1;})()}
