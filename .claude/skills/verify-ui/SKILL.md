@@ -63,9 +63,30 @@ stopped trusting fast-refresh.
   them from eyeballing a screenshot.
 - **`flows/`** — reusable Maestro flows: `tap-left-zone.yaml` / `tap-right-zone.yaml` (50/50
   tap-zone screens), `swipe-forward.yaml` / `swipe-back.yaml` (generic horizontal swipe),
-  `signup-throwaway.yaml` (parameterized fresh-account signup, see above). Add a flow here
-  instead of `/tmp` when it's something you'd plausibly reuse across sessions; keep one-off
-  probes in `/tmp`.
+  `signup-throwaway.yaml` (parameterized fresh-account signup, see above), and the roster-era
+  set (2026-07-07): `goto-tab.yaml` (`-e TAB=Companions`), `open-chat.yaml` (`-e NAME=Orion`),
+  `send-message.yaml` (`-e NAME=Orion -e TEXT="…"`), `signout.yaml`, `allow-notifications.yaml`
+  (system permission alert). Add a flow here instead of `/tmp` when it's something you'd
+  plausibly reuse across sessions; keep one-off probes in `/tmp`.
+- **`restart-driver.sh`** — bounce Maestro's XCUITest runner. Reach for it the moment flows
+  report COMPLETED while nothing happens on screen, or text matching starts failing on a
+  screen you can SEE is fine — the driver goes stale after many flows in one session.
+
+## Aura surface map (a11y labels the flows key off — re-derive via `maestro hierarchy` if UI changes)
+
+- Tabs: `"Home, tab, 1 of 3"`, `"Companions, tab, 2 of 3"`, `"You, tab, 3 of 3"` (icon+label
+  pill — there is NO "Profile" text; the profile tab is "You").
+- Roster rows: the label LEADS with a glyph (pin/monogram), then name — Maestro regexes are
+  full-match, so match unanchored: `tapOn: ".*Orion.*"` (never `"Orion.*"`).
+- Chat: composer placeholder `"Message <Name>…"` (unicode ellipsis — use a `.*` tail); send
+  button `"Send message"` (appears once text is entered); overflow sheet items:
+  `Companion settings / View memory / Clear conversation / Forget everything / Report`.
+- Paywall: You tab → `"Subscription.*"` row (label carries "Upgrade to Premium" or
+  "Manage in App Store" by tier); RC Test Store purchase sheet: `"Test valid purchase"` /
+  `"Test failed purchase"` / `"Cancel"`.
+- System alerts (notification permission etc.) are tappable by button text (`"Allow"`).
+- Text fields: `tapOn` by LABEL text ("First name") hits the label, not the input — tap the
+  input's point (bounds from `maestro hierarchy`), then `inputText`.
 
 ## Workflow
 
@@ -91,6 +112,14 @@ stopped trusting fast-refresh.
 
 ## Guardrails
 
+- **Mock-first (owner rule, 2026-07-07):** verify UI/interaction behavior (scroll, animation,
+  layout, navigation) in MOCK mode first — live turns are real Groq generations and burn API
+  tokens without adding signal. Flip to live only for what the wire itself changes (streaming
+  frames, webhooks, auth, presence). `sim-storage.py reset-demo` stages the canonical state.
+- `hideKeyboard` is broken on the iOS 26 sim ("Couldn't hide the keyboard") — tap a static
+  text (the screen title) to dismiss instead.
+- In live mode the sim is often ALREADY signed in: the Clerk session survives app uninstall
+  via the Keychain. Use `flows/signout.yaml` to reach a signed-out state; reinstalling won't.
 - Throwaway accounts are disposable (`*@example.com`, any password ≥8 chars) — no cleanup needed,
   mint a new one per pass rather than reusing one that's already been through onboarding.
 - `cd client && npx tsc --noEmit -p .` clean is necessary but not sufficient — it doesn't catch a

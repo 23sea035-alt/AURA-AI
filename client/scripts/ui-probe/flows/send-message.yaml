@@ -1,0 +1,9 @@
+appId: com.aura.ai.companion
+---
+# Type + send inside an OPEN chat (pair with open-chat.yaml). The composer placeholder is
+# "Message <Name>…" (unicode ellipsis — matched by the regex tail); the send button appears
+# once text is entered and is labeled "Send message".
+# Usage: maestro test flows/send-message.yaml -e NAME=Orion -e TEXT="hello there"
+- tapOn: "Message ${NAME}.*"
+- inputText: ${TEXT}
+- tapOn: "Send message"

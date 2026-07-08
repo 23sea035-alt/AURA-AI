@@ -1,0 +1,7 @@
+appId: com.aura.ai.companion
+---
+# Switch to a bottom tab by its accessibility label. The tab bar is icon+label; labels are
+# "Home", "Companions", "You" (a11y text reads "<TAB>, tab, N of 3" — the regex tolerates
+# the count changing if tabs are added).
+# Usage: maestro test flows/goto-tab.yaml -e TAB=Companions
+- tapOn: "${TAB}, tab, .*"

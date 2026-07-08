@@ -4,17 +4,23 @@ appId: com.aura.ai.companion
 # any post-auth screen for verification. Each account can only pass through onboarding once,
 # so EMAIL must be unique per run (e.g. a timestamp or the bug you're checking, @example.com).
 # Usage: maestro test flows/signup-throwaway.yaml -e EMAIL=carousel-check@example.com -e PASSWORD=12345678
+#
+# Live mode notes (Clerk): the verify-email screen follows submit — use a
+# `<anything>+clerk_test@example.com` address (code 424242) or a real inbox. Point taps below
+# are calibrated against the CURRENT register layout (incl. the Apple/Google SSO buttons) —
+# re-derive via `maestro hierarchy` if the screen changes. hideKeyboard is broken on the
+# iOS 26 sim; tapping the static title dismisses the keyboard instead.
 - tapOn:
     point: "50%,80%" # "Get started"
 - tapOn:
     point: "50%,49%" # email field
 - inputText: "${EMAIL}"
-- hideKeyboard
+- tapOn: "Create your account" # static title — dismisses the keyboard (hideKeyboard is broken)
 - tapOn:
     point: "50%,58%" # password field
 - inputText: "${PASSWORD}"
-- hideKeyboard
+- tapOn: "Create your account"
 - tapOn:
     point: "10%,65%" # age/terms checkbox
 - tapOn:
-    point: "50%,84%" # submit
+    point: "50%,84%" # submit ("Create account")

@@ -1,0 +1,7 @@
+appId: com.aura.ai.companion
+---
+# Accept the iOS notification-permission alert (fires once, on the first post-auth Home
+# arrival in live mode — usePushRegistration). System alerts are tappable by button text.
+- tapOn:
+    text: "Allow"
+    optional: true

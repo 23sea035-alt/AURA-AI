@@ -1,0 +1,19 @@
+appId: com.aura.ai.companion
+---
+# Sign out via the You tab (sim-proven 2026-07-07). The second tap handles the confirm
+# sheet when one appears; live mode also clears the Clerk session — remember the session
+# SURVIVES app uninstall via the Keychain, so this flow (not reinstalling) is how you get
+# a signed-out state for register testing.
+- tapOn: "You, tab, .*"
+- scrollUntilVisible:
+    element:
+      text: "Sign out"
+    direction: DOWN
+- tapOn: "Sign out"
+- extendedWaitUntil:
+    visible: "Sign out"
+    timeout: 2500
+    optional: true
+- tapOn:
+    text: "Sign out"
+    optional: true

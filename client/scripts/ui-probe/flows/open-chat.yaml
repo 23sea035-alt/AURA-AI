@@ -1,0 +1,19 @@
+appId: com.aura.ai.companion
+---
+# Open a companion's chat from the roster. Robustness notes (all earned): wait for the tab
+# bar before tapping (a tap during first hydration lands on nothing); the row's a11y text
+# LEADS with a glyph, so the name must be matched unanchored (Maestro regexes are
+# full-match); wait for the roster row itself, since Home also shows the pinned
+# companion's bare name and would satisfy a premature ".*Name.*".
+# Usage: maestro test flows/open-chat.yaml -e NAME=Orion
+- extendedWaitUntil:
+    visible: "Companions, tab, .*"
+    timeout: 15000
+- tapOn: "Companions, tab, .*"
+- extendedWaitUntil:
+    visible: "Search companions"
+    timeout: 10000
+- extendedWaitUntil:
+    visible: ".*${NAME}.*"
+    timeout: 10000
+- tapOn: ".*${NAME}.*"
