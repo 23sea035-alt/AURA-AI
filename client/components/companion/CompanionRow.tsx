@@ -8,16 +8,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Swipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Avatar } from '@/components/Avatar';
-import { COMPANIONS, PERSONAS } from '@/constants/content';
+import { COMPANIONS, PERSONA_GALLERY } from '@/constants/content';
 import { FONTS, RADIUS, SPACE } from '@/constants/design';
 import type { Companion } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { timeAgo } from '@/utils/time';
 
-// Canonical personas carry their picker voice line; custom companions restate
-// their trait tuning ("warm · playful · expansive") so every card has a voice.
+// Every card's subtitle is its BASE persona's voice line, keyed by personaKey — a created companion
+// is a clone of a base (e.g. "Nova" off Aurora), so it reads with the base's line, consistent with
+// the anchors (keying off the display name would miss the clone). Traits are a safety fallback.
 export function voiceFor(c: Companion): string {
-  const canon = (PERSONAS as Record<string, { voice: string }>)[c.name]?.voice;
+  const canon = PERSONA_GALLERY.find((p) => p.id === c.personaKey)?.tagline;
   return canon ?? c.traits.join(' · ');
 }
 
