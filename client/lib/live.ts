@@ -507,6 +507,18 @@ export async function fetchRenewalDate(): Promise<string | null> {
   return getRenewalDate();
 }
 
+// ── Notifications ───────────────────────────────────────────────────────────
+
+/** POST /api/notifications/register — mirror the APNs device token for the away-reply push. */
+export async function registerPushToken(token: string): Promise<void> {
+  await api('/notifications/register', { method: 'POST', body: { token, platform: 'ios' } });
+}
+
+/** DELETE /api/notifications/register — drop this device's token (sign-out, toggle off). */
+export async function unregisterPushToken(token: string): Promise<void> {
+  await api('/notifications/register', { method: 'DELETE', body: { token } });
+}
+
 export async function fetchEntitlements(): Promise<{ isPremium: boolean }> {
   return api<{ isPremium: boolean }>('/payments/entitlements');
 }

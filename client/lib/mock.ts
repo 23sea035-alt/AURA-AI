@@ -265,6 +265,10 @@ export async function fetchRenewalDate(): Promise<string | null> {
   return DEMO.renewDate;
 }
 
+/** POST/DELETE /api/notifications/register — nothing to register against in mock mode. */
+export async function registerPushToken(_token: string): Promise<void> {}
+export async function unregisterPushToken(_token: string): Promise<void> {}
+
 /** Purchases.restorePurchases() → whether an entitlement was found. */
 export async function restorePurchases(): Promise<{ restored: boolean; isPremium: boolean }> {
   await simulateLatency(900);

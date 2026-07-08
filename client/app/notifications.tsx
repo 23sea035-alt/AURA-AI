@@ -1,6 +1,6 @@
 // Notifications — transactional only (no marketing). One push toggle for "companion replied", on by
-// default, with explanatory copy. Persisted locally; WIRE SEAM: enabling registers
-// the APNs device token (POST /api/devices), disabling unregisters it.
+// default, with explanatory copy. Persisted locally; enabling registers the APNs device token
+// (POST /api/notifications/register), disabling unregisters it.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
@@ -13,8 +13,11 @@ import { ACCOUNT } from '@/constants/content';
 import { SPACE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { registerPushToken, unregisterPushToken } from '@/lib/backend';
+import { getDeviceToken, pushPermissionGranted } from '@/lib/push';
 
 const KEY = 'pushRepliesEnabled';
+const TOKEN_KEY = 'pushToken';
 
 export default function NotificationsScreen() {
   const { colors, mode } = useTheme();
@@ -29,9 +32,30 @@ export default function NotificationsScreen() {
     });
   }, []);
 
-  const handleToggle = (value: boolean) => {
+  const handleToggle = async (value: boolean) => {
     setOn(value);
     AsyncStorage.setItem(KEY, String(value)).catch(() => {});
+    if (value) {
+      // The explicit enable is the one moment we always may ask for permission. A denial
+      // (or "can't ask again") flips the toggle back — the row stays honest.
+      const granted = await pushPermissionGranted(true);
+      if (!granted) {
+        setOn(false);
+        AsyncStorage.setItem(KEY, 'false').catch(() => {});
+        return;
+      }
+      const token = await getDeviceToken();
+      if (token) {
+        registerPushToken(token).catch(() => {});
+        AsyncStorage.setItem(TOKEN_KEY, token).catch(() => {});
+      }
+    } else {
+      const token = await AsyncStorage.getItem(TOKEN_KEY);
+      if (token) {
+        unregisterPushToken(token).catch(() => {});
+        AsyncStorage.removeItem(TOKEN_KEY).catch(() => {});
+      }
+    }
   };
 
   return (

@@ -8,6 +8,8 @@ import { StyleSheet, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { FONTS, RADIUS, SPACE, type ThemeColors, type ThemeShadows } from '@/constants/design';
+import { useApp } from '@/context/AppContext';
+import { usePushRegistration } from '@/hooks/usePushRegistration';
 import { useTheme } from '@/hooks/useTheme';
 
 /**
@@ -46,6 +48,9 @@ const ICONS: Record<'index' | 'companions' | 'you', IconPair> = {
 export default function TabLayout() {
   const { colors, shadows } = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useApp();
+  // Away-reply push: first post-auth arrival asks once + mirrors the device token.
+  usePushRegistration(!!user);
 
   return (
     <Tabs

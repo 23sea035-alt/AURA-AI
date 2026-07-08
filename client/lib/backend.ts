@@ -75,6 +75,10 @@ export const restorePurchases = impl.restorePurchases;
 export const fetchEntitlements = impl.fetchEntitlements;
 export const fetchRenewalDate = impl.fetchRenewalDate;
 
+// Notifications (away-reply push)
+export const registerPushToken = impl.registerPushToken;
+export const unregisterPushToken = impl.unregisterPushToken;
+
 // Voice metering
 export const fetchVoiceUsage = impl.fetchVoiceUsage;
 

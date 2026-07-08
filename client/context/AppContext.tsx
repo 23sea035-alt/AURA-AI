@@ -431,12 +431,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    // Drop this device's push token first — after sign-out there's no session to authorize it.
+    const pushToken = await AsyncStorage.getItem('pushToken').catch(() => null);
+    if (pushToken) void backend.unregisterPushToken(pushToken).catch(() => {});
     void backend.authSignOut();
     setUser(null);
     setCompanions(DEFAULT_COMPANIONS);
     setMessages({});
     setMemories({});
-    await AsyncStorage.multiRemove(['user', 'companions', 'messages', 'primaryCompanionId']);
+    await AsyncStorage.multiRemove(['user', 'companions', 'messages', 'primaryCompanionId', 'pushToken']);
   }, []);
 
   const updateUser = useCallback(
