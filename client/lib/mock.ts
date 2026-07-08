@@ -14,6 +14,8 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { VOICE_MONTHLY_LIMIT_SECONDS } from '@aura/shared';
+
 import { CHAT } from '@/constants/content';
 import { DEMO } from '@/constants/demo';
 import type {
@@ -359,3 +361,11 @@ export async function remoteSetPrimary(_id: string): Promise<void> {}
 export async function fetchVoiceUsage(): Promise<{ seconds: number } | null> {
   return null;
 }
+
+/** Live: POST /api/voice/start pre-flight. Mock: the local meter is the only gate. */
+export async function startVoiceCall(): Promise<{ allowed: boolean; remainingSeconds: number }> {
+  return { allowed: true, remainingSeconds: VOICE_MONTHLY_LIMIT_SECONDS };
+}
+
+/** Live: POST /api/voice/stop. Mock: nothing to close out. */
+export async function stopVoiceCall(): Promise<void> {}

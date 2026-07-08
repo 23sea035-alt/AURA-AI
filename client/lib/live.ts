@@ -472,6 +472,27 @@ export async function fetchVoiceUsage(): Promise<{ seconds: number } | null> {
   }
 }
 
+/** POST /api/voice/start — pre-flight budget gate before the mic ever turns on. */
+export async function startVoiceCall(): Promise<{ allowed: boolean; remainingSeconds: number }> {
+  try {
+    const data = await api<{ allowed?: boolean; remainingSeconds?: number }>('/voice/start', {
+      method: 'POST',
+      body: {},
+    });
+    return { allowed: data.allowed !== false, remainingSeconds: data.remainingSeconds ?? 0 };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'VOICE_LIMIT_REACHED') {
+      return { allowed: false, remainingSeconds: 0 };
+    }
+    throw err;
+  }
+}
+
+/** POST /api/voice/stop — close out the call server-side (usage summary; best-effort). */
+export async function stopVoiceCall(): Promise<void> {
+  await api('/voice/stop', { method: 'POST', body: {} }).catch(() => {});
+}
+
 // ── Payments (RevenueCat + server entitlements) ─────────────────────────────
 
 /** Bind the RevenueCat SDK to the local user UUID (the webhook validates it). */

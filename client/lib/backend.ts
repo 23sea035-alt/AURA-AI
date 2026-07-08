@@ -81,6 +81,8 @@ export const unregisterPushToken = impl.unregisterPushToken;
 
 // Voice metering
 export const fetchVoiceUsage = impl.fetchVoiceUsage;
+export const startVoiceCall = impl.startVoiceCall;
+export const stopVoiceCall = impl.stopVoiceCall;
 
 // Mock-only in BOTH modes for now: the voice-call caption loop stays local
 // until the voice WS arc lands, and the shared voice-limit constants are

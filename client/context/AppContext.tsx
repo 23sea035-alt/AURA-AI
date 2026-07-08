@@ -17,7 +17,7 @@ import { DEMO } from '@/constants/demo';
 import { DEV_FORCE_PREMIUM, DEV_USE_MOCKS } from '@/constants/devFlags';
 import { ApiError } from '@/lib/api';
 import * as backend from '@/lib/backend';
-import { ChatSocket } from '@/lib/websocket';
+import { acquireChatSocket, peekChatSocket, releaseChatSocket } from '@/lib/websocket';
 import type {
   AccountStatus,
   Companion,
@@ -445,8 +445,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     // Streaming sockets die with the session.
-    chatSocketsRef.current.forEach((socket) => socket.close());
-    chatSocketsRef.current.clear();
+    heldStreams.current.forEach((id) => releaseChatSocket(id));
+    heldStreams.current.clear();
     // Drop this device's push token first — after sign-out there's no session to authorize it.
     const pushToken = await AsyncStorage.getItem('pushToken').catch(() => null);
     if (pushToken) void backend.unregisterPushToken(pushToken).catch(() => {});
@@ -777,24 +777,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // ── Streaming sockets ──────────────────────────────────────────────────────
-  // One live socket per OPEN chat screen. Presence is deliberate: while attached, the
-  // server delivers over WS and skips the away-reply push for that companion.
-  const chatSocketsRef = useRef<Map<string, ChatSocket>>(new Map());
+  // One live socket per OPEN chat screen, held through the refcounted registry in
+  // lib/websocket.ts (the voice-call screen shares the same instance — the server
+  // evicts duplicate sockets per companion). Presence is deliberate: while attached,
+  // the server delivers over WS and skips the away-reply push for that companion.
+  const heldStreams = useRef<Set<string>>(new Set());
 
   const attachChatStream = useCallback((companionId: string) => {
     // Mock mode has no WS; a not-yet-adopted local id can't bind (server wants a uuid).
     if (DEV_USE_MOCKS || companionId.startsWith('local-')) return;
-    const sockets = chatSocketsRef.current;
-    if (sockets.has(companionId)) return;
-    const socket = new ChatSocket(companionId);
-    socket.open();
-    sockets.set(companionId, socket);
+    if (heldStreams.current.has(companionId)) return;
+    acquireChatSocket(companionId);
+    heldStreams.current.add(companionId);
   }, []);
 
   const detachChatStream = useCallback((companionId: string) => {
-    const sockets = chatSocketsRef.current;
-    sockets.get(companionId)?.close();
-    sockets.delete(companionId);
+    if (!heldStreams.current.has(companionId)) return;
+    releaseChatSocket(companionId);
+    heldStreams.current.delete(companionId);
   }, []);
 
   const sendTurn = useCallback(
@@ -869,7 +869,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // WS-first: when the chat screen holds an open socket for this companion, the reply
       // streams in sentence-by-sentence. Any failure BEFORE the first chunk falls back to
       // REST with the SAME turnId (the server replays committed turns, so it's safe).
-      const socket = chatSocketsRef.current.get(companionId);
+      const socket = peekChatSocket(companionId);
       if (socket?.ready) {
         const wsResult = await new Promise<SendResult | null>((resolve) => {
           const assistantId = `ws-${turnId}`;

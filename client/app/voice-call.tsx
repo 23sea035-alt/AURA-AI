@@ -4,10 +4,10 @@
 // opacity pulse, speaking = soft concentric ripples. Captions (optional, from
 // voice preferences) write themselves in with the same typing reveal as chat.
 //
-// WIRE SEAM: the call loop is mocked with timers — the real client drives these
-// same states from the voice WebSocket (IDLE / USER_SPEAKING / PROCESSING /
-// AI_SPEAKING per docs/specs/chat-system-design.md §3.4) and plays Inworld TTS
-// audio. mockVoiceReply() stands in for the streamed reply text.
+// LIVE mode drives these states from the voice WebSocket via useVoiceCall (Apple-VAD
+// utterances up as binary frames; per-sentence Inworld MP3 + voice_caption back down —
+// docs/specs/chat-system-design.md §3). Mock mode keeps the timer loop below, so the
+// demo story needs no server. mockVoiceReply() stands in for the streamed reply text.
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -34,8 +34,10 @@ import { PressableScale, enterUp } from '@/components/motion';
 import { CHAT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE, personaToneFor } from '@/constants/design';
 import { DURATION, EASING, TYPING } from '@/constants/motion';
+import { DEV_USE_MOCKS } from '@/constants/devFlags';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useVoiceCall } from '@/hooks/useVoiceCall';
 import { useVoicePrefs } from '@/hooks/useVoicePrefs';
 import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS, mockVoiceReply } from '@/lib/backend';
 
@@ -94,6 +96,36 @@ export default function VoiceCallScreen() {
   const elapsedRef = useRef(0);
   elapsedRef.current = elapsed;
 
+  // LIVE call loop (mock mode keeps the timer loop below).
+  const liveVoice = !DEV_USE_MOCKS && !!companion && !cid.startsWith('local-');
+  const live = useVoiceCall({ companionId: cid, enabled: liveVoice && !outOfTime, muted });
+  const serverBudgetSet = useRef(false);
+
+  useEffect(() => {
+    if (!liveVoice) return;
+    if (live.state === 'limit') {
+      setOutOfTime(true);
+      return;
+    }
+    if (live.state === 'error') {
+      // The socket died or voice never came up — leave the room calmly.
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.back();
+      return;
+    }
+    setState(live.state);
+    setCaption(live.caption);
+  }, [liveVoice, live.state, live.caption]);
+
+  // First voice_ready carries the server-authoritative monthly budget — it wins over the
+  // local mirror (once; later readies already discount this call's own metered seconds).
+  useEffect(() => {
+    if (!liveVoice || live.remainingSeconds == null || serverBudgetSet.current) return;
+    serverBudgetSet.current = true;
+    remainingAtMount.current = Math.max(0, live.remainingSeconds);
+    if (live.remainingSeconds <= 0) setOutOfTime(true);
+  }, [liveVoice, live.remainingSeconds]);
+
   // Elapsed clock — also enforces the cap mid-call (calm cutoff, never abrupt UI).
   useEffect(() => {
     if (outOfTime) return;
@@ -125,9 +157,9 @@ export default function VoiceCallScreen() {
     }
   }, [outOfTime]);
 
-  // The mocked call loop. Each step schedules the next; mute holds in `listening`.
+  // The mocked call loop (mock mode only). Each step schedules the next; mute holds in `listening`.
   useEffect(() => {
-    if (outOfTime) return;
+    if (liveVoice || outOfTime) return;
     const schedule = (ms: number, fn: () => void) => {
       timer.current = setTimeout(fn, ms);
     };
@@ -163,8 +195,8 @@ export default function VoiceCallScreen() {
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-     
-  }, [cid, outOfTime]);
+
+  }, [cid, outOfTime, liveVoice]);
 
   const endCall = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

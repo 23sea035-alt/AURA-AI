@@ -35,22 +35,31 @@ export function useDictation({ onPartial, onFinal, onCancel }: DictationCallback
   const transcriptRef = useRef('');
   const audioUriRef = useRef<string | undefined>(undefined);
   const cancelingRef = useRef(false);
+  // Speech-recognition events are MODULE-GLOBAL: without this guard, a session started by
+  // someone else (the voice-call screen, mounted over this composer) would fire onFinal
+  // here and inject its transcript into the chat draft.
+  const ownSessionRef = useRef(false);
 
   useSpeechRecognitionEvent('result', (event) => {
+    if (!ownSessionRef.current) return;
     const transcript = event.results?.[0]?.transcript ?? '';
     transcriptRef.current = transcript;
     onPartial(transcript);
   });
 
   useSpeechRecognitionEvent('volumechange', (event) => {
+    if (!ownSessionRef.current) return;
     setLevel(normalizeLevel(event.value));
   });
 
   useSpeechRecognitionEvent('audioend', (event) => {
+    if (!ownSessionRef.current) return;
     if (event.uri) audioUriRef.current = event.uri;
   });
 
   useSpeechRecognitionEvent('end', () => {
+    if (!ownSessionRef.current) return;
+    ownSessionRef.current = false;
     setListening(false);
     setLevel(0);
     if (cancelingRef.current) {
@@ -61,6 +70,7 @@ export function useDictation({ onPartial, onFinal, onCancel }: DictationCallback
   });
 
   useSpeechRecognitionEvent('error', () => {
+    if (!ownSessionRef.current) return;
     setListening(false);
     setLevel(0);
   });
@@ -71,6 +81,7 @@ export function useDictation({ onPartial, onFinal, onCancel }: DictationCallback
     transcriptRef.current = '';
     audioUriRef.current = undefined;
     cancelingRef.current = false;
+    ownSessionRef.current = true;
     setLevel(0);
     setListening(true);
     ExpoSpeechRecognitionModule.start({
