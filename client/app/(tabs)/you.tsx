@@ -11,7 +11,7 @@ import ConfirmSheet from '@/components/ConfirmSheet';
 import { ListGroup, ListRow } from '@/components/ListGroup';
 import { PressableScale } from '@/components/motion';
 import { Segmented } from '@/components/Segmented';
-import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
+import { AVATAR_TONES, FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme, type ThemePreference } from '@/hooks/useTheme';
 
@@ -47,7 +47,9 @@ export default function YouScreen() {
 
         {/* Header card */}
         <View style={[styles.header, { backgroundColor: colors.raised }, shadows.e2]}>
-          <Avatar id="" name={name} size={56} color={user?.avatarColor} />
+          {/* Same color resolution as edit-profile (default = AVATAR_TONES[0] with a cream initial),
+              so the header icon never deviates from the picker's options. */}
+          <Avatar id="" name={name} size={56} color={user?.avatarColor ?? AVATAR_TONES[0]} />
           <View style={styles.headerText}>
             <Text style={[styles.name, { color: colors.textPrimary }]} numberOfLines={1}>
               {name}
