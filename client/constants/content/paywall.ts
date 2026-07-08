@@ -31,6 +31,13 @@ export const PAYWALL = {
   // honest free baseline (quiet, not a cold matrix) — shown only in the non-owned state.
   freeBaseline:
     'Free always includes up to 5 companions with their default personalities, and 30 messages a day shared across them.',
+  // Billing period toggle (monthly vs annual). The purchase layer already supports both plans
+  // (aura_premium_monthly / _yearly); this surfaces the choice + the localized price per period.
+  billing: {
+    options: ['monthly', 'annual'] as const,
+    suffix: { monthly: '/mo', annual: '/yr' },
+    annualSave: 'Save 36% vs monthly',
+  },
   subscribeCta: 'Subscribe',
   currentPlanCta: 'Current plan',
   manageSubscription: 'Manage subscription',

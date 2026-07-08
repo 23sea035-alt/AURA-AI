@@ -244,12 +244,13 @@ export async function requestDataExport(): Promise<void> {
 // ── Payments (RevenueCat / StoreKit seam) ───────────────────────────────────
 
 /**
- * RevenueCat offering → localized store price string. Returns null in the mock:
- * the paywall renders its store-price placeholder slot (never a hardcoded price).
+ * RevenueCat offering → localized store price string. Live mode resolves the real localized price;
+ * the mock returns representative figures so the paywall (+ its monthly/annual toggle) reads
+ * complete in the deterministic demo.
  */
-export async function fetchStorePrice(_plan: 'monthly' | 'yearly' = 'monthly'): Promise<string | null> {
+export async function fetchStorePrice(plan: 'monthly' | 'yearly' = 'monthly'): Promise<string | null> {
   await simulateLatency(700);
-  return null;
+  return plan === 'yearly' ? '$99.99' : '$12.99';
 }
 
 /** Purchases.purchasePackage(...) → entitlement active. */

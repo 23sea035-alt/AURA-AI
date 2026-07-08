@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { CompanionPresence } from '@/components/companion/CompanionPresence';
+import { Segmented } from '@/components/Segmented';
 import { Skeleton } from '@/components/Skeleton';
 import { Toast } from '@/components/Toast';
 import { PressableScale, enterUp } from '@/components/motion';
@@ -36,16 +37,21 @@ export default function PaywallScreen() {
 
   // Store-price seam: RevenueCat resolves the localized price; the mock returns
   // null so the placeholder slot renders (the price is NEVER hardcoded).
-  const [price, setPrice] = useState<string | null | undefined>(undefined); // undefined = loading
+  // Both plan prices resolve up front; the monthly/annual toggle just swaps which one shows.
+  const [prices, setPrices] = useState<{ monthly: string | null; yearly: string | null } | undefined>(undefined);
+  const [billing, setBilling] = useState<'monthly' | 'annual'>('monthly');
+  const plan: 'monthly' | 'yearly' = billing === 'annual' ? 'yearly' : 'monthly';
   // Store-truth renewal date (mock = demo date); null hides the "Renews …" line.
   const [renewDate, setRenewDate] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  // Sticky-footer height, measured so the scroll clears it (the last card never hides under the CTA).
+  const [footerH, setFooterH] = useState(200);
 
   useEffect(() => {
     let live = true;
-    fetchStorePrice().then((p) => {
-      if (live) setPrice(p);
+    Promise.all([fetchStorePrice('monthly'), fetchStorePrice('yearly')]).then(([monthly, yearly]) => {
+      if (live) setPrices({ monthly, yearly });
     });
     fetchRenewalDate().then((d) => {
       if (live) setRenewDate(d);
@@ -58,7 +64,7 @@ export default function PaywallScreen() {
   const handleSubscribe = async () => {
     setBusy(true);
     try {
-      await purchasePremium();
+      await purchasePremium(plan);
       router.back();
     } catch {
       // Store error or purchases not configured — never strand the spinner.
@@ -107,7 +113,8 @@ export default function PaywallScreen() {
       </PressableScale>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACE.xl }]}
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingBottom: footerH + SPACE.md }]}
         showsVerticalScrollIndicator={false}
       >
         {/* Companion-led hero — the primary companion presents; premium = more time with them. */}
@@ -135,9 +142,45 @@ export default function PaywallScreen() {
           </Animated.Text>
         ) : null}
 
+        {/* Plan choice + price — up front and prominent, above the value props. */}
+        {!owned ? (
+          <Animated.View entering={enterUp(3)} style={styles.billingToggle}>
+            <Segmented
+              options={PAYWALL.billing.options}
+              value={billing}
+              onChange={(v) => setBilling(v as 'monthly' | 'annual')}
+            />
+          </Animated.View>
+        ) : null}
+
+        <View style={styles.priceBlock}>
+          {owned ? (
+            renewDate ? (
+              <Text style={[styles.renews, { color: colors.textSecondary }]}>
+                {PAYWALL.renewsTemplate.replace('{renewDate}', renewDate)}
+              </Text>
+            ) : null
+          ) : prices === undefined ? (
+            // Store prices resolving — never a hardcoded figure.
+            <Skeleton width={140} height={40} />
+          ) : (
+            <>
+              <Text style={[styles.price, { color: colors.textPrimary }]}>
+                {(prices[plan] ?? '—') + PAYWALL.billing.suffix[billing]}
+              </Text>
+              {billing === 'annual' && prices[plan] !== null ? (
+                <Text style={[styles.saveNote, { color: colors.accent }]}>{PAYWALL.billing.annualSave}</Text>
+              ) : null}
+              {prices[plan] === null ? (
+                <Text style={[styles.priceNote, { color: colors.textTertiary }]}>{SYSTEM.storePriceNote}</Text>
+              ) : null}
+            </>
+          )}
+        </View>
+
         {/* Value props in a soft raised card (intimate surface: tonal fill + soft shadow, no outline;
             rows hairline-separated). Checkmarks stay neutral — the one accent is spent on Subscribe. */}
-        <Animated.View entering={enterUp(3)} style={[styles.valueCard, { backgroundColor: colors.raised }, shadows.e1]}>
+        <Animated.View entering={enterUp(4)} style={[styles.valueCard, { backgroundColor: colors.raised }, shadows.e1]}>
           {PAYWALL.features.premium.map((f, i) => (
             <View
               key={f}
@@ -151,57 +194,42 @@ export default function PaywallScreen() {
         {!owned ? (
           <Text style={[styles.freeBaseline, { color: colors.textTertiary }]}>{PAYWALL.freeBaseline}</Text>
         ) : null}
-
-        <View style={styles.priceBlock}>
-          {owned ? (
-            renewDate ? (
-              <Text style={[styles.renews, { color: colors.textSecondary }]}>
-                {PAYWALL.renewsTemplate.replace('{renewDate}', renewDate)}
-              </Text>
-            ) : null
-          ) : price === undefined ? (
-            // Store price resolving — never a hardcoded figure.
-            <Skeleton width={130} height={30} />
-          ) : (
-            <>
-              <Text style={[styles.price, { color: colors.textPrimary }]}>
-                {SYSTEM.storePriceSlot.replace('{storePrice}', price ?? '—')}
-              </Text>
-              {price === null ? (
-                <Text style={[styles.priceNote, { color: colors.textTertiary }]}>{SYSTEM.storePriceNote}</Text>
-              ) : null}
-            </>
-          )}
-        </View>
-
-        <View style={styles.action}>
-          <Button
-            label={owned ? PAYWALL.currentPlanCta : PAYWALL.subscribeCta}
-            onPress={() => void handleSubscribe()}
-            disabled={owned}
-            loading={busy}
-          />
-          {owned ? (
-            <PressableScale haptic="light" onPress={() => router.push('/subscription')} style={styles.linkBtn}>
-              <Text style={[styles.link, { color: colors.accent }]}>{PAYWALL.manageSubscription}</Text>
-            </PressableScale>
-          ) : (
-            <PressableScale haptic="light" onPress={() => void handleRestore()} style={styles.linkBtn}>
-              <Text style={[styles.link, { color: colors.textSecondary }]}>{SYSTEM.restorePurchases}</Text>
-            </PressableScale>
-          )}
-          <Text style={[styles.legal, { color: colors.textTertiary }]}>{SYSTEM.autoRenew}</Text>
-          <View style={styles.legalLinks}>
-            <PressableScale haptic="light" onPress={() => router.push('/terms-of-service')}>
-              <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.termsLink}</Text>
-            </PressableScale>
-            <Text style={[styles.legal, { color: colors.textTertiary }]}> · </Text>
-            <PressableScale haptic="light" onPress={() => router.push('/privacy')}>
-              <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.privacyLink}</Text>
-            </PressableScale>
-          </View>
-        </View>
       </ScrollView>
+
+      {/* Sticky action footer — floats over the content so the CTA stays reachable while scrolling. */}
+      <View
+        onLayout={(e) => setFooterH(e.nativeEvent.layout.height)}
+        style={[
+          styles.footer,
+          { backgroundColor: colors.bg, borderTopColor: colors.divider, paddingBottom: insets.bottom + SPACE.md },
+        ]}
+      >
+        <Button
+          label={owned ? PAYWALL.currentPlanCta : PAYWALL.subscribeCta}
+          onPress={() => void handleSubscribe()}
+          disabled={owned}
+          loading={busy}
+        />
+        {owned ? (
+          <PressableScale haptic="light" onPress={() => router.push('/subscription')} style={styles.linkBtn}>
+            <Text style={[styles.link, { color: colors.accent }]}>{PAYWALL.manageSubscription}</Text>
+          </PressableScale>
+        ) : (
+          <PressableScale haptic="light" onPress={() => void handleRestore()} style={styles.linkBtn}>
+            <Text style={[styles.link, { color: colors.textSecondary }]}>{SYSTEM.restorePurchases}</Text>
+          </PressableScale>
+        )}
+        <Text style={[styles.legal, { color: colors.textTertiary }]}>{SYSTEM.autoRenew}</Text>
+        <View style={styles.legalLinks}>
+          <PressableScale haptic="light" onPress={() => router.push('/terms-of-service')}>
+            <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.termsLink}</Text>
+          </PressableScale>
+          <Text style={[styles.legal, { color: colors.textTertiary }]}> · </Text>
+          <PressableScale haptic="light" onPress={() => router.push('/privacy')}>
+            <Text style={[styles.legalLink, { color: colors.textSecondary }]}>{SYSTEM.privacyLink}</Text>
+          </PressableScale>
+        </View>
+      </View>
 
       <Toast visible={toast !== null} message={toast ?? ''} onHide={() => setToast(null)} />
     </View>
@@ -210,6 +238,7 @@ export default function PaywallScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  scroll: { flex: 1 },
   wash: { position: 'absolute', top: 0, left: 0, right: 0, height: 300 },
   // Modal is a native page-sheet (already below the status bar), so top spacing is fixed and small —
   // no insets.top (that would re-pad for a status bar the sheet doesn't reach, leaving dead space).
@@ -232,6 +261,8 @@ const styles = StyleSheet.create({
   valueRow: { flexDirection: 'row', alignItems: 'center', gap: SPACE.md, paddingVertical: SPACE.md },
   valueText: { fontFamily: FONTS.body.regular, fontSize: 16, flex: 1 },
   freeBaseline: { ...TYPE.caption, textAlign: 'center' },
+  billingToggle: { gap: SPACE.xs, marginTop: SPACE.sm },
+  saveNote: { ...TYPE.caption, textAlign: 'center', fontFamily: FONTS.body.semibold },
   priceBlock: { gap: SPACE.xs, marginVertical: SPACE.sm, alignItems: 'center' },
   renews: { fontFamily: FONTS.body.regular, fontSize: 15 },
   price: { ...TYPE.title },
@@ -242,4 +273,14 @@ const styles = StyleSheet.create({
   legal: { ...TYPE.caption, textAlign: 'center', lineHeight: 16 },
   legalLinks: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: -SPACE.xs },
   legalLink: { ...TYPE.caption, textDecorationLine: 'underline' },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: SPACE.xl,
+    paddingTop: SPACE.md,
+    gap: SPACE.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
 });
