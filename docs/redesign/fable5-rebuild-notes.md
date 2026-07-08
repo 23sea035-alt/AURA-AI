@@ -539,9 +539,19 @@ unchanged during the turn = presence suppressed the away-push).
 ## Voice-call live loop — 2026-07-08 (small hours)
 
 The call screen's mock timer loop is now MOCK-MODE ONLY; live mode runs the real pipeline:
-Apple-VAD utterances (expo-speech-recognition, `continuous:false` + `persist` — the same
-module dictation uses) ship as ONE binary WS frame; the reply returns as per-sentence
+client-recorded utterances ship as ONE binary WS frame; the reply returns as per-sentence
 Inworld MP3 frames + `voice_caption` text, played in order through expo-audio temp files.
+
+**Capture is expo-audio + an ADAPTIVE energy VAD, not SFSpeechRecognizer** (corrected in the
+field the same night): Apple's recognizer fails outright wherever local speech assets are
+missing — every iOS simulator throws `kLSRErrorDomain 300` ("Failed to initialize
+recognizer", surfaced as `audio-capture`), and devices with dictation disabled hit 201 —
+and the server does Whisper anyway, so the recognizer only ever provided VAD + a recorder.
+The VAD tracks the room's noise floor (falls fast, rises at 2%/poll) and requires ~450 ms
+of audio a 12 dB margin above it: a fixed −40 dB threshold false-triggered on background
+noise (observed live — ambient sound kept starting turns; Whisper hallucinates words for
+noise). **Human-verified end to end on a clean relaunch: 30 s of ambient noise → zero
+triggers; real speech → audible Edward reply from the Mac speakers.**
 
 - **`useVoiceCall`** owns the half-duplex machine (connecting → listening → thinking →
   speaking → listening): REST `/voice/start` budget-gates BEFORE the mic runs; `voice_ready`
@@ -560,10 +570,14 @@ Inworld MP3 frames + `voice_caption` text, played in order through expo-audio te
   container → Whisper → contextual reply → caption → real MP3 audio frame → ordered
   complete; metering decremented per turn; on-sim call opens to Listening with the capture
   loop stable. Server-side finds it took: see `CHANGELOG.md` 2026-07-08.
-- **Still open**: the audible in-app leg needs a mic path into the sim — `voice-probe.sh
-  setup` (BlackHole, needs admin) then `mic-on` + relaunch, or just test on the 16e by
-  speaking; **the three `INWORLD_VOICE_ID_*` values in server/.env are invalid** (Inworld
+- **Still open**: **the three `INWORLD_VOICE_ID_*` values in server/.env are invalid** (Inworld
   "Unknown voice" — save/publish the voice designs in the portal and paste the SAVED ids;
   stock voices Ashley/Edward/Olivia work and can be env-overridden meanwhile); the 9 gallery
   personas stay silent until cast (client shows thinking→listening with no audio — a "voice
-  coming soon" state is a nice-to-have).
+  coming soon" state is a nice-to-have); duplicate `voice_start` possible while the socket
+  is dialing (idempotent server-side, benign).
+- Sim-audio gotchas earned: the sim only enumerates audio devices present at BOOT (install
+  BlackHole → reboot the sim); Simulator pins its input via I/O → Audio Input (scriptable
+  once osascript has accessibility); the BlackHole→sim INPUT path still didn't deliver on
+  the iOS 26 sim — the REAL MacBook mic did, so test voice by speaking. `voice-probe.sh`'s
+  speak/record halves remain useful for output capture.
