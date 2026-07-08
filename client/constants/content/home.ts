@@ -42,4 +42,6 @@ export const HOME = {
   },
   error: "We couldn't reach {Companion} just now.", // pair with SYSTEM.error.retry
   usageTemplate: '{used} / {limit} messages today', // free only; demo 18 / 30. Hidden for premium.
+  voiceTemplate: '{used} of {limit} voice this month', // BOTH tiers — voice is always metered
+
 } as const;

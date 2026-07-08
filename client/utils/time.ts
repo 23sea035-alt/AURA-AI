@@ -8,6 +8,14 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
+/** Voice-meter durations in natural units: "45 sec" → "12 min" → "1.5 hr" / "10 hr". */
+export function fmtVoiceTime(seconds: number): string {
+  if (seconds < 60) return `${Math.max(0, Math.round(seconds))} sec`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  const h = seconds / 3600;
+  return `${h < 10 ? h.toFixed(1) : Math.round(h)} hr`;
+}
+
 /** "Just now" (<1m) → minutes → hours → days → a short date past a week. */
 export function timeAgo(iso: string, nowMs: number = Date.now()): string {
   const then = new Date(iso).getTime();

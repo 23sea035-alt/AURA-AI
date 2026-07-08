@@ -581,3 +581,9 @@ triggers; real speech → audible Edward reply from the Mac speakers.**
   once osascript has accessibility); the BlackHole→sim INPUT path still didn't deliver on
   the iOS 26 sim — the REAL MacBook mic did, so test voice by speaking. `voice-probe.sh`'s
   speak/record halves remain useful for output capture.
+- **Home voice meter** (owner request): the monthly voice meter now sits under the hero for
+  BOTH tiers (voice is always metered — 20 min free / 10 h premium), formatted by the new
+  shared `fmtVoiceTime` (`utils/time.ts`, also used by voice-preferences); the messages line
+  stays free-only. New copy `HOME.voiceTemplate`; at-cap tints accent like the messages dot.
+  Maya's demo story seeds **12 min of 20** on first run (`DEMO.user.voiceSecondsUsed`,
+  mirrors SEED_USAGE; reset-demo restores it). Mock-verified both tiers on the 16e.

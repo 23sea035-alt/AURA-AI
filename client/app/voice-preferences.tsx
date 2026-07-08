@@ -17,15 +17,9 @@ import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { VOICE_OPTIONS, useVoicePrefs, type VoicePrefs } from '@/hooks/useVoicePrefs';
 import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/backend';
+import { fmtVoiceTime } from '@/utils/time';
 
 const PACES: VoicePrefs['pace'][] = ['relaxed', 'natural', 'brisk'];
-
-function fmtVoice(seconds: number): string {
-  if (seconds < 60) return `${seconds} sec`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
-  const h = seconds / 3600;
-  return `${h < 10 ? h.toFixed(1) : Math.round(h)} h`;
-}
 
 export default function VoicePreferencesScreen() {
   const { colors, mode } = useTheme();
@@ -88,7 +82,7 @@ export default function VoicePreferencesScreen() {
               : 'Free includes 20 minutes of voice a month. Premium includes 10 hours.'
           }
         >
-          <ListRow first label="Voice time used" detail={`${fmtVoice(voiceUsage.seconds)} of ${fmtVoice(cap)}`} />
+          <ListRow first label="Voice time used" detail={`${fmtVoiceTime(voiceUsage.seconds)} of ${fmtVoiceTime(cap)}`} />
         </ListGroup>
 
         <ListGroup label="Captions">

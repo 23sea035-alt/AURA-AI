@@ -11,6 +11,7 @@ export const DEMO = {
     email: 'maya.chen@example.com',
     memberSince: 'Mar 2026',
     usage: { used: 18, limit: 30 }, // free-tier messages used today
+    voiceSecondsUsed: 720, // 12 of 20 free voice minutes this month — engaged, not capped
   },
 
   primaryCompanion: 'Aurora',

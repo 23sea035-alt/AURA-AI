@@ -17,7 +17,9 @@ import { CHAT, HOME } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/backend';
 import { friendlyFirstName } from '@/utils/name';
+import { fmtVoiceTime } from '@/utils/time';
 
 function greetingFor(hour: number): string {
   if (hour < 12) return HOME.greetings.morning;
@@ -28,7 +30,7 @@ function greetingFor(hour: number): string {
 export default function HomeScreen() {
   const { colors, mode, shadows } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, companions, primaryCompanionId, usage } = useApp();
+  const { user, companions, primaryCompanionId, usage, voiceUsage } = useApp();
   const active = companions.filter((c) => !c.archivedAt);
   // Pin policy: an explicit pin wins; with no pin (allowed — unpinning is a
   // deliberate "no favorite" state), Home hosts the most recently active
@@ -49,6 +51,9 @@ export default function HomeScreen() {
     router.push({ pathname: '/chat/[id]', params: { id: companion.id, ...(starter ? { starter } : {}) } });
   const starters = isEmpty ? HOME.starters.empty : HOME.starters.active;
   const atCap = !isPremium && usage.used >= usage.limit;
+  // Voice is metered on BOTH tiers (20 min/mo free, 10 h/mo premium) — the meter always shows.
+  const voiceCap = isPremium ? VOICE_PREMIUM_SECONDS : VOICE_FREE_SECONDS;
+  const atVoiceCap = voiceUsage.seconds >= voiceCap;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.bg }]}>
@@ -141,12 +146,24 @@ export default function HomeScreen() {
 
         {isEmpty ? <View style={styles.grow} /> : null}
 
-        {!isPremium && !isEmpty ? (
+        {!isEmpty ? (
           <Animated.View entering={FadeIn.delay(340)} style={styles.usage}>
-            <View style={[styles.usageDot, { backgroundColor: atCap ? colors.accent : colors.textTertiary }]} />
-            <Text style={[styles.usageText, { color: atCap ? colors.accent : colors.textSecondary }]}>
-              {HOME.usageTemplate.replace('{used}', String(usage.used)).replace('{limit}', String(usage.limit))}
-            </Text>
+            {!isPremium ? (
+              <View style={styles.usageRow}>
+                <View style={[styles.usageDot, { backgroundColor: atCap ? colors.accent : colors.textTertiary }]} />
+                <Text style={[styles.usageText, { color: atCap ? colors.accent : colors.textSecondary }]}>
+                  {HOME.usageTemplate.replace('{used}', String(usage.used)).replace('{limit}', String(usage.limit))}
+                </Text>
+              </View>
+            ) : null}
+            <View style={styles.usageRow}>
+              <View style={[styles.usageDot, { backgroundColor: atVoiceCap ? colors.accent : colors.textTertiary }]} />
+              <Text style={[styles.usageText, { color: atVoiceCap ? colors.accent : colors.textSecondary }]}>
+                {HOME.voiceTemplate
+                  .replace('{used}', fmtVoiceTime(voiceUsage.seconds))
+                  .replace('{limit}', fmtVoiceTime(voiceCap))}
+              </Text>
+            </View>
           </Animated.View>
         ) : null}
       </ScrollView>
@@ -185,7 +202,8 @@ const styles = StyleSheet.create({
     paddingVertical: SPACE.md,
   },
   starterText: { ...TYPE.label, fontFamily: FONTS.body.medium },
-  usage: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: SPACE.lg },
+  usage: { alignItems: 'center', gap: 6, marginTop: SPACE.lg },
+  usageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   usageText: { ...TYPE.caption },
   usageDot: { width: 5, height: 5, borderRadius: RADIUS.pill },
 });

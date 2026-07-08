@@ -347,6 +347,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const parsed = JSON.parse(storedVoice) as VoiceUsage;
         // New month → fresh voice meter (the server resets the monthly cap).
         setVoiceUsage(parsed.month === thisMonth() ? parsed : { seconds: 0, month: thisMonth() });
+      } else if (DEV_USE_MOCKS) {
+        // First run tells Maya's canonical story on the voice meter too (mirrors SEED_USAGE).
+        const seeded: VoiceUsage = { seconds: DEMO.user.voiceSecondsUsed, month: thisMonth() };
+        setVoiceUsage(seeded);
+        AsyncStorage.setItem('voiceUsage', JSON.stringify(seeded)).catch(() => {});
       }
 
       if (DEV_USE_MOCKS) {
