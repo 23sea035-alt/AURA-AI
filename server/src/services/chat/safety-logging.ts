@@ -6,8 +6,8 @@ import { incrementMetric } from "../../lib/metrics.js";
 // Logged on the ROOT connection, NOT the caller's turn transaction. A failed safety-event INSERT
 // must never roll back — or, in Postgres, poison — the turn that delivers the user's reply, most
 // critically the 988 crisis response. The failure is surfaced LOUDLY (error log + Sentry + metric),
-// never silently swallowed, so a missing audit record is detectable. Because it commits before the
-// subsequent autoSuspendIfNeeded count, the threshold also sees this event.
+// never silently swallowed, so a missing audit record is detectable. These rows are the durable
+// record a developer reviews to decide on manual account action — the app never auto-suspends.
 // Map an event type to its SAFETY_SOURCE when the caller doesn't specify one, so an
 // output block is recorded as source="output" (not mislabeled "input"), etc.
 function sourceForEventType(eventType: string): string {

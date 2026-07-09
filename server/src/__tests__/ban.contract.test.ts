@@ -61,33 +61,4 @@ describe("Ban-evasion detection", () => {
     });
   });
 
-  describe("autoSuspendIfNeeded", () => {
-    it("suspends user when safety event count meets threshold", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => Promise.resolve([{ eventCount: 3 }])),
-        })),
-      });
-      const mockUpdateChain = { set: vi.fn(() => ({ where: vi.fn() })) };
-      mockDb.update.mockReturnValue(mockUpdateChain);
-
-      const { autoSuspendIfNeeded } = await import("../services/auth/auth.service.js");
-      await autoSuspendIfNeeded("user-1");
-
-      expect(mockDb.update).toHaveBeenCalled();
-    });
-
-    it("does NOT suspend user when safety event count is below threshold", async () => {
-      mockDb.select.mockReturnValue({
-        from: vi.fn(() => ({
-          where: vi.fn(() => Promise.resolve([{ eventCount: 2 }])),
-        })),
-      });
-
-      const { autoSuspendIfNeeded } = await import("../services/auth/auth.service.js");
-      await autoSuspendIfNeeded("user-1");
-
-      expect(mockDb.update).not.toHaveBeenCalled();
-    });
-  });
 });

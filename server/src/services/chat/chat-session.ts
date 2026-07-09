@@ -16,9 +16,9 @@ import { createSentenceBuffer } from "./sentence-buffer.js";
 import { checkFreeTierLimit } from "./free-tier.js";
 import { shouldShowBreakReminder } from "./break-reminder.js";
 import { shouldShowAiDisclosure } from "./ai-disclosure.js";
-import { autoSuspendIfNeeded } from "../auth/auth.service.js";
 import { buildCrisisResponse } from "../moderation/crisis.js";
 import { createModerator } from "../moderation/moderation-engine.js";
+import { runL0 } from "../moderation/deterministic.js";
 import {
   SAFE_FALLBACK_REPLY,
   MEMORY_RETRIEVAL_TOP_N,
@@ -125,6 +125,38 @@ export class ChatSession {
     }
   }
 
+  /**
+   * Route a detected crisis: log the safety event, deliver the fixed 988 crisis reply, then
+   * complete with crisis resources. Called from TWO sites — the L0 pre-filter that runs
+   * BEFORE the free-tier gate (so a rate-limited free user in crisis is never dropped) and the
+   * full input-moderation gate (L1/L2/safeguard) for subtler distress. `category`/`reason` come
+   * from whichever layer detected the crisis.
+   */
+  private async handleCrisis(
+    callbacks: ChatSessionCallbacks,
+    opts: { category?: string; reason?: string; crisisResources?: string[] },
+  ): Promise<void> {
+    const { userId, companionId } = this.params;
+    const trimmed = this.params.content.trim();
+    await logSafetyEvent(userId, "crisis_detected", {
+      severity: "critical", detail: opts.reason, content: trimmed,
+      companionId, category: opts.category,
+    });
+    const crisisReply = buildCrisisResponse();
+    // Deliver the crisis reply itself (text renders it; voice speaks it in the calm style),
+    // then complete with the 988 resources.
+    callbacks.onToken?.(crisisReply, { crisis: true });
+    const persisted = await this.persistOrReplay(trimmed, crisisReply);
+    if ("replay" in persisted) { callbacks.onComplete(persisted.replay); return; }
+    callbacks.onComplete({
+      userMessage: persisted.persisted.userMessage,
+      aiMessage: persisted.persisted.aiMessage,
+      turnId: this.turnId,
+      crisisResources: opts.crisisResources ?? CRISIS_RESOURCES,
+      memoriesUsed: false,
+    });
+  }
+
   async run(callbacks: ChatSessionCallbacks): Promise<void> {
     const { userId, companionId, content, isPremium, isMinor, sessionStartedAt } = this.params;
     const trimmed = content.trim();
@@ -136,7 +168,27 @@ export class ChatSession {
       const replay = await this.fetchReplay();
       if (replay) { callbacks.onComplete(replay); return; }
 
+      // ── Crisis pre-filter (runs BEFORE the free-tier gate) ─────────
+      // Safety must never be gated by the paywall. Run the cheap, deterministic L0 crisis
+      // detector (local regex, no external call) ahead of the free-tier limit so a rate-limited
+      // free user disclosing self-harm is still routed to support instead of being silently
+      // dropped with an upgrade prompt. Only explicit L0 crisis language bypasses the cap;
+      // subtler distress is still adjudicated by L1/L2/safeguard after the gate.
+      const l0Precheck = runL0(trimmed);
+      if (l0Precheck.action === "crisis") {
+        await this.handleCrisis(callbacks, { category: l0Precheck.category, reason: l0Precheck.reason });
+        return;
+      }
+
       // ── Free-tier gate ─────────────────────────────────────────────
+      // ORDERING INVARIANT (do not reorder): this cap sits ABOVE all paid work — `screenInput`
+      // (OpenAI/Groq moderation) and LLM generation — and BELOW only the idempotency replay and
+      // the L0 crisis pre-filter above. That guarantees a rate-limited free user can never reach a
+      // paid API call or a generated reply with ANY input; the sole thing that bypasses the cap is
+      // an explicit L0 crisis (answered with a fixed, free canned reply). Two ways a refactor
+      // breaks it: moving paid moderation/generation ABOVE this gate reopens a budget-drain vector;
+      // moving the crisis pre-filter BELOW it silently drops a crisis message behind the paywall
+      // (the D-2 bug this ordering fixes).
       if (!isPremium) {
         const limitCheck = await checkFreeTierLimit(userId);
         if (!limitCheck.allowed) {
@@ -160,28 +212,19 @@ export class ChatSession {
           severity: "warning", detail: inputVerdict.reason, content: trimmed,
           companionId, category: inputVerdict.categories[0]?.category,
         });
-        await autoSuspendIfNeeded(userId);
+        // Policy: the violation is logged to `safety_events` (above) for HUMAN review and the user
+        // is warned via the block below. We do NOT auto-suspend — suspensions are a manual decision
+        // a developer makes after evaluating the logged events (no automated account action).
         callbacks.onAbort("input_blocked", inputVerdict.reason ?? "Blocked");
         return;
       }
 
       if (inputVerdict.action === "crisis") {
         const crisisCategory = inputVerdict.categories.find((c) => c.category.startsWith("self-harm"))?.category;
-        await logSafetyEvent(userId, "crisis_detected", {
-          severity: "critical", detail: inputVerdict.reason, content: trimmed,
-          companionId, category: crisisCategory,
-        });
-        await autoSuspendIfNeeded(userId);
-        const crisisReply = buildCrisisResponse();
-        // Deliver the crisis reply itself (text renders it; voice speaks it in the calm style),
-        // then complete with the 988 resources.
-        callbacks.onToken?.(crisisReply, { crisis: true });
-        const persisted = await this.persistOrReplay(trimmed, crisisReply);
-        if ("replay" in persisted) { callbacks.onComplete(persisted.replay); return; }
-        callbacks.onComplete({
-          userMessage: persisted.persisted.userMessage, aiMessage: persisted.persisted.aiMessage, turnId,
-          crisisResources: inputVerdict.crisisResources ?? CRISIS_RESOURCES,
-          memoriesUsed: false,
+        await this.handleCrisis(callbacks, {
+          category: crisisCategory,
+          reason: inputVerdict.reason,
+          crisisResources: inputVerdict.crisisResources,
         });
         return;
       }
@@ -295,7 +338,6 @@ export class ChatSession {
           severity: "warning", content: blockedDraft || approved,
           companionId, category: blockedCategory, source: "output",
         });
-        await autoSuspendIfNeeded(userId);
       }
       // On an output block we persist the safe approved prefix (what the user already saw); if
       // nothing was approved, the generic safe fallback. Suppress + safe fallback, no oracle.

@@ -17,7 +17,7 @@ const mockUpdate = vi.fn();
 vi.mock("../db/src/index.js", () => ({
   db: { select: mockSelect, insert: mockInsert, delete: mockDelete, update: mockUpdate },
   usersTable: { id: "id", role: "role", email: "email", status: "status" },
-  safetyEventsTable: { id: "id", createdAt: "created_at" },
+  safetyEventsTable: { id: "id", userId: "user_id", eventType: "event_type", severity: "severity", createdAt: "created_at" },
   bannedIdentitiesTable: { identifierHash: "identifier_hash", identifierType: "identifier_type", reason: "reason" },
   messagesTable: { id: "id", userId: "user_id" },
   companionsTable: { id: "id", userId: "user_id" },
@@ -49,20 +49,26 @@ describe("Admin route handlers", () => {
     vi.clearAllMocks();
   });
 
-  it("allows admin user to access safety-events", async () => {
-    mockSelect.mockReturnValue({
-      from: vi.fn(() => ({
+  const eventsChain = (rows: any[]) => ({
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
         orderBy: vi.fn(() => ({
-          limit: vi.fn(() => Promise.resolve([])),
+          limit: vi.fn(() => ({
+            offset: vi.fn(() => Promise.resolve(rows)),
+          })),
         })),
       })),
-    });
+    })),
+  });
+
+  it("allows admin user to access safety-events (no filters)", async () => {
+    mockSelect.mockReturnValue(eventsChain([]));
 
     const { default: router } = await import("../routes/compliance.js");
     const handler = findHandler(router, "/admin/safety-events", "get");
     expect(handler).toBeDefined();
 
-    const req: any = { testUserId: "admin-user", params: {}, body: {} };
+    const req: any = { testUserId: "admin-user", params: {}, query: {} };
     let statusCode = 200;
     let jsonBody: any = null;
     const res: any = {
@@ -72,6 +78,42 @@ describe("Admin route handlers", () => {
     await handler(req, res);
 
     expect(statusCode).toBe(200);
+    expect(jsonBody).toMatchObject({ data: { limit: 50, offset: 0, count: 0 } });
+  });
+
+  it("filters safety-events by query params and returns a paginated shape", async () => {
+    mockSelect.mockReturnValue(eventsChain([{ id: "se1", eventType: "input_blocked" }]));
+
+    const { default: router } = await import("../routes/compliance.js");
+    const handler = findHandler(router, "/admin/safety-events", "get");
+    const req: any = {
+      testUserId: "admin-user", params: {},
+      query: { userId: "11111111-1111-1111-1111-111111111111", eventType: "input_blocked", limit: "10" },
+    };
+    let statusCode = 200;
+    let jsonBody: any = null;
+    const res: any = {
+      status: (c: number) => { statusCode = c; return { json: (j: any) => { jsonBody = j; } }; },
+    };
+
+    await handler(req, res);
+
+    expect(statusCode).toBe(200);
+    expect(jsonBody).toMatchObject({ data: { count: 1, limit: 10, offset: 0 } });
+  });
+
+  it("rejects an invalid safety-events query with 400", async () => {
+    const { default: router } = await import("../routes/compliance.js");
+    const handler = findHandler(router, "/admin/safety-events", "get");
+    const req: any = { testUserId: "admin-user", params: {}, query: { since: "not-a-date" } };
+    let statusCode = 200;
+    const res: any = {
+      status: (c: number) => { statusCode = c; return { json: () => {} }; },
+    };
+
+    await handler(req, res);
+
+    expect(statusCode).toBe(400);
   });
 
   it("allows admin user to ban", async () => {

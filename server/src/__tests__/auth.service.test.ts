@@ -128,27 +128,4 @@ describe("auth.service", () => {
     });
   });
 
-  describe("autoSuspendIfNeeded", () => {
-    it("suspends when threshold exceeded", async () => {
-      mockSelect.mockResolvedValue([{ eventCount: 5 }]);
-      const { autoSuspendIfNeeded } = await import("../services/auth/auth.service.js");
-      await autoSuspendIfNeeded("u1");
-      expect(mockUpdateWhere).toHaveBeenCalled();
-    });
-
-    it("does not suspend when threshold not met", async () => {
-      mockSelect.mockResolvedValue([{ eventCount: 2 }]);
-      const { autoSuspendIfNeeded } = await import("../services/auth/auth.service.js");
-      await autoSuspendIfNeeded("u2");
-      expect(mockUpdate).not.toHaveBeenCalled();
-    });
-
-    it("handles DB error gracefully", async () => {
-      mockSelect.mockRejectedValue(new Error("DB down"));
-      const { autoSuspendIfNeeded } = await import("../services/auth/auth.service.js");
-      const { logger } = await import("../lib/logger.js");
-      await autoSuspendIfNeeded("u3");
-      expect(logger.error).toHaveBeenCalled();
-    });
-  });
 });

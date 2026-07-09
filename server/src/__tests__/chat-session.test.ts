@@ -5,7 +5,6 @@ const mockCheckFreeTierLimit = vi.fn();
 const mockScreenInput = vi.fn();
 const mockScreenOutput = vi.fn();
 const mockBuildCrisisResponse = vi.fn();
-const mockAutoSuspend = vi.fn();
 const mockLogSafetyEvent = vi.fn();
 const mockPersistMessages = vi.fn();
 const mockGetLLMProvider = vi.fn();
@@ -97,7 +96,6 @@ vi.mock("../services/chat/prompt-assembler.js", () => ({
   GENERATION_FALLBACK_REPLY: "I lost my train of thought for a second — say that again?",
 }));
 vi.mock("../services/chat/break-reminder.js", () => ({ shouldShowBreakReminder: mockShouldShowBreakReminder }));
-vi.mock("../services/auth/auth.service.js", () => ({ autoSuspendIfNeeded: mockAutoSuspend }));
 vi.mock("../lib/logger.js", () => ({ logger: { warn: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock("../lib/observability.js", () => ({ captureException: vi.fn() }));
 vi.mock("../lib/metrics.js", () => ({ incrementMetric: vi.fn() }));
@@ -147,7 +145,7 @@ function setupHappyPath(): void {
 describe("ChatSession", () => {
   beforeEach(() => {
     [mockCheckFreeTierLimit, mockScreenInput, mockScreenOutput, mockBuildCrisisResponse,
-      mockAutoSuspend, mockLogSafetyEvent, mockPersistMessages, mockGetLLMProvider,
+      mockLogSafetyEvent, mockPersistMessages, mockGetLLMProvider,
       mockGenerateReply, mockRetrieveMemories, mockEnqueueMemoryJob, mockAssemblePrompt,
       mockShouldShowBreakReminder, mockOnComplete, mockOnAbort, mockOnToken,
     ].forEach((m) => m.mockClear());
@@ -272,13 +270,44 @@ describe("ChatSession", () => {
     expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
+  // ── D-2: crisis is never swallowed by the paywall ──────────────────
+  it("D-2: a free-tier-exhausted user in crisis is routed to support, not dropped by the cap", async () => {
+    // Real runL0 flags the explicit crisis phrase; the free-tier gate must never see this turn.
+    mockCheckFreeTierLimit.mockResolvedValue({ allowed: false, used: 30, limit: 30 });
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession({ ...defaultParams(), isPremium: false, content: "I want to kill myself." }).run(callbacks());
+
+    // Crisis handled: logged critical, the 988 reply delivered, resources returned — and NOT aborted.
+    expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "crisis_detected", expect.objectContaining({ severity: "critical" }));
+    expect(mockOnToken).toHaveBeenCalledWith("You matter. Please reach out to 988.", { crisis: true });
+    expect(mockOnComplete).toHaveBeenCalledWith(expect.objectContaining({
+      crisisResources: expect.arrayContaining([expect.stringContaining("988")]),
+    }));
+    expect(mockOnAbort).not.toHaveBeenCalled();
+
+    // The crux: the crisis pre-filter short-circuits BEFORE the paywall and full moderation ever run.
+    expect(mockCheckFreeTierLimit).not.toHaveBeenCalled();
+    expect(mockScreenInput).not.toHaveBeenCalled();
+    expect(mockGenerateReply).not.toHaveBeenCalled();
+  });
+
+  it("D-2: a free-tier-exhausted user sending ordinary content is still capped (paywall intact)", async () => {
+    // Non-crisis content must still hit the free-tier gate — the pre-filter must not open the paywall.
+    mockCheckFreeTierLimit.mockResolvedValue({ allowed: false, used: 30, limit: 30 });
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession({ ...defaultParams(), isPremium: false, content: "what's a good recipe for dinner?" }).run(callbacks());
+    expect(mockCheckFreeTierLimit).toHaveBeenCalled();
+    expect(mockOnAbort).toHaveBeenCalledWith("free_limit_reached");
+    expect(mockOnComplete).not.toHaveBeenCalled();
+  });
+
   // ── Input moderation ──────────────────────────────────────────────
   it("input block (injection layer) logs injection_detected and aborts", async () => {
     mockScreenInput.mockResolvedValue({ action: "block", categories: [{ category: "injection", score: 0.95 }], escalated: false, layer: "L1", policyVersion: "v", reason: "Injection blocked by prompt-guard" });
     const { ChatSession } = await import("../services/chat/chat-session.js");
     await new ChatSession(defaultParams()).run(callbacks());
     expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "injection_detected", expect.any(Object));
-    expect(mockAutoSuspend).toHaveBeenCalledWith("u1");
+    // Policy: the violation is logged (above) + the user warned (onAbort below); no auto-suspension.
     expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Injection blocked by prompt-guard");
     expect(mockOnComplete).not.toHaveBeenCalled();
   });

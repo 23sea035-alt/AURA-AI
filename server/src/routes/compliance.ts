@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable, subscriptionsTable } from "../db/src/index.js";
 import { requireAuth, requireAdmin, AuthRequest } from "../middleware/auth.js";
 import { authBruteForceLimiter } from "../middleware/rate-limit.js";
@@ -9,8 +9,21 @@ import { hashIdentifier } from "../lib/crypto.js";
 import { getMetrics } from "../lib/metrics.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 import { ReportMessageSchema, BanUserSchema, UnbanUserSchema } from "@aura/shared";
+import { z } from "zod";
 
 const router = Router();
+
+// Admin safety-events review filters (query params). Loose on eventType/severity so a future
+// event type never 400s the reviewer; strict on the structural params. limit caps at 200.
+const SafetyEventsQuerySchema = z.object({
+  userId: z.string().uuid().optional(),
+  eventType: z.string().min(1).optional(),
+  severity: z.string().min(1).optional(),
+  since: z.string().datetime().optional(),
+  until: z.string().datetime().optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
 
 // DELETE /api/account — Soft-delete account (30-day grace, recoverable)
 router.delete("/account", requireAuth, async (req: AuthRequest, res) => {
@@ -130,12 +143,31 @@ router.post("/messages/:id/report", requireAuth, validate(ReportMessageSchema), 
   }
 });
 
-// GET /api/admin/safety-events — Review safety events queue (admin only)
+// GET /api/admin/safety-events — Review the safety-events queue (admin only). This is the HUMAN-
+// review surface for the suspension policy: violations are logged here and never auto-actioned, and
+// a developer filters + evaluates them to decide on manual account action. All filters optional and
+// AND-combined: userId, eventType, severity, since/until (ISO 8601), plus limit/offset pagination.
 router.get("/admin/safety-events", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
+  const parsed = SafetyEventsQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    sendError(res, "Invalid query parameters", 400, "INVALID_QUERY");
+    return;
+  }
+  const { userId, eventType, severity, since, until, limit, offset } = parsed.data;
   try {
-    const events = await db.select().from(safetyEventsTable).orderBy(desc(safetyEventsTable.createdAt)).limit(50);
+    const events = await db.select().from(safetyEventsTable)
+      .where(and(
+        userId ? eq(safetyEventsTable.userId, userId) : undefined,
+        eventType ? eq(safetyEventsTable.eventType, eventType) : undefined,
+        severity ? eq(safetyEventsTable.severity, severity) : undefined,
+        since ? gte(safetyEventsTable.createdAt, new Date(since)) : undefined,
+        until ? lte(safetyEventsTable.createdAt, new Date(until)) : undefined,
+      ))
+      .orderBy(desc(safetyEventsTable.createdAt))
+      .limit(limit)
+      .offset(offset);
 
-    sendSuccess(res, events);
+    sendSuccess(res, { events, limit, offset, count: events.length });
   } catch (err) {
     logger.error({ err }, "Failed to fetch safety events");
     sendError(res, "Failed to fetch safety events", 500);
