@@ -19,10 +19,12 @@
 
 ## Content & casting
 
-- [ ] **9 gallery portraits** — art exists on the `test-results` branch; QA the batch-3 set
-      against `docs/specs/companion-gallery-identities.md`, merge, add the nine to
-      `client/components/companion/portraits.ts` (pipeline: `docs/redesign/companion-avatar-pipeline.md`).
-      Until then those personas render the duotone monogram fallback.
+- [~] **9 gallery portraits** — ART DONE: all 12 masters created + merged to `redesign` (commit
+      `d0c23fe`, 2026-07-09; Lyra reskinned to redhead, old asset deprecated). REMAINING (small,
+      client session): wire the nine (amara, cyrus, eli, juno, sage, selene, soren, thea, wren)
+      into `client/components/companion/portraits.ts` + sim-verify — the PNGs are committed but
+      `portraits.ts` still maps only the 3 anchors, so the nine render the monogram fallback until
+      wired. Look-customization reskins (appearance variants) are a separate future session.
 - [ ] **9 gallery voice castings** (owner decision 2026-07-08: before v1.0 release) — cast in
       the Inworld portal, extend `getVoiceId` / env beyond the three anchors. Uncast personas
       are silent on calls today.
