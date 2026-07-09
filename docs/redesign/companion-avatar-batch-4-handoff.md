@@ -12,12 +12,12 @@
 | **Eli** | 🔁 regen fresh | needs a distinctive haircut; face too generic / close to the other men |
 | **Juno** | 🔁 regen fresh | face cloned Lyra (Lyra was the attached ref) |
 | **Wren** | 🔁 regen fresh | face cloned Aurora + style drifted |
+| **Cyrus** | 🔁 regen fresh | best art (batch3 soft-painterly) has comic-linework artifacts; no clean reliable version, so regenerate |
 | **Amara** | ✏️ attach + tighten | art good; only needs anchor-tight framing |
 | **Selene** | ✏️ attach + tighten | art good; only needs anchor-tight framing |
 | **Soren** | ✏️ attach + tighten | art good; only needs anchor-tight framing |
 | **Thea** | ✏️ attach + tighten | art good; only needs anchor-tight framing |
 | **Sage** | ✅ keep | bald already distinct; regen only if new-Eli still feels close |
-| **Cyrus** | ✅ keep | already anchor-tight + on-style |
 
 ## Global rules (apply to every generation)
 
@@ -27,8 +27,10 @@
 - **Background = flat magenta `#FF00FF`.** Solid, fully saturated, single even fill, no gradient, no shadow
   on the background. Nothing magenta/pink on the person or clothing. (ChatGPT won't do transparency; magenta
   keys out cleanly afterward.)
-- **References = the neutral style pair `thea.png` + `cyrus.png`** attached to EVERY chat — never the
-  persona's look-alike anchor (that's what cloned Lyra/Aurora). Use them for **art style only**.
+- **References = the neutral style pair `thea.png` + `amara.png`** (the two locked, artifact-free keepers)
+  attached to EVERY chat — never the persona's look-alike anchor (that's what cloned Lyra/Aurora), and
+  NOT Cyrus (his best iteration carries comic-linework artifacts, so he is not a reliable template). Use
+  them for **art style only**.
 - **No post-padding.** Keep the square ChatGPT returns; key the magenta, then resize once to 1254². Never
   add canvas / extend / pad (that caused the 1294 misalignment).
 - **Output:** 1254×1254 PNG, transparent, named `[companion].png` (lowercase).
@@ -38,13 +40,18 @@
 ## Shared preamble (paste this, then the character's Subject block)
 
 ```
-Create a companion avatar illustration. Match the art style of the two attached reference images EXACTLY (thea.png + cyrus.png are the canon look): a soft, warm, semi-realistic CEL / gouache painting with smooth gradient shading, gently rendered individual hair strands, a subtle warm cheek blush, soft-edged forms, and a small clean face, in a warm palette (cream, warm browns, terracotta, a small wine-red accent). This is NOT flat vector art, NOT graphic/editorial illustration, NOT hard-outlined comic art, NOT anime, NOT 3D, NOT photoreal. Use the references for ART STYLE ONLY — invent a NEW face that does not resemble either reference or any other person.
+Create a companion avatar illustration. Match the art style of the two attached reference images EXACTLY (thea.png + amara.png are the canon look): a soft, warm, semi-realistic CEL / gouache painting with smooth gradient shading, gently rendered individual hair strands, a subtle warm cheek blush, soft-edged forms, and a small clean face, in a warm palette (cream, warm browns, terracotta, a small wine-red accent). This is NOT flat vector art, NOT graphic/editorial illustration, NOT hard-outlined comic art, NOT anime, NOT 3D, NOT photoreal. Use the references for ART STYLE ONLY — invent a NEW face that does not resemble either reference or any other person.
 Framing: TIGHT head-and-shoulders portrait like a close-up. The head sits near the TOP of the frame with only a small margin, and the shoulders/upper chest run OFF the BOTTOM edge of the image — there must be NO empty gap below the subject. The subject fills about 90-95% of the height. Face centered horizontally and large. Do NOT zoom out, do NOT leave space under the shoulders, do NOT add a circle, frame, border, or vignette. No hands unless specified.
 Background: a solid, flat, fully-saturated MAGENTA fill, hex #FF00FF, one even color across the whole background, no gradient and no shadow cast onto it. Nothing magenta or pink anywhere on the person or clothing.
 No text, no watermark, no logo, no signature.
 ```
 
-## Fresh regens (attach `thea.png` + `cyrus.png`)
+## Fresh regens (attach `thea.png` + `amara.png`)
+
+**CYRUS**
+```
+Subject: an older adult man, clearly in his 50s-60s. Masculine presentation, Persian / Iranian heritage. Warm olive-to-deep skin, evenly lit, natural (NOT over-saturated or orange). Grey hair with a neat salt-and-pepper short beard. Tastefully dressed as a grounding elder friend: a textured, warm MUTED-BROWN cardigan over a simple grey henley with a small wine-red placket, open at the neck; nothing tight or suggestive. Pose: rooted, calm, gently upright, shoulders squared (no hands). Expression: warm, knowing, a soft wise half-smile, steady eyes looking toward the viewer. A grounding elder who offers perspective. Distinct face, unlike any reference. Render in soft cel/gouache with painterly shading — NOT comic linework.
+```
 
 **ELI**
 ```
@@ -85,7 +92,6 @@ If attach + tighten drifts the face or style worse than the current version, **k
 face at 80% beats a drifted one at 95%.
 
 ## Keep as-is
-- **Cyrus** — already anchor-tight and on-style. Do not touch.
 - **Sage** — keep unless it clashes with the new Eli.
 
 ## Post-processing (per image)
@@ -100,8 +106,7 @@ face at 80% beats a drifted one at 95%.
 3. Confirm: transparent bg, no magenta fringe on hair edges, 1254², correct name.
 
 ## Run order
-Fresh first: **Eli, Juno, Wren**. Then attach+tighten: **Amara, Selene, Soren, Thea**. Then decide **Sage**.
-Cyrus is done.
+Fresh first: **Cyrus, Eli, Juno, Wren**. Then attach+tighten: **Amara, Selene, Soren, Thea**. Then decide **Sage**.
 
 ## Definition of done
 All 9 read as one soft cel/gouache family, anchor-tight framing (subject fills the frame, no bottom gap),
