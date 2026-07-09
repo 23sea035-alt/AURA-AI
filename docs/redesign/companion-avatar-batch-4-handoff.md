@@ -21,11 +21,11 @@
 
 ## Global rules (apply to every generation)
 
-- **Generator = Gemini (Nano Banana), 1:1 SQUARE aspect ratio** (~1024² native). ChatGPT underperformed on
-  these; use Gemini. Do NOT generate landscape/portrait, a wide image can't be squared without cropping
-  to ~half height and upscaling (blur).
-- **Size standard = 1024².** All 12 avatars are 1024×1024 (the anchors were downscaled from 1254 to match).
-  Gemini's native square output is ~1024², so **nothing is ever upscaled** — no blur anywhere.
+- **1:1 SQUARE aspect ratio, always.** A wide or portrait image can't be squared without cropping to
+  ~half height and upscaling (blur), which is what bit us. Whatever tool you use, force 1:1.
+- **Size standard = 1254².** All 12 avatars are 1254×1254 (matching the anchors). ChatGPT outputs 1254²
+  square natively (no upscale). Gemini is also fine (strong at reference-style matching); its ~1024²
+  square just gets one clean resize up to 1254².
 - **Framing = ANCHOR-TIGHT.** Match aurora/orion/lyra: the head sits near the TOP with a small margin, the
   body runs OFF the BOTTOM edge (no gap below the shoulders/chest), subject fills ~90-95% of the height. A
   close portrait, NOT zoomed out, NO empty space below the subject.
@@ -36,9 +36,9 @@
   attached to EVERY chat — never the persona's look-alike anchor (that's what cloned Lyra/Aurora), and
   NOT Cyrus (his best iteration carries comic-linework artifacts, so he is not a reliable template). Use
   them for **art style only**.
-- **No post-padding.** Keep the square Gemini returns; key the magenta (no resize needed if it's already
-  ~1024²). Never add canvas / extend / pad (that caused the 1294 misalignment).
-- **Output:** 1024×1024 PNG, transparent, named `[companion].png` (lowercase).
+- **No post-padding.** Keep the square the generator returns; key the magenta, then resize once to 1254²
+  if needed. Never add canvas / extend / pad (that caused the 1294 misalignment).
+- **Output:** 1254×1254 PNG, transparent, named `[companion].png` (lowercase).
 - **Distinctness:** each is a NEW person, different face shape/nose/jaw/brow/eyes/mouth from the references
   AND every other companion. Explicit no-clone rules are in each prompt below.
 
@@ -101,19 +101,19 @@ face at 80% beats a drifted one at 95%.
 
 ## Post-processing (per image)
 
-1. Generate in **Gemini, 1:1 square**, on magenta; iterate ≥3× until the face + framing are right (don't settle).
+1. Generate at **1:1 square** (ChatGPT or Gemini) on magenta; iterate ≥3× until the face + framing are right (don't settle).
 2. **Key out the magenta** with the tool (deterministic, no blur):
    ```
    python tools/avatars/magenta_key.py <in.png> client/assets/avatars/<name>.png
    ```
-   It removes the `#FF00FF` background (border-connected, with a 1px de-fringe) and outputs 1024² (default).
-   Manual fallback: paint.net → Magic Wand on the magenta → delete → export 1024².
-3. Confirm: transparent bg, no magenta fringe on hair edges, 1024², correct name.
+   It removes the `#FF00FF` background (border-connected, with a 1px de-fringe) and outputs 1254² (default).
+   Manual fallback: paint.net → Magic Wand on the magenta → delete → export 1254².
+3. Confirm: transparent bg, no magenta fringe on hair edges, 1254², correct name.
 
 ## Run order
 Fresh first: **Cyrus, Eli, Juno, Wren**. Then attach+tighten: **Amara, Selene, Soren, Thea**. Then decide **Sage**.
 
 ## Definition of done
 All 9 read as one soft cel/gouache family, anchor-tight framing (subject fills the frame, no bottom gap),
-distinct faces (no Lyra/Aurora clones, Eli's cut distinct from Sage/Orion), transparent, 1024², named
+distinct faces (no Lyra/Aurora clones, Eli's cut distinct from Sage/Orion), transparent, 1254², named
 `[companion].png`, on `test-results`. Update `notes.md`. Ping the main session.

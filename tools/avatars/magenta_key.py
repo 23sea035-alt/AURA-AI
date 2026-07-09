@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Key out a flat magenta (#FF00FF) background from an avatar and emit a clean
-1024x1024 transparent PNG. Deterministic, no upscaling-blur.
+1254x1254 transparent PNG. Deterministic, no upscaling-blur.
 
 Usage:
-    python tools/avatars/magenta_key.py <in.png> <out.png> [--size 1024] [--no-align]
+    python tools/avatars/magenta_key.py <in.png> <out.png> [--size 1254] [--no-align]
 
 What it does:
   1. Removes magenta pixels that are connected to the image border (so an
@@ -69,7 +69,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("src")
     ap.add_argument("dst")
-    ap.add_argument("--size", type=int, default=1024)
+    ap.add_argument("--size", type=int, default=1254)
     ap.add_argument("--no-align", action="store_true",
                     help="just key + resize the square, don't trim/bottom-align")
     args = ap.parse_args()
