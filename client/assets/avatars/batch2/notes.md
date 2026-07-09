@@ -84,12 +84,13 @@ Grading: Pending — run rubric via vision AI
 - Skin tones: pale → deep (Soren pale, Wren light, Amara wheatish, Eli warm brown, Selene olive, Cyrus olive-deep, Juno golden, Sage deep, Thea deep)
 - Age range: 25+ (Sage, Amara, Eli, Juno, Thea, Wren) · 50s–60s (Selene, Cyrus) · 25+ androgynous/masc (Soren)
 
-## Batch 3 Completed (2026-07-09)
-All 9 images processed per companion-avatar-batch-3-handoff.md.
-- **Regens** (Cyrus, Juno, Sage, Wren): user-generated with thea.png + anchor as dual refs, rembg bg removal, pad 1024→1254. No magenta fringes.
-- **Refines** (Eli, Soren): user-generated new versions, ✦ sparkle watermark detected & inpainted (bright-pixel cluster removal via scipy), rembg bg removal, pad 1024→1254. Eli: 24 sparkle pixels in 14 clusters (largest near x=667,y=287 — left elbow). Soren: 23 sparkle pixels in 5 clusters (largest 18-pixel cluster at x=460,y=344 — left sleeve).
-- **Selene**: skin warmth reduced (R mean 219→205, G mean 199→207, B mean 174→184; warmth delta 44.7→21.7 on skin pixels via scipy gaussian-feathered blend).
-- **Locks** (Thea, Amara): kept as-is.
+## Final Batch (2026-07-09) — User review pass
+Fresh regens from user for Selene, Juno, Wren, Cyrus. Sage + Eli + Soren + Amara + Thea locked (5 done ✅).
+
+- **Selene**: new regen, rembg u2net_human_seg bg cutout (white bg). 37.9% opaque at 1024² → 25.3% at 1254² padded. No chroma key (silver hair too close to white).
+- **Juno**: new regen, rembg u2net_human_seg bg cutout (white bg). 37.6% opaque → 25.0% padded. Note: ~49k wood-toned pixels in hand region (likely a pencil artifact from generator — flagged for user).
+- **Wren**: new regen, rembg u2net_human_seg bg cutout (white bg). 35.3% opaque → 23.5% padded. Jacket reads warm tan (RGB 214,157,124), no bright pink detected.
+- **Cyrus**: new regen (896x1200, cream top bg). Chroma key with top-corner sampling only (bottom corners are brown cardigan). Tolerance 55, cardigan 100% preserved. 60.7% opaque at original size → 41.5% at 1254² padded.
 
 ## To Do
 - [ ] Fill iteration counts per avatar
