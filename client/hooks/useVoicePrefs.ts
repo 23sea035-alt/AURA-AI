@@ -1,26 +1,18 @@
-// Voice preferences — persisted locally, read by the voice call.
-// WIRE SEAM: voice becomes per-companion (companions.voice_id, Inworld) once the
-// backend lands; `voiceId` here maps onto that column, and the prefs move to
-// PUT /api/voice-preferences. The hook's shape stays the same.
+// Voice preferences — persisted locally, read by the voice call. Voice TIMBRE is fixed per persona
+// (server-side Inworld casting), so there is no user voice picker; these are captions + speaking pace.
+// The pace is sent on voice_start and multiplies each persona's base voice rate server-side.
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import type { VoicePace } from '@aura/shared';
 
 export interface VoicePrefs {
-  /** Selected voice (maps to companions.voice_id / an Inworld voice). */
-  voiceId: string;
   /** Live captions of what the companion says during a call. */
   captions: boolean;
-  /** Speaking pace. */
-  pace: 'relaxed' | 'natural' | 'brisk';
+  /** Speaking pace — multiplies the persona's base voice rate (relaxed / natural / quick). */
+  pace: VoicePace;
 }
 
-export const VOICE_OPTIONS: { id: string; name: string; feel: string }[] = [
-  { id: 'ember', name: 'Ember', feel: 'Warm and low, unhurried' },
-  { id: 'dawn', name: 'Dawn', feel: 'Soft and bright, gentle lift' },
-  { id: 'river', name: 'River', feel: 'Calm and even, steady' },
-];
-
-const DEFAULTS: VoicePrefs = { voiceId: 'ember', captions: true, pace: 'natural' };
+const DEFAULTS: VoicePrefs = { captions: true, pace: 'natural' };
 const KEY = 'voicePrefs';
 
 export function useVoicePrefs() {

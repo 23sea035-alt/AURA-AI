@@ -47,3 +47,21 @@ services:
         sync: false
       - key: INWORLD_VOICE_ID_LYRA
         sync: false
+      - key: INWORLD_VOICE_ID_SAGE
+        sync: false
+      - key: INWORLD_VOICE_ID_AMARA
+        sync: false
+      - key: INWORLD_VOICE_ID_ELI
+        sync: false
+      - key: INWORLD_VOICE_ID_SELENE
+        sync: false
+      - key: INWORLD_VOICE_ID_SOREN
+        sync: false
+      - key: INWORLD_VOICE_ID_JUNO
+        sync: false
+      - key: INWORLD_VOICE_ID_THEA
+        sync: false
+      - key: INWORLD_VOICE_ID_CYRUS
+        sync: false
+      - key: INWORLD_VOICE_ID_WREN
+        sync: false

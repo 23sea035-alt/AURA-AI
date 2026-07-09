@@ -30,6 +30,7 @@
 // screen and the voice-call screen both hold the same instance).
 import { getSessionToken } from '@/lib/clerk';
 import { wsBaseUrl } from '@/lib/env';
+import type { VoicePace } from '@aura/shared';
 
 export type WsAbortCode =
   | 'input_blocked'
@@ -122,9 +123,9 @@ export class ChatSocket {
   }
 
   /** Open the voice session (server replies voice_ready with remainingSeconds). */
-  startVoice(sessionStartedAt?: string): boolean {
+  startVoice(sessionStartedAt?: string, pace?: VoicePace): boolean {
     if (!this.ready) return false;
-    this.ws!.send(JSON.stringify({ type: 'voice_start', companionId: this.companionId, sessionStartedAt }));
+    this.ws!.send(JSON.stringify({ type: 'voice_start', companionId: this.companionId, sessionStartedAt, pace }));
     return true;
   }
 

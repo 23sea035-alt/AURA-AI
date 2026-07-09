@@ -15,7 +15,7 @@ import { transcribeAudio } from "../services/voice/stt.js";
 import { checkVoiceMonthlyLimit, recordVoiceUsage, estimateSpeechSeconds, callMaxSeconds } from "../services/voice/metering.js";
 import { enqueueTurn } from "../services/chat/turn-queue.js";
 import { db, usersTable, companionsTable } from "../db/src/index.js";
-import { STT_MODEL, MAX_UTTERANCE_BYTES } from "@aura/shared";
+import { STT_MODEL, MAX_UTTERANCE_BYTES, paceMultiplier } from "@aura/shared";
 import type { PersonaKey } from "@aura/shared";
 
 interface TurnFrame {
@@ -26,7 +26,7 @@ interface TurnFrame {
   sessionStartedAt?: string;
 }
 interface RefreshAuthFrame { type: "refresh_auth"; token: string; }
-interface VoiceStartFrame { type: "voice_start"; companionId: string; sessionStartedAt?: string; }
+interface VoiceStartFrame { type: "voice_start"; companionId: string; sessionStartedAt?: string; pace?: string; }
 interface VoiceInterruptFrame { type: "voice_interrupt"; transcript?: string; }
 interface VoiceStopFrame { type: "voice_stop"; }
 
@@ -104,7 +104,7 @@ export function registerWebSocketHandler(server: Server): void {
     }
 
     // ── Voice: open a call context (persona + tier + filler pre-gen) ──
-    async function handleVoiceStart(companionId: string, sessionStartedAt?: string): Promise<void> {
+    async function handleVoiceStart(companionId: string, sessionStartedAt?: string, pace?: string): Promise<void> {
       if (!wsVoiceLimiter(userId)) {
         send({ type: "abort", code: "rate_limited", companionId });
         incrementMetric("rate_limit.ws_voice");
@@ -132,7 +132,10 @@ export function registerWebSocketHandler(server: Server): void {
 
       bindCompanion(companionId);
       voiceSessionStartedAt = sessionStartedAt;
-      voiceSession = new VoiceSession({ userId, companionId, personaKey: companion.personaKey as PersonaKey });
+      voiceSession = new VoiceSession({
+        userId, companionId, personaKey: companion.personaKey as PersonaKey,
+        speakingRateMultiplier: paceMultiplier(pace),
+      });
       await voiceSession.open(); // pre-gen filler clips; degrades gracefully if no INWORLD_VOICE_ID_*
       send({ type: "voice_ready", companionId, remainingSeconds: usage.remainingSeconds });
     }
@@ -253,7 +256,7 @@ export function registerWebSocketHandler(server: Server): void {
       if (frame.type === "voice_start") {
         const f = frame as VoiceStartFrame;
         if (!f.companionId || !UUID_RE.test(f.companionId)) { send({ type: "error", code: "INVALID_FRAME", detail: "companionId (uuid) required" }); return; }
-        await handleVoiceStart(f.companionId, f.sessionStartedAt);
+        await handleVoiceStart(f.companionId, f.sessionStartedAt, f.pace);
         return;
       }
 

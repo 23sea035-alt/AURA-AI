@@ -9,7 +9,7 @@ import { synthesizeSpeech, synthesizeBatch } from "./inworld-tts.js";
 import { classifyInterruption } from "./interruption.js";
 import type { InterruptionClass } from "./interruption.js";
 import type { PersonaKey } from "@aura/shared";
-import type { DeliveryMode } from "./inworld-tts.js";
+import { styleTagFor, deliveryModeFor, baseRateFor, effectiveSpeakingRate } from "./voice-tuning.js";
 
 export type VoiceState =
   | "IDLE"
@@ -22,38 +22,38 @@ export type VoiceState =
   | "PROCESSING"
   | "ERROR";
 
-// Prosody per persona. Only the 3 anchors are voice-cast so far; the 9 gallery presets fall back to a
-// warm neutral prosody (and no cast voiceId) until their Inworld voices are assigned. See
-// docs/specs/companion-gallery-identities.md (voiceId wiring is the remaining voice task).
-const DEFAULT_STYLE_TAG = "[warm and gentle]";
-const DEFAULT_DELIVERY_MODE: DeliveryMode = "BALANCED";
-
-const PERSONA_STYLE_TAG: Partial<Record<PersonaKey, string>> = {
-  aurora: "[warm and gentle]",
-  orion: "[direct and grounded]",
-  lyra: "[bright and expressive]",
-};
-
-const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = {
-  aurora: "BALANCED",
-  orion: "STABLE",
-  lyra: "CREATIVE",
-};
+// Per-persona style tag / delivery mode / base speaking rate live in ./voice-tuning.js (pure + tested);
+// the user's SPEAKING PACE setting multiplies the base rate there. Only the 3 anchors are voice-cast
+// today — the 9 gallery presets are pre-tuned but dormant until their Inworld voiceId is assigned.
 
 function getVoiceId(personaKey: PersonaKey): string | undefined {
   const env = getEnv();
-  switch (personaKey) {
-    case "aurora": return env.INWORLD_VOICE_ID_AURORA;
-    case "orion": return env.INWORLD_VOICE_ID_ORION;
-    case "lyra": return env.INWORLD_VOICE_ID_LYRA;
-    default: return undefined; // 9 gallery presets not yet cast → adapter uses its default voice
-  }
+  // Cast voices are env-keyed per persona (INWORLD_VOICE_ID_<PERSONA>). Unset → undefined, and the
+  // adapter degrades gracefully (no audio) until that persona is cast — so casting is a config drop-in.
+  const byPersona: Record<PersonaKey, string | undefined> = {
+    aurora: env.INWORLD_VOICE_ID_AURORA,
+    orion: env.INWORLD_VOICE_ID_ORION,
+    lyra: env.INWORLD_VOICE_ID_LYRA,
+    sage: env.INWORLD_VOICE_ID_SAGE,
+    amara: env.INWORLD_VOICE_ID_AMARA,
+    eli: env.INWORLD_VOICE_ID_ELI,
+    selene: env.INWORLD_VOICE_ID_SELENE,
+    soren: env.INWORLD_VOICE_ID_SOREN,
+    juno: env.INWORLD_VOICE_ID_JUNO,
+    thea: env.INWORLD_VOICE_ID_THEA,
+    cyrus: env.INWORLD_VOICE_ID_CYRUS,
+    wren: env.INWORLD_VOICE_ID_WREN,
+  };
+  return byPersona[personaKey];
 }
 
 export interface VoiceSessionParams {
   userId: string;
   companionId: string;
   personaKey: PersonaKey;
+  /** The user's SPEAKING PACE setting as a multiplier on the persona's base rate (default 1.0 =
+   * "natural"). relaxed / natural / brisk map to <1 / 1 / >1 on the client; carried in on voice_start. */
+  speakingRateMultiplier?: number;
 }
 
 export class VoiceSession {
@@ -78,13 +78,14 @@ export class VoiceSession {
       return;
     }
 
-    const deliveryMode = PERSONA_DELIVERY_MODE[this.params.personaKey] ?? DEFAULT_DELIVERY_MODE;
+    const deliveryMode = deliveryModeFor(this.params.personaKey);
+    const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), this.params.speakingRateMultiplier ?? 1.0);
     const fillerTexts = [...VOICE_FILLER_TEXTS].slice(0, VOICE_FILLER_CLIP_COUNT);
 
     try {
       const [clips, fallback] = await Promise.all([
-        synthesizeBatch(fillerTexts, { voiceId, deliveryMode }),
-        synthesizeSpeech({ text: VOICE_FALLBACK_TEXT, voiceId, deliveryMode, styleTag: "[calm and measured]" }),
+        synthesizeBatch(fillerTexts, { voiceId, deliveryMode, speakingRate }),
+        synthesizeSpeech({ text: VOICE_FALLBACK_TEXT, voiceId, deliveryMode, styleTag: "[calm and measured]", speakingRate }),
       ]);
       this.fillerClips = clips;
       this.fallbackClip = fallback;
@@ -100,9 +101,12 @@ export class VoiceSession {
       throw new Error(`Voice ID not set for ${this.params.personaKey} — configure INWORLD_VOICE_ID_${this.params.personaKey.toUpperCase()}`);
     }
 
-    const styleTag = opts?.crisis ? "[calm and measured]" : (PERSONA_STYLE_TAG[this.params.personaKey] ?? DEFAULT_STYLE_TAG);
-    const deliveryMode = opts?.crisis ? "STABLE" : (PERSONA_DELIVERY_MODE[this.params.personaKey] ?? DEFAULT_DELIVERY_MODE);
-    return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag });
+    const styleTag = opts?.crisis ? "[calm and measured]" : styleTagFor(this.params.personaKey);
+    const deliveryMode = opts?.crisis ? "STABLE" : deliveryModeFor(this.params.personaKey);
+    // Crisis speaks at the persona's base tempo — a user's "brisk" pace must never rush a 988 reply.
+    const paceMultiplier = opts?.crisis ? 1.0 : (this.params.speakingRateMultiplier ?? 1.0);
+    const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), paceMultiplier);
+    return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag, speakingRate });
   }
 
   nextFillerClip(): Buffer | undefined {

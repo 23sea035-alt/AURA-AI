@@ -28,6 +28,7 @@ import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { startVoiceCall, stopVoiceCall } from '@/lib/backend';
+import type { VoicePace } from '@aura/shared';
 import { acquireChatSocket, releaseChatSocket, type ChatSocket } from '@/lib/websocket';
 
 export type VoiceCallState = 'connecting' | 'listening' | 'thinking' | 'speaking' | 'limit' | 'error';
@@ -65,8 +66,11 @@ interface VoiceCall {
   remainingSeconds: number | null;
 }
 
-export function useVoiceCall(opts: { companionId: string; enabled: boolean; muted: boolean }): VoiceCall {
-  const { companionId, enabled, muted } = opts;
+export function useVoiceCall(opts: { companionId: string; enabled: boolean; muted: boolean; pace?: VoicePace }): VoiceCall {
+  const { companionId, enabled, muted, pace } = opts;
+  // Snapshot pace in a ref so the value at call-start is used, without re-arming the loop when it changes.
+  const paceRef = useRef(pace);
+  paceRef.current = pace;
   const [state, setState] = useState<VoiceCallState>('connecting');
   const [caption, setCaption] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
@@ -291,7 +295,7 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
       const tryStart = () => {
         if (!aliveRef.current) return true;
         if (socket.ready) {
-          socket.startVoice(new Date().toISOString());
+          socket.startVoice(new Date().toISOString(), paceRef.current);
           return true;
         }
         return false;

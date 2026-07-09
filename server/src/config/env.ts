@@ -27,6 +27,15 @@ const envSchema = z.object({
   INWORLD_VOICE_ID_AURORA: z.string().optional(),
   INWORLD_VOICE_ID_ORION: z.string().optional(),
   INWORLD_VOICE_ID_LYRA: z.string().optional(),
+  INWORLD_VOICE_ID_SAGE: z.string().optional(),
+  INWORLD_VOICE_ID_AMARA: z.string().optional(),
+  INWORLD_VOICE_ID_ELI: z.string().optional(),
+  INWORLD_VOICE_ID_SELENE: z.string().optional(),
+  INWORLD_VOICE_ID_SOREN: z.string().optional(),
+  INWORLD_VOICE_ID_JUNO: z.string().optional(),
+  INWORLD_VOICE_ID_THEA: z.string().optional(),
+  INWORLD_VOICE_ID_CYRUS: z.string().optional(),
+  INWORLD_VOICE_ID_WREN: z.string().optional(),
 
   BANNED_IDENTITY_PEPPER: z.string().min(1, "BANNED_IDENTITY_PEPPER is required"),
 

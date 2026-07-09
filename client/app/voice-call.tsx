@@ -98,7 +98,7 @@ export default function VoiceCallScreen() {
 
   // LIVE call loop (mock mode keeps the timer loop below).
   const liveVoice = !DEV_USE_MOCKS && !!companion && !cid.startsWith('local-');
-  const live = useVoiceCall({ companionId: cid, enabled: liveVoice && !outOfTime, muted });
+  const live = useVoiceCall({ companionId: cid, enabled: liveVoice && !outOfTime, muted, pace: prefs.pace });
   const serverBudgetSet = useRef(false);
 
   useEffect(() => {

@@ -14,6 +14,16 @@ export const PERSONA_KEY = [
 ] as const;
 export type PersonaKey = (typeof PERSONA_KEY)[number];
 
+// Voice speaking-PACE setting (user-facing). Maps to a MULTIPLIER on each persona's base TTS rate;
+// the server clamps base × multiplier to Inworld's 0.5–1.5 range (see services/voice/voice-tuning).
+export const VOICE_PACE = ['relaxed', 'natural', 'quick'] as const;
+export type VoicePace = (typeof VOICE_PACE)[number];
+export const PACE_MULTIPLIER: Record<VoicePace, number> = { relaxed: 0.85, natural: 1.0, quick: 1.15 };
+/** Resolve a (possibly untrusted / absent) pace to its rate multiplier; unknown/absent → 1.0 (natural). */
+export function paceMultiplier(pace: string | null | undefined): number {
+  return (pace ? PACE_MULTIPLIER[pace as VoicePace] : undefined) ?? 1.0;
+}
+
 export const MESSAGE_ROLE = ['user', 'assistant'] as const;
 export type MessageRole = (typeof MESSAGE_ROLE)[number];
 
