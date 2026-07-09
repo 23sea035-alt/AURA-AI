@@ -169,7 +169,6 @@ companions
   persona_key     text notNull                    -- PERSONA_KEY (CHECK): aurora|orion|lyra
   name            text notNull                    -- persona name; auto-numbered on collision ("Aurora 2"); user-editable
   traits          jsonb notNull                   -- PersonaTraits {warmth,energy,verbosity}; resolved values
-  is_default      boolean notNull default false   -- true for the 3 seeded; entitlement gate keys on this
   last_message    text nullable                   -- chat-list preview cache (update transactionally)
   last_active_at  timestamptz nullable
   message_count   integer notNull default 0
@@ -183,12 +182,15 @@ companions
 Notes: gradient/colors are **derived from `persona_key`** in shared (`PERSONA_THEME`) — not stored.
 The `remember_*` cache is upserted by the post-consolidation Groq "remembers" service (a surfaced
 memory + a generated follow-up question) and read **read-only** by the Home "remembers" card.
-Free tier = the 3 seeded (`is_default`) personas on default traits; **trait tuning + creating
-companions are premium** (app-enforced). On downgrade: non-default companions **lock, not delete**.
+Free tier = up to 5 active companions chosen from the full 12-persona gallery, on default traits and
+looks; **trait tuning + avatar looks are premium** (app-enforced) and premium raises the active cap to
+15 (full gating in `companion-roster.md`). On downgrade over the free cap, existing actives
+**soft-lock** (new creates/restores blocked) — never delete or force-archive.
 **Removal model:** `POST /companions/:id/archive` (reversible; sets `archived_at`, unpins if primary,
 guards the last active companion) + `/restore`; `DELETE /companions/:id` permanently removes a companion
-(cascades messages/memories/etc.) but is **refused for `is_default` base personas** (archive-only). Search
-is client-side over the fetched roster (`GET /companions` returns all, active + archived).
+(cascades messages/memories/etc.); the only guard is **min-1-active** — deleting your last active
+companion is refused (deleting an archived one never trips it). Search is client-side over the fetched
+roster (`GET /companions` returns all, active + archived).
 
 ### 4. `messages`
 Chat messages. Heart of the turn model: `turn_id` groups a user message with its assistant reply

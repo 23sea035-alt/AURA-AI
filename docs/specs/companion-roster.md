@@ -241,9 +241,9 @@ isn't perceived as data loss.
 
 ## 14. Copy & doc reconciliation (follow-up chores)
 
-- Rewrite `client/constants/content/paywall.ts` — "3 base companions" is the *old* model; free is now
-  "up to 5 companions." Note the 30/day message cap is **per user, shared across all companions** —
-  more companions never buys more messages.
+- `client/constants/content/paywall.ts` — DONE: free copy is now "up to 5 companions from the full
+  gallery," and the 30/day message cap reads **per user, shared across all companions**. (A
+  monthly/annual billing toggle + representative mock prices were added 2026-07-09.)
 - `companion-customization.md` §5/§7/§8 already updated to 5 / 15 with the two `[DECIDE]`s resolved.
 
 ## 15. Build sequence

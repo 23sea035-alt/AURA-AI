@@ -587,3 +587,24 @@ triggers; real speech → audible Edward reply from the Mac speakers.**
   stays free-only. New copy `HOME.voiceTemplate`; at-cap tints accent like the messages dot.
   Maya's demo story seeds **12 min of 20** on first run (`DEMO.user.voiceSecondsUsed`,
   mirrors SEED_USAGE; reset-demo restores it). Mock-verified both tiers on the 16e.
+
+## Demo-prep fixes + paywall billing toggle — 2026-07-09
+
+Client changes made while cutting the demo videos (all mock-verified on the 16e):
+- **`isDefault` removed client-side** — models, roster policy, context migration, mock seed, live
+  mapping, and the companions action hint. `canDelete` now guards only **min-1-active** (the
+  `base_delete` block is gone), so any companion is deletable. Server side + migration
+  `0005_drop_is_default`: see `CHANGELOG.md` 2026-07-09.
+- **Clones read their base persona's voice line** (`CompanionRow.voiceFor`) — keyed off `personaKey`
+  against the gallery, so a created companion (e.g. "Nova" off Aurora) shows Aurora's tagline instead
+  of falling through to raw traits.
+- **You header avatar** resolves color the same way edit-profile does (default `AVATAR_TONES[0]` +
+  cream initial), so the monogram never deviates from the picker's options.
+- **Onboarding → first chat** lands via one atomic `navigation.reset` (tabs + chat) instead of
+  `replace('/(tabs)')` + a deferred `push`, so Home no longer flashes on the way in.
+- **Paywall billing toggle** (`premium.tsx` + `content/paywall.ts`) — a `Segmented` control switches
+  the monthly/annual price and the "save vs monthly" note; Subscribe/restore/legal moved into a
+  sticky footer floating over the scrollable value list (swipe from a point on the content, since the
+  footer overlays the bottom). Mock returns representative prices ($12.99/mo, $99.99/yr); live still
+  reads store-truth.
+- Camera-paced Maestro recording flows added under `scripts/ui-probe/flows/` (`demo-take-*`).

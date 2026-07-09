@@ -11,6 +11,15 @@ task queue this line referred to is archived at [archive/TODO-backend-era.md](ar
 
 ---
 
+## 2026-07-09 — drop `is_default`; any companion is deletable (branch `redesign`)
+
+We no longer seed the Aurora/Orion/Lyra trio all at once (a new user creates companion #1 from their
+1-of-12 onboarding pick), so the "base persona" anchor concept is dead. Removed `is_default` from the
+`companions` schema — **migration `0005_drop_is_default`** drops the column — and from the
+`ServerCompanion` mapping. The `DELETE /companions/:id` base-persona refusal (`CANNOT_DELETE_BASE`,
+403) is gone; the only delete guard is now **min-1-active** (deleting the last active companion is
+refused; an archived one never trips it). Roster contract test updated; suite green.
+
 ## 2026-07-08 — voice loop wire-verified; three server fixes it took (branch `redesign`)
 
 First real traffic through the WS voice path (Node probe: WAV utterance → STT → LLM →
