@@ -35,6 +35,7 @@ import { CHAT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE, personaToneFor } from '@/constants/design';
 import { DURATION, EASING, TYPING } from '@/constants/motion';
 import { DEV_USE_MOCKS } from '@/constants/devFlags';
+import { gainDbFor } from '@/constants/voiceGain';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useVoiceCall } from '@/hooks/useVoiceCall';
@@ -98,7 +99,13 @@ export default function VoiceCallScreen() {
 
   // LIVE call loop (mock mode keeps the timer loop below).
   const liveVoice = !DEV_USE_MOCKS && !!companion && !cid.startsWith('local-');
-  const live = useVoiceCall({ companionId: cid, enabled: liveVoice && !outOfTime, muted, pace: prefs.pace });
+  const live = useVoiceCall({
+    companionId: cid,
+    enabled: liveVoice && !outOfTime,
+    muted,
+    pace: prefs.pace,
+    gainDb: gainDbFor(companion?.personaKey),
+  });
   const serverBudgetSet = useRef(false);
 
   useEffect(() => {

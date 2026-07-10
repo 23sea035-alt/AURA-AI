@@ -28,8 +28,9 @@ import { File, Paths } from 'expo-file-system';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { startVoiceCall, stopVoiceCall } from '@/lib/backend';
-import type { VoicePace } from '@aura/shared';
+import { MAX_UTTERANCE_BYTES, paceMultiplier, type VoicePace } from '@aura/shared';
 import { acquireChatSocket, releaseChatSocket, type ChatSocket } from '@/lib/websocket';
+import { playBoosted, stopBoosted } from '@/modules/audio-boost';
 
 export type VoiceCallState = 'connecting' | 'listening' | 'thinking' | 'speaking' | 'limit' | 'error';
 
@@ -41,7 +42,6 @@ const trace = (...args: unknown[]) => {
 };
 
 const READY_TIMEOUT_MS = 15_000;
-const MAX_UTTERANCE_BYTES = 2_000_000; // mirror of @aura/shared server bound
 
 // Adaptive energy VAD over the recorder's metering (dBFS, negative; ~-160 = silence).
 // A fixed threshold false-triggers on ambient noise (observed live: background sound kept
@@ -66,11 +66,22 @@ interface VoiceCall {
   remainingSeconds: number | null;
 }
 
-export function useVoiceCall(opts: { companionId: string; enabled: boolean; muted: boolean; pace?: VoicePace }): VoiceCall {
-  const { companionId, enabled, muted, pace } = opts;
-  // Snapshot pace in a ref so the value at call-start is used, without re-arming the loop when it changes.
+export function useVoiceCall(opts: {
+  companionId: string;
+  enabled: boolean;
+  muted: boolean;
+  pace?: VoicePace;
+  /** Per-persona playback boost in dB (constants/voiceGain). 0/undefined = normal player. */
+  gainDb?: number;
+}): VoiceCall {
+  const { companionId, enabled, muted, pace, gainDb = 0 } = opts;
+  // Pace is a PLAYBACK rate (pitch-preserving) applied per sentence — synthesis always happens at
+  // the persona's tuned base tempo server-side. The ref keeps the current pref reachable from the
+  // play loop without re-arming it, so a mid-call pace change is heard on the very next sentence.
   const paceRef = useRef(pace);
   paceRef.current = pace;
+  const gainDbRef = useRef(gainDb);
+  gainDbRef.current = gainDb;
   const [state, setState] = useState<VoiceCallState>('connecting');
   const [caption, setCaption] = useState<string | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
@@ -80,7 +91,10 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
   recorderRef.current = recorder;
 
   const socketRef = useRef<ChatSocket | null>(null);
-  const queueRef = useRef<File[]>([]);
+  // Each queued sentence carries its crisis flag (latched from the caption frame, which always
+  // precedes its audio frame) — crisis sentences play at natural rate regardless of the user's pace.
+  const queueRef = useRef<{ file: File; crisis: boolean }[]>([]);
+  const crisisByIndexRef = useRef<Map<number, boolean>>(new Map());
   const playingRef = useRef(false);
   const turnDoneRef = useRef(false);
   const capturingRef = useRef(false);
@@ -207,6 +221,9 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
     let readyTimer: ReturnType<typeof setTimeout> | null = null;
     let waitTimer: ReturnType<typeof setInterval> | null = null;
     let frameSeq = 0;
+    // The ref's Map is created once and never reassigned — capture it so the cleanup below
+    // clears the same instance (and the exhaustive-deps ref-in-cleanup heuristic stays quiet).
+    const crisisByIndex = crisisByIndexRef.current;
 
     const player = createAudioPlayer();
     const playNext = () => {
@@ -223,7 +240,25 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
       }
       playingRef.current = true;
       setState('speaking');
-      player.replace({ uri: next.uri });
+      // The user's pace applies at playback (pitch-preserved), read fresh per sentence; crisis
+      // sentences pin to natural — a "quick" pace must never rush a 988 reply.
+      const rate = next.crisis ? 1.0 : paceMultiplier(paceRef.current);
+      // Quiet casts route through the native boosted player (AVAudioEngine gain — expo-audio's
+      // volume can't amplify past 1.0); everyone else keeps the stock player. Completion drives
+      // the queue either way: the boosted promise here, didJustFinish below for the stock path.
+      const boost = gainDbRef.current;
+      if (boost > 0) {
+        playBoosted(next.file.uri, boost, rate)
+          .catch((err) => trace('boosted playback failed:', err))
+          .finally(() => {
+            if (!aliveRef.current) return;
+            playingRef.current = false;
+            playNext();
+          });
+        return;
+      }
+      player.setPlaybackRate(rate, 'high');
+      player.replace({ uri: next.file.uri });
       player.play();
     };
     const statusSub = player.addListener('playbackStatusUpdate', (status) => {
@@ -262,15 +297,19 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
             startCapture();
           }
         },
-        onCaption: (_index, text) => setCaption(text),
-        onAudio: (_index, mp3) => {
+        onCaption: (index, text, crisis) => {
+          crisisByIndex.set(index, crisis);
+          setCaption(text);
+        },
+        onAudio: (index, mp3) => {
           trace('audio frame:', mp3.byteLength, 'bytes');
+          const crisis = crisisByIndex.get(index) ?? false;
           const file = new File(Paths.cache, `voice-${companionId.slice(0, 8)}-${frameSeq++}.mp3`);
           void (async () => {
             try {
               await file.write(mp3);
               if (!aliveRef.current) return;
-              queueRef.current.push(file);
+              queueRef.current.push({ file, crisis });
               playNext();
             } catch {
               // A dropped frame degrades one sentence of audio, never the call.
@@ -279,6 +318,7 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
         },
         onComplete: () => {
           turnDoneRef.current = true;
+          crisisByIndex.clear(); // indexes are per-turn; drop the finished turn's flags
           if (!playingRef.current) playNext(); // silent turn (e.g. uncast persona) → keep the loop alive
         },
         onAbort: (code) => {
@@ -295,7 +335,7 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
       const tryStart = () => {
         if (!aliveRef.current) return true;
         if (socket.ready) {
-          socket.startVoice(new Date().toISOString(), paceRef.current);
+          socket.startVoice(new Date().toISOString());
           return true;
         }
         return false;
@@ -324,14 +364,16 @@ export function useVoiceCall(opts: { companionId: string; enabled: boolean; mute
       }
       statusSub.remove();
       player.remove();
-      queueRef.current.forEach((f) => {
+      stopBoosted();
+      queueRef.current.forEach(({ file }) => {
         try {
-          f.delete();
+          file.delete();
         } catch {
           // cache files — the OS reclaims them anyway
         }
       });
       queueRef.current = [];
+      crisisByIndex.clear();
       playingRef.current = false;
       turnDoneRef.current = false;
       const socket = socketRef.current;

@@ -9,7 +9,7 @@ import { synthesizeSpeech, synthesizeBatch } from "./inworld-tts.js";
 import { classifyInterruption } from "./interruption.js";
 import type { InterruptionClass } from "./interruption.js";
 import type { PersonaKey } from "@aura/shared";
-import { styleTagFor, deliveryModeFor, baseRateFor, effectiveSpeakingRate, localeFor } from "./voice-tuning.js";
+import { styleTagFor, deliveryModeFor, synthesisSpeakingRate, localeFor } from "./voice-tuning.js";
 
 export type VoiceState =
   | "IDLE"
@@ -51,9 +51,6 @@ export interface VoiceSessionParams {
   userId: string;
   companionId: string;
   personaKey: PersonaKey;
-  /** The user's SPEAKING PACE setting as a multiplier on the persona's base rate (default 1.0 =
-   * "natural"). relaxed / natural / brisk map to <1 / 1 / >1 on the client; carried in on voice_start. */
-  speakingRateMultiplier?: number;
 }
 
 export class VoiceSession {
@@ -80,7 +77,7 @@ export class VoiceSession {
 
     const deliveryMode = deliveryModeFor(this.params.personaKey);
     const language = localeFor(this.params.personaKey);
-    const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), this.params.speakingRateMultiplier ?? 1.0);
+    const speakingRate = synthesisSpeakingRate(this.params.personaKey);
     const fillerTexts = [...VOICE_FILLER_TEXTS].slice(0, VOICE_FILLER_CLIP_COUNT);
 
     try {
@@ -104,9 +101,10 @@ export class VoiceSession {
 
     const styleTag = opts?.crisis ? "[calm and measured]" : styleTagFor(this.params.personaKey);
     const deliveryMode = opts?.crisis ? "STABLE" : deliveryModeFor(this.params.personaKey);
-    // Crisis speaks at the persona's base tempo — a user's "brisk" pace must never rush a 988 reply.
-    const paceMultiplier = opts?.crisis ? 1.0 : (this.params.speakingRateMultiplier ?? 1.0);
-    const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), paceMultiplier);
+    // Synthesis is always at the persona's tuned base tempo; the user's pace is a client-side
+    // playback-rate change. Crisis turns are flagged on their voice_caption frames so the client
+    // pins playback to natural — a user's "quick" pace must never rush a 988 reply.
+    const speakingRate = synthesisSpeakingRate(this.params.personaKey);
     const language = localeFor(this.params.personaKey);
     return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag, speakingRate, language });
   }

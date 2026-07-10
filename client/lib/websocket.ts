@@ -30,7 +30,6 @@
 // screen and the voice-call screen both hold the same instance).
 import { getSessionToken } from '@/lib/clerk';
 import { wsBaseUrl } from '@/lib/env';
-import type { VoicePace } from '@aura/shared';
 
 export type WsAbortCode =
   | 'input_blocked'
@@ -61,8 +60,9 @@ export interface TurnHandlers {
 export interface VoiceHandlers {
   /** Call is open (also re-sent after a silent/no-speech utterance). */
   onReady: (remainingSeconds: number) => void;
-  /** Sentence text, sent just ahead of its audio frame (drives captions). */
-  onCaption?: (index: number, text: string) => void;
+  /** Sentence text, sent just ahead of its audio frame (drives captions). `crisis` means the
+   * client must pin this sentence's playback rate to natural, ignoring the user's pace. */
+  onCaption?: (index: number, text: string, crisis: boolean) => void;
   /** One MP3 frame (24 kHz) per spoken sentence, index monotonic per turn. */
   onAudio: (index: number, mp3: Uint8Array) => void;
   onBusy?: () => void;
@@ -123,9 +123,9 @@ export class ChatSocket {
   }
 
   /** Open the voice session (server replies voice_ready with remainingSeconds). */
-  startVoice(sessionStartedAt?: string, pace?: VoicePace): boolean {
+  startVoice(sessionStartedAt?: string): boolean {
     if (!this.ready) return false;
-    this.ws!.send(JSON.stringify({ type: 'voice_start', companionId: this.companionId, sessionStartedAt, pace }));
+    this.ws!.send(JSON.stringify({ type: 'voice_start', companionId: this.companionId, sessionStartedAt }));
     return true;
   }
 
@@ -217,7 +217,7 @@ export class ChatSocket {
         this.voice?.onReady(Number(frame.remainingSeconds ?? 0));
         break;
       case 'voice_caption':
-        this.voice?.onCaption?.(Number(frame.index ?? 0), String(frame.text ?? ''));
+        this.voice?.onCaption?.(Number(frame.index ?? 0), String(frame.text ?? ''), frame.crisis === true);
         break;
       case 'voice_busy':
         this.voice?.onBusy?.();

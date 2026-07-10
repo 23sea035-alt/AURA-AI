@@ -48,6 +48,11 @@ describe("makeVoiceAdapter", () => {
     expect(session.synthesizeReply).toHaveBeenCalledWith("Hello there friend.", { crisis: undefined });
     expect(session.addCallSeconds).toHaveBeenCalledWith(1);
     expect(mockRecordVoiceUsage).toHaveBeenCalledWith("u1", "c1", 1, "tts", "inworld-tts-2");
+    // Normal sentences carry crisis:false — the client applies the user's playback pace to them.
+    expect(mockSendJsonFrame).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ type: "voice_caption", text: "Hello there friend.", crisis: false }),
+    );
   });
 
   it("enqueues TTS with premium priority when the call is premium", async () => {
@@ -81,6 +86,11 @@ describe("makeVoiceAdapter", () => {
     await vi.waitFor(() => expect(session.synthesizeReply).toHaveBeenCalled());
 
     expect(session.synthesizeReply).toHaveBeenCalledWith("Please reach out to 988.", { crisis: true });
+    // The caption frame flags the sentence so the client pins its playback rate to natural.
+    expect(mockSendJsonFrame).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ type: "voice_caption", text: "Please reach out to 988.", crisis: true }),
+    );
   });
 
   it("falls back to a filler clip when synthesis fails (no crash, no metering)", async () => {

@@ -17,7 +17,8 @@ import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/backend';
 import { fmtVoiceTime } from '@/utils/time';
 import { VOICE_PACE, type VoicePace } from '@aura/shared';
 
-// Derived from the shared contract enum — the server maps these to rate multipliers.
+// Derived from the shared contract enum — the client maps these to pitch-preserving PLAYBACK
+// rates (useVoiceCall); synthesis always runs at each persona's tuned base tempo.
 const PACES: VoicePace[] = [...VOICE_PACE];
 
 export default function VoicePreferencesScreen() {

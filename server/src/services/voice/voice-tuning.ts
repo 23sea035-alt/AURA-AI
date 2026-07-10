@@ -2,12 +2,13 @@ import type { PersonaKey } from "@aura/shared";
 import type { DeliveryMode } from "./inworld-tts.js";
 
 // Per-persona VOICE tuning — part of persona IDENTITY, not a user setting. Each persona carries a
-// bracket style tag (steers Inworld prosody), a delivery mode, and a BASE speaking rate. The user's
-// SPEAKING PACE setting is a separate MULTIPLIER applied on top of the base rate (see
-// effectiveSpeakingRate), so pace scales every persona while preserving their relative tempo — e.g.
-// Selene stays slower than Juno at every pace. Values derive from the character specs in
-// docs/specs/companion-gallery-identities.md. Only the 3 anchors are voice-cast today; the 9 gallery
-// entries are pre-tuned and dormant until their Inworld voiceId is assigned (getVoiceId).
+// bracket style tag (steers Inworld prosody), a delivery mode, and a BASE speaking rate. Synthesis
+// ALWAYS happens at the tuned base rate: the user's SPEAKING PACE preference is applied client-side
+// as a pitch-preserving playback-rate change (client useVoiceCall), so the delivery Inworld renders
+// — the prosody and expressiveness these values were tuned for — is identical at every pace.
+// Values derive from the character specs in docs/specs/companion-gallery-identities.md. Only the 3
+// anchors are voice-cast today; the 9 gallery entries are pre-tuned and dormant until their Inworld
+// voiceId is assigned (getVoiceId).
 
 export const DEFAULT_STYLE_TAG = "[warm and gentle]";
 export const DEFAULT_DELIVERY_MODE: DeliveryMode = "BALANCED";
@@ -70,17 +71,13 @@ export const PERSONA_SPEAKING_RATE: Partial<Record<PersonaKey, number>> = {
   wren: 1.0, // was 0.98
 };
 
-// Inworld's supported speakingRate range — the effective rate is clamped to this after multiplying.
+// Inworld's supported speakingRate range — synthesis rates are clamped to this band.
 export const SPEAKING_RATE_MIN = 0.5;
 export const SPEAKING_RATE_MAX = 1.5;
 
-/**
- * Combine a persona's BASE speaking rate with the user's pace multiplier, clamped to Inworld's
- * 0.5–1.5 range. e.g. Selene base 0.9 × 1.2 (brisk) = 1.08; × 1.0 (natural) = 0.9. The clamp keeps a
- * fast persona × a fast pace (or a slow × slow) inside the API's valid band.
- */
-export function effectiveSpeakingRate(base: number, multiplier: number): number {
-  return Math.min(SPEAKING_RATE_MAX, Math.max(SPEAKING_RATE_MIN, base * multiplier));
+/** A persona's synthesis speaking rate: the tuned base, clamped to Inworld's valid band. */
+export function synthesisSpeakingRate(personaKey: PersonaKey): number {
+  return Math.min(SPEAKING_RATE_MAX, Math.max(SPEAKING_RATE_MIN, baseRateFor(personaKey)));
 }
 
 export function styleTagFor(personaKey: PersonaKey): string {

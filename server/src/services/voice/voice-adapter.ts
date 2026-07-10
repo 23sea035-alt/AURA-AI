@@ -33,8 +33,15 @@ export function makeVoiceAdapter(
     onToken(replyText: string, opts?: { crisis?: boolean }) {
       session.transitionTo("AI_SPEAKING");
       // Caption rides ahead of its audio frame, so clients with captions on can show the
-      // sentence as it's spoken.
-      sendJsonFrame(ws, { type: "voice_caption", companionId, index: captionIndex++, text: replyText });
+      // sentence as it's spoken. `crisis` tells the client to pin THIS sentence's playback rate
+      // to natural — the user's pace preference must never rush (or drag) a 988 reply.
+      sendJsonFrame(ws, {
+        type: "voice_caption",
+        companionId,
+        index: captionIndex++,
+        text: replyText,
+        crisis: Boolean(opts?.crisis),
+      });
       const idx = frameIndex++;
       const synthesis = enqueueTts(() => session.synthesizeReply(replyText, { crisis: opts?.crisis }), {
         isPremium,

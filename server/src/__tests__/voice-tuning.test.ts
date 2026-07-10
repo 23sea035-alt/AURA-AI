@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  effectiveSpeakingRate,
+  synthesisSpeakingRate,
   baseRateFor,
   styleTagFor,
   deliveryModeFor,
@@ -18,29 +18,24 @@ const ALL_PERSONAS: PersonaKey[] = [
 ];
 
 describe("voice-tuning", () => {
-  describe("effectiveSpeakingRate — the SPEAKING PACE multiplier", () => {
-    it("natural pace (1.0) leaves the persona base rate unchanged", () => {
-      expect(effectiveSpeakingRate(0.9, 1.0)).toBeCloseTo(0.9); // Selene stays 0.9
+  describe("synthesisSpeakingRate — always the tuned base, never a pace product", () => {
+    it("returns the persona's tuned base rate (the user's pace is playback-side, never synthesis)", () => {
+      for (const key of ALL_PERSONAS) {
+        expect(synthesisSpeakingRate(key)).toBe(baseRateFor(key));
+      }
     });
 
-    it("multiplies the persona base by the pace setting", () => {
-      expect(effectiveSpeakingRate(0.9, 1.2)).toBeCloseTo(1.08); // Selene 0.9 × brisk 1.2
-      expect(effectiveSpeakingRate(1.1, 1.2)).toBeCloseTo(1.32); // Juno 1.1 × 1.2
+    it("stays inside Inworld's valid range for every persona", () => {
+      for (const key of ALL_PERSONAS) {
+        const rate = synthesisSpeakingRate(key);
+        expect(rate).toBeGreaterThanOrEqual(SPEAKING_RATE_MIN);
+        expect(rate).toBeLessThanOrEqual(SPEAKING_RATE_MAX);
+      }
     });
 
-    it("clamps above Inworld's max", () => {
-      expect(effectiveSpeakingRate(1.1, 1.5)).toBe(SPEAKING_RATE_MAX); // 1.65 → 1.5
-    });
-
-    it("clamps below Inworld's min", () => {
-      expect(effectiveSpeakingRate(0.88, 0.5)).toBe(SPEAKING_RATE_MIN); // 0.44 → 0.5
-    });
-
-    it("preserves relative tempo across personas at the same pace", () => {
-      const pace = 1.15;
-      // Selene (slow, 0.9) must stay slower than Juno (fast, 1.1) at every pace.
-      expect(effectiveSpeakingRate(baseRateFor("selene"), pace))
-        .toBeLessThan(effectiveSpeakingRate(baseRateFor("juno"), pace));
+    it("preserves relative tempo across personas", () => {
+      // Selene (slow, tuned below Juno) must stay slower than Juno at synthesis.
+      expect(synthesisSpeakingRate("selene")).toBeLessThan(synthesisSpeakingRate("juno"));
     });
   });
 
