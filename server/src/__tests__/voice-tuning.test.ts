@@ -66,6 +66,11 @@ describe("voice-tuning", () => {
       expect(localeFor("cyrus")).toBe("hi-IN");
     });
 
+    it("forces en-US for voices that don't default to English (Eli, Wren)", () => {
+      expect(localeFor("eli")).toBe("en-US");
+      expect(localeFor("wren")).toBe("en-US");
+    });
+
     it("returns undefined for personas that use their voice's native accent", () => {
       expect(localeFor("aurora")).toBeUndefined();
       expect(localeFor("orion")).toBeUndefined();

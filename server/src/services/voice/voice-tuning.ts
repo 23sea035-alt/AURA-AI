@@ -36,7 +36,7 @@ export const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = 
   amara: "CREATIVE",
   eli: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE, kept warmer read
   selene: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE
-  soren: "STABLE",
+  soren: "CREATIVE", // was STABLE — CREATIVE gives the expressive/deadpan edge (user playground test)
   juno: "CREATIVE",
   thea: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE
   cyrus: "BALANCED", // Thomas (stock) — BALANCED is the only mode where the Hindi accent-steer persists
@@ -46,9 +46,12 @@ export const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = 
 // Per-persona ACCENT steer (BCP-47 locale passed to Inworld's `language` field). Omit a persona to use
 // its voice's native accent. Cyrus: no Persian en-locale exists + the stock Thomas voice reads Irish, so
 // we steer to Hindi (closest Indo-Iranian phonology available) to approximate the Persian-Iranian avatar.
-// See docs/specs/voice-casting-guide.md §Accent steering.
+// Eli + Wren: force en-US because their base voices don't default to English (Miguel defaults to Spanish;
+// Yoona needs English forced). See docs/specs/voice-casting-guide.md §Accent steering.
 export const PERSONA_LOCALE: Partial<Record<PersonaKey, string>> = {
   cyrus: "hi-IN",
+  eli: "en-US",
+  wren: "en-US",
 };
 
 // Base tempo per persona (Inworld speakingRate; the pace multiplier scales this, clamped 0.5–1.5).
@@ -56,15 +59,15 @@ export const PERSONA_SPEAKING_RATE: Partial<Record<PersonaKey, number>> = {
   aurora: 0.98,
   orion: 0.95,
   lyra: 1.05,
-  sage: 0.88,
-  amara: 1.05,
+  sage: 0.98, // was 0.88 — the voice has the slowness built in; 0.88 dragged (user playground test)
+  amara: 1.02, // was 1.05
   eli: 1.0,
-  selene: 0.9,
-  soren: 0.98,
+  selene: 1.0, // was 0.9
+  soren: 0.96, // was 0.98 — slightly quicker gives the expressive edge (user playground test)
   juno: 1.1,
   thea: 0.95,
   cyrus: 0.9,
-  wren: 0.98,
+  wren: 1.0, // was 0.98
 };
 
 // Inworld's supported speakingRate range — the effective rate is clamped to this after multiplying.

@@ -12,27 +12,45 @@
 3. **Generate audition clips** of each persona's line (below) and review them in-app.
 4. Tune delivery in `voice-tuning.ts` as needed (mode / rate / style tag) and re-review.
 
-## Locked (all 12 cast — 2026-07-10)
-Auditioned on `CREATIVE` per the naturalness probe; env values are the stock voice **names**.
+## Locked (all 12 cast — realigned 2026-07-10 from user playground + clip feedback)
+Columns: voice id · delivery mode · base rate · accent locale. **Locked** = verified, no rerun needed.
+**Recast/reconfig** rows changed since the last clip pass and need a re-audition (see §Rerun list).
 
-| Persona | Voice | Delivery mode | Notes |
-|---|---|---|---|
-| **Aurora** | **Deborah** ✓ | `CREATIVE` | BALANCED read as "customer support"; CREATIVE is warmer. (Olivia rejected — middle-aged + accented.) |
-| **Orion** | **Edward** ✓ | `STABLE` | Tags emphatic / companion / character → fits "direct and grounded." |
-| **Lyra** | **Sarah** ✓ | `CREATIVE` | Recast off Ashley (too customer-service). Verified on probe line 3. |
-| **Sage** | **Tunde** ✓ | `STABLE` | Yoruba/Nigerian — matches avatar heritage. |
-| **Amara** | **Saanvi** ✓ | `CREATIVE` | Indian — matches North-Indian avatar. |
-| **Eli** | **Miguel** ✓ | `CREATIVE` | Latino — matches Mexican avatar. Kept CREATIVE (probe passed; warmer than BALANCED). |
-| **Selene** | **Wendy** ✓ | `CREATIVE` | Best mature-F "old voice" candidate; has an accent, accepted. Kept CREATIVE. |
-| **Soren** | **Lucian** ✓ | `STABLE` | Dry/cool, fits deadpan. |
-| **Juno** | **Asuka** ✓ | `CREATIVE` | Bright young F; bump base rate if it drags (base 1.1). |
-| **Thea** | **Svetlana** ✓ | `CREATIVE` | Neutral English read (name irrelevant — only accent is audible). Kept CREATIVE. |
-| **Cyrus** | **Thomas** ✓ | `BALANCED` | Stock Thomas reads Irish. Steered to **Hindi (`hi-IN`)** — Persian has no en-locale; Hindi is closest Indo-Iranian phonology. **BALANCED only** — STABLE/CREATIVE dropped the accent. See §Accent steering. |
-| **Wren** | **Galina** ✓ | `CREATIVE` | Leans slightly F (acceptable for non-binary target). Kept CREATIVE. |
+| Persona | Voice | Mode | Rate | Locale | Status | Notes |
+|---|---|---|---|---|---|---|
+| **Aurora** | Deborah | `CREATIVE` | 0.98 | native | 🔒 locked | — |
+| **Orion** | Edward | `STABLE` | 0.95 | native | 🔒 locked | direct/grounded. |
+| **Lyra** | Sarah | `CREATIVE` | 1.05 | native | 🔒 locked | recast off Ashley; verified line 3. |
+| **Juno** | Asuka | `CREATIVE` | 1.10 | native | 🔒 locked | bright young F. |
+| **Cyrus** | community-snyihdsosxjx | `BALANCED` | 0.90 | `hi-IN` | 🔒 locked | community voice (not "Thomas"). Hindi steer + BALANCED only. See §Accent steering. |
+| **Amara** | Saanvi | `CREATIVE` | 1.02 | native | ⟳ reconfig | rate 1.05→1.02. |
+| **Sage** | Tunde | `STABLE` | 0.98 | native | ⟳ reconfig | rate 0.88→0.98 (slowness is built into the voice; 0.88 dragged). |
+| **Selene** | Wendy | `CREATIVE` | 1.00 | native | ⟳ reconfig | rate 0.9→1.0. **Low volume — see §Output volume.** |
+| **Soren** | Lucian | `CREATIVE` | 0.96 | native | ⟳ reconfig | STABLE→CREATIVE + rate 0.98→0.96 (expressive edge). |
+| **Eli** | Miguel | `CREATIVE` | 1.00 | `en-US` | ⟳ reconfig | forced en-US — base voice defaults to Spanish. |
+| **Thea** | Folake | `CREATIVE` | 0.95 | native | ⟳ recast | recast off Svetlana (Russian accent leaked). Verify Folake resolves (may be a community id). |
+| **Wren** | Yoona | `CREATIVE` | 1.00 | `en-US` | ⟳ recast | recast off Galina → Yoona, en-US forced, rate 0.98→1.0. Verify Yoona resolves. |
 
-Env: all 12 `INWORLD_VOICE_ID_*` are in [`server/.env.example`](../../server/.env.example) with the names
-above — mirror into `server/.env` + set `INWORLD_API_KEY`, then restart the server. Cyrus's Hindi steer is
-wired via `PERSONA_LOCALE` in [`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts).
+Env: all 12 `INWORLD_VOICE_ID_*` are in [`server/.env.example`](../../server/.env.example) — mirror into
+`server/.env` + set `INWORLD_API_KEY`, then restart. Mode/rate/locale live in
+[`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts).
+
+### Rerun list (after this realign)
+Regenerate only the changed rows: `pnpm voices:audition -- amara sage selene soren eli thea wren`.
+- **Must rerun (new voice ids — will 404 if the name isn't the real id, like Cyrus did):** `thea` (Folake), `wren` (Yoona).
+- **Should rerun (mode/language changed):** `soren` (→CREATIVE), `eli` (→en-US).
+- **Optional (rate-only, already user-verified in playground):** `amara`, `sage`, `selene`.
+The 5 locked rows (aurora, orion, lyra, juno, cyrus) are unchanged — no rerun.
+
+### Output volume
+Selene reads quiet. **Inworld can't fix this at synth time** — the `audioConfig` supports only
+`audioEncoding`, `sampleRateHertz`, and `speakingRate`; there is **no `volumeGainDb`/gain/pitch field**
+([docs](https://docs.inworld.ai/tts/tts)). So loudness must be handled downstream:
+- **Server-side normalize** (post-synth): apply gain to the returned buffer to hit a target loudness across
+  all personas. Amplifying a quiet MP3 means decode → gain → re-encode (needs a DSP/ffmpeg step) — real work.
+- **Client-side gain** (recommended for v1): boost playback with a native gain node (AVAudioEngine, since
+  `AVAudioPlayer.volume` maxes at 1.0 and can't amplify). Per-persona boost for the quiet ones (Selene).
+This is native client work (deferred to the macOS/Xcode side), not a server-config toggle.
 
 ## The levers (why "3 settings" isn't the whole story)
 Inworld's stock catalog skews game/commercial, and the delivery **mode** (STABLE / BALANCED / CREATIVE)
@@ -70,14 +88,17 @@ Documented core (not exhaustive — the playground has more, e.g. `companion`, `
 | **Cyrus** | Persian / Iranian (older) | `en-GB`/`en-US`‡ | warm, wise, resonant older M | male, elderly, warm, smooth |
 | **Wren** | Japanese | `en-US`‡ | curious, reflective, soft | non-binary, calm, conversational, smooth |
 
-**Delivery modes in code** (updated 2026-07-10): Aurora `CREATIVE` · Orion `STABLE` · Lyra `CREATIVE` ·
-Sage `STABLE` · Amara `CREATIVE` · Eli `CREATIVE` · Selene `CREATIVE` · Soren `STABLE` · Juno `CREATIVE` ·
-Thea `CREATIVE` · Cyrus `BALANCED` · Wren `CREATIVE`. → The four formerly-BALANCED (Eli, Selene, Thea,
-Wren) all passed the naturalness probe on CREATIVE and were moved there (warmer, less "customer support"
-flat). Cyrus is the lone `BALANCED` — required for its Hindi accent-steer to persist.
+**Delivery modes in code** (realigned 2026-07-10): Aurora `CREATIVE` · Orion `STABLE` · Lyra `CREATIVE` ·
+Sage `STABLE` · Amara `CREATIVE` · Eli `CREATIVE` · Selene `CREATIVE` · Soren `CREATIVE` · Juno `CREATIVE` ·
+Thea `CREATIVE` · Cyrus `BALANCED` · Wren `CREATIVE`. → Cyrus is the lone `BALANCED` (required for its
+Hindi accent-steer to persist); everything else is CREATIVE except the two grounded STABLE anchors
+(Orion, Sage).
 
-**Base rates:** aurora .98 · orion .95 · lyra 1.05 · sage .88 · amara 1.05 · eli 1.0 · selene .9 ·
-soren .98 · juno 1.1 · thea .95 · cyrus .9 · wren .98 (× the user's pace multiplier, clamped 0.5–1.5).
+**Base rates:** aurora .98 · orion .95 · lyra 1.05 · sage .98 · amara 1.02 · eli 1.0 · selene 1.0 ·
+soren .96 · juno 1.1 · thea .95 · cyrus .9 · wren 1.0 (× the user's pace multiplier, clamped 0.5–1.5).
+
+**Accent locales** (`PERSONA_LOCALE`): Cyrus `hi-IN` · Eli `en-US` · Wren `en-US`; all others use the
+voice's native accent (no `language` sent). See §Accent steering for the en-US-for-all question.
 
 ## Accent steering
 `Realtime TTS-2` can steer accent via the **`language`** field (BCP-47), e.g. `language: "en-GB"`.
@@ -87,11 +108,20 @@ soren .98 · juno 1.1 · thea .95 · cyrus .9 · wren .98 (× the user's pace mu
   accents must come from the **voice's native accent** (pick a voice cloned that way) or be accepted as
   neutral. Heritage is primarily the **avatar's**; a neutral/General-American voice for these is normal
   for a US-first app. Don't force a bad-fit accented voice to match heritage.
-- **Pipeline: WIRED (2026-07-10).** `synthesizeSpeech` now accepts a `language` field, fed from the
+- **Pipeline: WIRED (2026-07-10).** `synthesizeSpeech` accepts a `language` field, fed from the
   per-persona `PERSONA_LOCALE` map in [`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts)
-  via `localeFor()`. Only Cyrus (`hi-IN`) is steered today; add a persona to that map to steer others.
+  via `localeFor()`. Steered today: Cyrus `hi-IN`, Eli + Wren `en-US`. Add a persona to that map to steer more.
   **Caveat:** the crisis path forces `STABLE`, so a Cyrus crisis reply may lose the Hindi accent — safety
   (calm read) is prioritized over accent authenticity there.
+- **Playground "English" = `en-US`.** Inworld's docs confirm `language` is a BCP-47 tag and use `en-US` as
+  the English example; the playground's English row shows the US flag. `en-US` is the safe canonical value
+  (byte-exact confirmation would require inspecting the playground's network request).
+- **"en-US for all?" — the open call.** Forcing en-US on every persona would (1) change the 5 **locked**
+  voices, which were verified *native* (aurora/orion/lyra/juno) or `hi-IN` (cyrus) — so it re-opens them,
+  and (2) risk flattening the deliberately-heritage voices (Sage=Tunde Nigerian, Amara=Saanvi Indian) toward
+  General-American, since `language` steers accent, not just pronunciation. So we DON'T blanket-apply: en-US
+  is set only where a base voice doesn't default to English (Eli, Wren). To go all-en-US anyway, add a
+  `DEFAULT_LOCALE = "en-US"` fallback in `localeFor` and re-audition every non-cyrus persona.
 
 ## Naturalness probe (use FIRST, to filter out rehearsed voices)
 The generic playground demo line is neutral + declarative, which lets announcer/rehearsed voices sound
