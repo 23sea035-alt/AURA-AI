@@ -16,23 +16,31 @@ import { ACCOUNT } from '@/constants/content';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-
-const DEMO_EMAIL = 'maya.chen@example.com';
+import { shareDataExport } from '@/lib/export';
 
 export default function AccountScreen() {
   const { colors, mode } = useTheme();
   const insets = useSafeAreaInsets();
-  const { user, logout, softDelete, requestExport } = useApp();
+  const { logout, softDelete, requestExport } = useApp();
   const a = ACCOUNT.accountMgmt;
-  const email = user?.email || DEMO_EMAIL;
-  const [exportToast, setExportToast] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleExport = () => {
-    // POST /api/account/export — fire-and-forget; the server emails the link.
-    void requestExport();
-    setExportToast(true);
+  const handleExport = async () => {
+    // GET /api/account/export → JSON file → iOS share sheet (lib/export.ts). The sheet itself is
+    // the success confirmation; only failures (offline, the 5/h server rate limit) get a toast.
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const bundle = await requestExport();
+      await shareDataExport(bundle);
+    } catch {
+      setExportError(true);
+    } finally {
+      setExporting(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -58,7 +66,11 @@ export default function AccountScreen() {
         <View style={styles.section}>
           <Text style={[styles.line, { color: colors.textSecondary }]}>{a.export.line}</Text>
           <ListGroup>
-            <ListRow first label={a.export.cta} onPress={handleExport} />
+            <ListRow
+              first
+              label={exporting ? a.export.preparing : a.export.cta}
+              onPress={() => void handleExport()}
+            />
           </ListGroup>
         </View>
 
@@ -92,11 +104,10 @@ export default function AccountScreen() {
         onConfirm={() => void handleDelete()}
       />
       <Toast
-        visible={exportToast}
-        message={a.export.confirm.replace('{email}', email)}
-        emoji="📩"
+        visible={exportError}
+        message={a.export.error}
         duration={3500}
-        onHide={() => setExportToast(false)}
+        onHide={() => setExportError(false)}
       />
     </View>
   );

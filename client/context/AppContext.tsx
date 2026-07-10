@@ -21,6 +21,7 @@ import { acquireChatSocket, peekChatSocket, releaseChatSocket } from '@/lib/webs
 import type {
   AccountStatus,
   Companion,
+  DataExportBundle,
   Hydration,
   MemoryRow,
   Message,
@@ -157,7 +158,7 @@ interface AppContextType {
 
   softDelete: () => Promise<AccountStatus>;
   reactivate: () => Promise<void>;
-  requestExport: () => Promise<void>;
+  requestExport: () => Promise<DataExportBundle>;
 
   purchasePremium: (plan?: 'monthly' | 'yearly') => Promise<void>;
   restorePurchases: () => Promise<boolean>;
@@ -1064,9 +1065,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setAccountStatus(await backend.reactivateAccount());
   }, []);
 
-  const requestExport = useCallback(async () => {
-    await backend.requestDataExport();
-  }, []);
+  const requestExport = useCallback(() => backend.requestDataExport(), []);
 
   // ── Payments ──────────────────────────────────────────────────────────────
 

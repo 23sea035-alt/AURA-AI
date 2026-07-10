@@ -114,6 +114,13 @@ export interface AccountStatus {
 }
 
 /**
+ * GET /api/account/export — the GDPR data bundle (user, companions, messages, memories,
+ * subscriptions, deviceTokens, safetyEvents). The client hands it to the share sheet as a
+ * JSON file without inspecting it, so the row shapes stay server-owned.
+ */
+export type DataExportBundle = Record<string, unknown>;
+
+/**
  * One-shot server snapshot for bootstrap/login in live mode. Mock mode returns
  * null: local AsyncStorage stays authoritative and AppContext keeps its
  * existing local bootstrap path.

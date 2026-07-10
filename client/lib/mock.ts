@@ -21,6 +21,7 @@ import { DEMO } from '@/constants/demo';
 import type {
   AccountStatus,
   Companion,
+  DataExportBundle,
   Hydration,
   MemoryRow,
   RemoteCreateResult,
@@ -236,9 +237,37 @@ export async function reactivateAccount(): Promise<AccountStatus> {
   return next;
 }
 
-/** POST /api/account/export — server emails a download link when ready. */
-export async function requestDataExport(): Promise<void> {
+/** Local app state persisted by AppContext under UNPREFIXED keys (unlike this
+ * mock's own `mock:*` stores) — the demo's user/companions/messages live there. */
+async function readAppStore(key: string): Promise<unknown> {
+  try {
+    const raw = await AsyncStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as unknown) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** GET /api/account/export — returns the GDPR bundle inline, assembled from the same local
+ * stores the demo runs on, mirroring the server bundle's keys (server routes/compliance.ts).
+ * subscriptions/deviceTokens/safetyEvents have no local source, so they export empty. */
+export async function requestDataExport(): Promise<DataExportBundle> {
   await simulateLatency(600);
+  const [user, companions, messages, memories] = await Promise.all([
+    readAppStore('user'),
+    readAppStore('companions'),
+    readAppStore('messages'),
+    memoriesDb(),
+  ]);
+  return {
+    user,
+    companions: companions ?? [],
+    messages: messages ?? [],
+    memories,
+    subscriptions: [],
+    deviceTokens: [],
+    safetyEvents: [],
+  };
 }
 
 // ── Payments (RevenueCat / StoreKit seam) ───────────────────────────────────

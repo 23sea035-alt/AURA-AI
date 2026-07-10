@@ -10,7 +10,7 @@
 // Payments = RevenueCat SDK (lib/purchases.ts) + server webhook reconciling
 // users.isPremium.
 // ════════════════════════════════════════════════════════════════════════
-import { FREE_DAILY_LIMIT, PERSONA_PRESETS, type PersonaTraits } from '@aura/shared';
+import { CLIENT_TRAITS_KEY, FREE_DAILY_LIMIT, PERSONA_PRESETS, type PersonaTraits } from '@aura/shared';
 
 import { LOGO_COLORS, personaColorsFor } from '@/constants/design';
 import { api, ApiError } from '@/lib/api';
@@ -25,6 +25,7 @@ import {
 import type {
   AccountStatus,
   Companion,
+  DataExportBundle,
   Hydration,
   MemoryRow,
   Message,
@@ -84,8 +85,7 @@ interface ServerMemory {
 }
 
 // Client-only presentation (persona text, duotone, look, trait chips) rides in
-// companions.traits under this key — the server stores traits as opaque jsonb.
-const CLIENT_TRAITS_KEY = '_client';
+// companions.traits under the shared CLIENT_TRAITS_KEY — the server stores it as opaque jsonb.
 
 interface ClientTraitsStash {
   persona?: string;
@@ -366,9 +366,10 @@ export async function reactivateAccount(): Promise<AccountStatus> {
   return { status: 'active', deletedAt: null };
 }
 
-/** GET /api/account/export — the server returns the GDPR bundle inline; the UI treats it as queued. */
-export async function requestDataExport(): Promise<void> {
-  await api('/account/export');
+/** GET /api/account/export — the server returns the GDPR bundle inline (rate-limited 5/h);
+ * the caller writes it to a file and hands it to the share sheet (lib/export.ts). */
+export async function requestDataExport(): Promise<DataExportBundle> {
+  return api<DataExportBundle>('/account/export');
 }
 
 // ── Companions CRUD ─────────────────────────────────────────────────────────

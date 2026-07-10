@@ -1,6 +1,6 @@
 // Account domain: the You tab + edit profile + account management (export/delete)
 // + subscription management + notification settings. Tokens: {AppName}, {Companion},
-// {email}, {renewDate}.
+// {renewDate}.
 
 export const ACCOUNT = {
   you: {
@@ -38,10 +38,13 @@ export const ACCOUNT = {
   },
 
   accountMgmt: {
+    // The export arrives as a JSON file through the share sheet (machine-readable, GDPR Art. 20)
+    // — never promise an email link here; that path doesn't exist.
     export: {
       line: 'Download a copy of your conversations and memories',
-      cta: 'Request export',
-      confirm: "We're preparing your export. We'll email a download link to {email} when it's ready.",
+      cta: 'Export your data',
+      preparing: 'Preparing your export…',
+      error: "We couldn't prepare your export. Please try again in a little while.",
     },
     delete: {
       line: 'Permanently delete your account.',
