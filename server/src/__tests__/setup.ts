@@ -12,9 +12,11 @@ export async function createTestDb() {
   _client = new PGlite();
   const db = drizzle(_client!);
 
+  // server/src/__tests__/ → server/src/db/migrations (the real committed migrations; "../../"
+  // pointed at a nonexistent server/db/migrations and made this helper dead-on-arrival — B-7).
   const migrationsDir = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
-    "../../db/migrations",
+    "../db/migrations",
   );
 
   await migrate(db, { migrationsFolder: migrationsDir });
