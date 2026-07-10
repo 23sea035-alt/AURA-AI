@@ -43,6 +43,13 @@
       "when": 1783524922885,
       "tag": "0005_drop_is_default",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783704268032,
+      "tag": "0006_safety_event_content_tiering",
+      "breakpoints": true
     }
   ]
 }

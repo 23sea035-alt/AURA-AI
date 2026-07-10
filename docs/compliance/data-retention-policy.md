@@ -80,6 +80,16 @@ On account deletion we **purge the intimate bulk** (conversations, memories, com
 
 > **All windows are recommended DEFAULTS pending counsel.** They must match the privacy-policy draft.
 
+> **Implementation status (as-built 2026-07-10).** The `safety_events` tiering below is now
+> implemented: `content_tier` + `legal_hold` columns (migration `0006`), write-time shaping in
+> `safety-logging.ts` (T1 full · T2 ≤300-char snippet · T3 no content), and a content-scrub job
+> (`enforceSafetyEventContentScrub`, T1 90d / T2 180d, `legal_hold` pauses the clock) that replaced
+> the earlier flat 365-day full-row delete; metadata rows are retained permanently. **Known
+> divergences for counsel:** (1) ALL injection events are graded T3 (the schedule grades *repeated*
+> injection T2 — repeat-detection deferred); (2) "identifiers stripped at ingestion" / the
+> pseudonym↔identity key layer is NOT implemented — rows carry `user_id` directly (nulled via
+> `on delete set null` when the account is purged).
+
 | Data category | Retention window | Lawful basis / purpose | Deletion trigger / mechanism |
 |---|---|---|---|
 | **Account-recovery grace** (user soft-delete) | **30 days**, recoverable | Consent / contract — let users undo accidental deletion before irreversible purge | User deletion request → set `deleted_at`, mark `status='deleted'`; anonymize on hard-purge |

@@ -104,13 +104,14 @@ export async function startBackgroundServices(): Promise<void> {
 
   // ── Start retention enforcement ─────────────────────────────────
   try {
-    const { enforceSafetyEventRetention, enforceGraceExpiry, enforceBannedIdentitiesRetention, reconcilePremiumStaleness } = await import("./services/retention.js");
+    const { enforceSafetyEventContentScrub, enforceGraceExpiry, enforceBannedIdentitiesRetention, reconcilePremiumStaleness } = await import("./services/retention.js");
     // Account-deletion-only retention: live messages are purged ONLY via the grace-expiry
     // hard-purge after account deletion — never on a blanket age cutoff, and no inactivity
-    // auto-deletion. (See data-retention-policy.md.)
+    // auto-deletion. Safety-event rows are permanent (metadata layer); only their raw content
+    // is scrubbed on the tier windows. (See data-retention-policy.md.)
     const runRetention = async () => {
       try {
-        await enforceSafetyEventRetention();
+        await enforceSafetyEventContentScrub();
         await enforceGraceExpiry();
         await enforceBannedIdentitiesRetention();
         await reconcilePremiumStaleness();

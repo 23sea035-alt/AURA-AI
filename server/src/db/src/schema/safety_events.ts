@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, index, check } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, uuid, boolean, index, check } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { usersTable } from "./users.js";
 import { companionsTable } from "./companions.js";
@@ -16,6 +16,12 @@ export const safetyEventsTable = pgTable("safety_events", {
   severity: text("severity").notNull().default("info"),
   detail: text("detail"),
   flaggedContent: text("flagged_content"),
+  // E-3 tiered content retention (data-retention-policy.md §3): the tier set at write time decides
+  // how much raw content is stored and when the scrub job nulls flagged_content. The ROW is kept
+  // permanently — it is the de-identified metadata layer SB 243 reporting reads. legal_hold=true
+  // pauses the scrub clock (active claim / investigation / LE preservation).
+  contentTier: text("content_tier").notNull().default("T2"),
+  legalHold: boolean("legal_hold").notNull().default(false),
   status: text("status").notNull().default("open"),
   action: text("action"),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
@@ -27,6 +33,7 @@ export const safetyEventsTable = pgTable("safety_events", {
   check("safety_events_source_check", sql`${table.source} in ('input', 'output', 'injection', 'user_report')`),
   check("safety_events_severity_check", sql`${table.severity} in ('info', 'warning', 'critical')`),
   check("safety_events_status_check", sql`${table.status} in ('open', 'reviewed', 'actioned', 'dismissed')`),
+  check("safety_events_content_tier_check", sql`${table.contentTier} in ('T1', 'T2', 'T3')`),
   check("safety_events_action_check", sql`${table.action} is null or ${table.action} in ('none', 'warned', 'suspended', 'banned')`),
   index("idx_safety_events_user").on(table.userId),
   // Review queue: open events by severity, newest first (SB 243 review workflow).

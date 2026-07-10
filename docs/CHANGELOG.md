@@ -11,6 +11,38 @@ task queue this line referred to is archived at [archive/TODO-backend-era.md](ar
 
 ---
 
+## 2026-07-10 — audit P0/P1 remediation: safety, compliance, resilience (branch `redesign`)
+
+Fixes from the v1 production-readiness audit ([audits/2026-07-09-v1-production-readiness.md](audits/2026-07-09-v1-production-readiness.md)):
+
+- **D-2 (P0):** L0 crisis pre-filter now runs BEFORE the free-tier gate — a rate-limited free user
+  disclosing self-harm gets the 988 crisis path, never a paywall card. Crisis bypasses the daily cap
+  (deterministic local regex only; no paid API above the gate — ordering invariant documented in
+  `chat-session.ts`).
+- **D-1 (P0):** automatic account suspension REMOVED (`autoSuspendIfNeeded` deleted). Violations are
+  logged to `safety_events` and a human decides suspensions (policy validated against industry/
+  regulatory research: [audits/2026-07-09-suspension-policy-research.md](audits/2026-07-09-suspension-policy-research.md)).
+  `GET /api/admin/safety-events` gained userId/eventType/severity/since/until filters + pagination
+  as the review surface.
+- **D-3 (P1):** sexual/minors zero-tolerance: input blocks log severity `critical` and DROP the
+  session (WS close 1008, text + voice) per moderation spec §4; output-path hits log critical
+  (model-fault: no drop). User-facing copy stays the generic block.
+- **E-1 (P1):** `PATCH /account/reactivate` was unreachable (requireAuth 403s non-active users).
+  New `requireAuthAllowDeleted` admits active+deleted only; banned/suspended stay blocked.
+- **E-2 (P1, server half):** `GET /account/export` rate-limited (5/h/user); mailer seam added
+  (`lib/mailer.ts`, NoopMailer until a sending domain exists). Share-sheet delivery = client phase.
+- **E-3 (P1):** tiered safety-event content retention per `compliance/data-retention-policy.md` §3 —
+  **migration `0006_safety_event_content_tiering`** adds `content_tier` + `legal_hold`; write-time
+  tiering in `safety-logging.ts` (T1 crisis/sexual-minors = full content · T2 standard = ≤300-char
+  snippet · T3 injection = no content); the flat 365-day full-row delete is replaced by
+  `enforceSafetyEventContentScrub` (nulls content after 90d/180d LEGAL-REVIEW windows, honors
+  `legal_hold`, rows kept permanently as the SB 243 metadata layer).
+- **B-7 (P1):** migration dry-run gate — `migrations.contract.test.ts` applies all committed
+  migrations to fresh PGlite in CI (journal-complete + idempotent re-run), so a broken migration
+  can't crash-loop the single prod instance. (Also fixed `setup.ts`'s dead/broken migrations path.)
+- **B-2 (P1, client):** REST `api()` timeout via AbortController (30s default / 90s chat turn) —
+  recorded here because the seam contract changed; details in the frontend log.
+
 ## 2026-07-09 — drop `is_default`; any companion is deletable (branch `redesign`)
 
 We no longer seed the Aurora/Orion/Lyra trio all at once (a new user creates companion #1 from their

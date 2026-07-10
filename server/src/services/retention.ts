@@ -21,9 +21,12 @@ async function deleteClerkUser(clerkUserId: string | null): Promise<boolean> {
 }
 
 // ALL hardcoded retention numbers are defaults — LEGAL-REVIEW before launch
-const RETENTION_DAYS_SAFETY_EVENTS = 365; // LEGAL-REVIEW
 const RETENTION_DAYS_BANNED_IDENTITIES = 730; // LEGAL-REVIEW
 const GRACE_DAYS_SOFT_DELETE = 30; // LEGAL-REVIEW
+// E-3 tiered content-scrub windows (data-retention-policy.md §3): raw flagged content is nulled
+// after its tier window; T3 stores no content at write time so it has nothing to scrub.
+const SCRUB_DAYS_CONTENT_T1 = 90; // LEGAL-REVIEW — crisis / zero-tolerance evidence
+const SCRUB_DAYS_CONTENT_T2 = 180; // LEGAL-REVIEW — standard moderation evidence
 const MS_PER_DAY = 86_400_000;
 
 function validateCutoff(cutoff: Date, context: string): void {
@@ -64,13 +67,44 @@ async function deleteWhere(
 // Retention is account-deletion-only — live messages are retained for active users and
 // hard-deleted ONLY via enforceGraceExpiry() after account deletion (data-retention-policy.md).
 
-export async function enforceSafetyEventRetention(options?: { dryRun?: boolean }): Promise<number> {
-  const cutoff = new Date(Date.now() - RETENTION_DAYS_SAFETY_EVENTS * MS_PER_DAY);
-  validateCutoff(cutoff, "enforceSafetyEventRetention");
+// E-3: replaces the old flat 365-day FULL-ROW delete. The row is now permanent — it is the
+// de-identified metadata layer the SB 243 annual report reads (the old delete destroyed exactly
+// the rows the policy says to keep). Only the raw content (`flagged_content`) is scrubbed, per
+// tier window, and `legal_hold = true` pauses the clock (active claim / investigation / LE
+// preservation — GDPR Art. 17(3)(e), CCPA §1798.105(d)(2)).
+export async function enforceSafetyEventContentScrub(options?: { dryRun?: boolean }): Promise<number> {
   const dryRun = options?.dryRun ?? false;
-  logger.info({ cutoff, dryRun }, "Running safety event retention enforcement");
+  const tiers = [
+    { tier: "T1", days: SCRUB_DAYS_CONTENT_T1 },
+    { tier: "T2", days: SCRUB_DAYS_CONTENT_T2 },
+  ] as const;
 
-  return deleteWhere(safetyEventsTable, lte(safetyEventsTable.createdAt, cutoff), "safety_events", dryRun);
+  let total = 0;
+  for (const { tier, days } of tiers) {
+    const cutoff = new Date(Date.now() - days * MS_PER_DAY);
+    validateCutoff(cutoff, `enforceSafetyEventContentScrub:${tier}`);
+    const where = and(
+      eq(safetyEventsTable.contentTier, tier),
+      eq(safetyEventsTable.legalHold, false),
+      lte(safetyEventsTable.createdAt, cutoff),
+      isNotNull(safetyEventsTable.flaggedContent),
+    );
+
+    if (dryRun) {
+      const rows = await db.select({ id: safetyEventsTable.id }).from(safetyEventsTable).where(where).limit(100);
+      logger.warn({ tier, count: rows.length, sample: rows.map((r) => r.id) }, "DRY RUN — would scrub flagged content");
+      total += rows.length;
+      continue;
+    }
+
+    const result = await db.update(safetyEventsTable)
+      .set({ flaggedContent: null, updatedAt: new Date() })
+      .where(where);
+    const count = (result as { rowCount: number | null }).rowCount ?? 0;
+    if (count > 0) logger.info({ tier, count }, "Safety-event content scrubbed (rows retained)");
+    total += count;
+  }
+  return total;
 }
 
 export async function enforceBannedIdentitiesRetention(options?: { dryRun?: boolean }): Promise<number> {

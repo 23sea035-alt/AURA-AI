@@ -34,26 +34,41 @@ describe("Retention purge — contract", () => {
     mockDeleteResult.rowCount = 0;
   });
 
-  describe("enforceSafetyEventRetention", () => {
-    it("deletes safety events older than cutoff", async () => {
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
-      await enforceSafetyEventRetention();
+  // E-3: the flat 365-day full-row delete is GONE — safety-event rows are permanent (the metadata
+  // layer SB 243 reads); only raw flagged_content is nulled, per tier window (T1/T2).
+  describe("enforceSafetyEventContentScrub", () => {
+    it("scrubs content via UPDATE (one per tier) and never deletes rows", async () => {
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      await enforceSafetyEventContentScrub();
 
-      expect(mockDb.delete).toHaveBeenCalledTimes(1);
-    });
-
-    it("dryRun does not call delete", async () => {
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
-      await enforceSafetyEventRetention({ dryRun: true });
-
+      expect(mockDb.update).toHaveBeenCalledTimes(2); // T1 + T2 windows
       expect(mockDb.delete).not.toHaveBeenCalled();
     });
 
-    it("returns count from delete result", async () => {
-      mockDeleteResult.rowCount = 5;
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
-      const deleted = await enforceSafetyEventRetention();
-      expect(deleted).toBe(5);
+    it("nulls flaggedContent but keeps the row (no delete in the set payload)", async () => {
+      const setSpy = vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 0 }) }));
+      mockDb.update.mockImplementation(() => ({ set: setSpy }));
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      await enforceSafetyEventContentScrub();
+
+      expect(setSpy).toHaveBeenCalledWith(expect.objectContaining({ flaggedContent: null }));
+    });
+
+    it("dryRun does not call update", async () => {
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      await enforceSafetyEventContentScrub({ dryRun: true });
+
+      expect(mockDb.update).not.toHaveBeenCalled();
+      expect(mockDb.delete).not.toHaveBeenCalled();
+    });
+
+    it("returns the summed scrub count across tiers", async () => {
+      mockDb.update.mockImplementation(() => ({
+        set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 3 }) })),
+      }));
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      const scrubbed = await enforceSafetyEventContentScrub();
+      expect(scrubbed).toBe(6); // 3 from T1 + 3 from T2
     });
   });
 
@@ -73,19 +88,7 @@ describe("Retention purge — contract", () => {
     });
   });
 
-  function resetDbMocks(): void {
-    mockDb.delete = vi.fn(() => ({ where: vi.fn().mockResolvedValue(mockDeleteResult) }));
-    mockDb.select = vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn().mockResolvedValue([]),
-        })),
-      })),
-    }));
-    mockDb.update = vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({ rowCount: 0 }) })) }));
-  }
-
-  describe("deleteWhere guards", () => {
+  describe("dry-run guards", () => {
     it("propagates errors from the underlying query", async () => {
       mockDb.select.mockImplementation(() => ({
         from: vi.fn(() => ({
@@ -94,8 +97,8 @@ describe("Retention purge — contract", () => {
           })),
         })),
       }));
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
-      await expect(enforceSafetyEventRetention({ dryRun: true })).rejects.toThrow();
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      await expect(enforceSafetyEventContentScrub({ dryRun: true })).rejects.toThrow();
     });
 
     it("dry-run with no candidates returns 0", async () => {
@@ -108,18 +111,18 @@ describe("Retention purge — contract", () => {
       }));
       mockDb.select.mockImplementation(mockSelect);
 
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
-      const result = await enforceSafetyEventRetention({ dryRun: true });
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
+      const result = await enforceSafetyEventContentScrub({ dryRun: true });
       expect(result).toBe(0);
     });
   });
 
   describe("validateCutoff", () => {
     it("throws on NaN cutoff", async () => {
-      const { enforceSafetyEventRetention } = await import("../services/retention.js");
+      const { enforceSafetyEventContentScrub } = await import("../services/retention.js");
       const realDateNow = Date.now.bind(globalThis);
       Date.now = vi.fn(() => NaN);
-      await expect(enforceSafetyEventRetention()).rejects.toThrow("invalid cutoff date");
+      await expect(enforceSafetyEventContentScrub()).rejects.toThrow("invalid cutoff date");
       Date.now = realDateNow;
     });
   });

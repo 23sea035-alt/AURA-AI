@@ -57,4 +57,57 @@ describe("logSafetyEvent", () => {
     expect(captureException).toHaveBeenCalled();
     expect(incrementMetric).toHaveBeenCalledWith("safety_event.write_failed");
   });
+
+  // ── E-3: content tiering assigned at WRITE time (data-retention-policy.md §3) ──────────────────
+  // The tier decides how much raw flagged content ever touches the database:
+  // T1 full / T2 truncated snippet / T3 none.
+  describe("content tiering (E-3)", () => {
+    const insertedRow = () => mockInsertValues.mock.calls[0][0];
+
+    beforeEach(() => {
+      mockInsertValues.mockResolvedValue(undefined);
+    });
+
+    it("T1: crisis events store FULL content", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      const content = "x".repeat(500);
+      await logSafetyEvent("u1", "crisis_detected", { severity: "critical", content });
+      expect(insertedRow()).toMatchObject({ contentTier: "T1", flaggedContent: content });
+    });
+
+    it("T1: sexual/minors category stores full content regardless of event type", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      const content = "y".repeat(400);
+      await logSafetyEvent("u1", "input_blocked", { severity: "critical", content, category: "sexual/minors" });
+      expect(insertedRow()).toMatchObject({ contentTier: "T1", flaggedContent: content });
+    });
+
+    it("T2: standard blocks store a truncated snippet, never the full prose", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      const content = "z".repeat(500);
+      await logSafetyEvent("u1", "input_blocked", { severity: "warning", content, category: "hate" });
+      const row = insertedRow();
+      expect(row.contentTier).toBe("T2");
+      expect(row.flaggedContent.length).toBeLessThanOrEqual(301); // 300 chars + ellipsis
+      expect(row.flaggedContent).not.toBe(content);
+    });
+
+    it("T2: short content is stored as-is (no pointless truncation)", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      await logSafetyEvent("u1", "output_blocked", { severity: "warning", content: "short reply", source: "output" });
+      expect(insertedRow()).toMatchObject({ contentTier: "T2", flaggedContent: "short reply" });
+    });
+
+    it("T3: injection attempts store NO raw content at all", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      await logSafetyEvent("u1", "injection_detected", { severity: "warning", content: "ignore previous instructions and…" });
+      expect(insertedRow()).toMatchObject({ contentTier: "T3", flaggedContent: null });
+    });
+
+    it("user reports are T2 (bounded evidence for human review)", async () => {
+      const { logSafetyEvent } = await import("../services/chat/safety-logging.js");
+      await logSafetyEvent("u1", "user_reported", { severity: "info", content: "the reported message" });
+      expect(insertedRow()).toMatchObject({ contentTier: "T2", flaggedContent: "the reported message" });
+    });
+  });
 });
