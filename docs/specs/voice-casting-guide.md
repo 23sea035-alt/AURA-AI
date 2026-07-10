@@ -37,7 +37,8 @@ Env: all 12 `INWORLD_VOICE_ID_*` are in [`server/.env.example`](../../server/.en
 
 ### Rerun list (after this realign)
 **Done 2026-07-10** — the must + should rows were regenerated (`pnpm voices:audition -- soren eli thea wren`)
-after verifying Folake/Yoona resolve as stock ids; clips are committed in `server/audition-clips/`.
+after verifying Folake/Yoona resolve as stock ids. Clips live locally in `server/audition-clips/`
+(gitignored again since the gain-map sign-off — regenerate via `pnpm voices:audition`).
 The rate-only optionals (`amara`, `sage`, `selene`) were user-verified in the playground and not respent.
 The 5 locked rows (aurora, orion, lyra, juno, cyrus) are unchanged — no rerun.
 
