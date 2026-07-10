@@ -81,7 +81,10 @@ vi.mock("../services/chat/free-tier.js", () => ({ checkFreeTierLimit: mockCheckF
 vi.mock("../services/moderation/moderation-engine.js", () => ({
   createModerator: () => ({ screenInput: mockScreenInput, screenOutput: mockScreenOutput }),
 }));
-vi.mock("../services/moderation/crisis.js", () => ({ buildCrisisResponse: mockBuildCrisisResponse }));
+vi.mock("../services/moderation/crisis.js", () => ({
+  buildCrisisResponse: mockBuildCrisisResponse,
+  CRISIS_RESOURCES: ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"],
+}));
 vi.mock("../services/llm/index.js", () => ({ getLLMProvider: mockGetLLMProvider }));
 vi.mock("../services/memory.js", () => ({ retrieveMemories: mockRetrieveMemories, enqueueMemoryJob: mockEnqueueMemoryJob }));
 vi.mock("../services/chat/safety-logging.js", () => ({ logSafetyEvent: mockLogSafetyEvent }));

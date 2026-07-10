@@ -6,8 +6,8 @@ import type { OmniResult } from "./openai-omni.js";
 import type { PromptGuardResult } from "./prompt-guard.js";
 import { adjudicate, runOutputFallback } from "./safeguard.js";
 import { SAFE_FALLBACK_REPLY } from "@aura/shared";
+import { CRISIS_RESOURCES } from "./crisis.js";
 import type { LLMProvider } from "../llm/index.js";
-import { getLLMProvider } from "../llm/index.js";
 import { createTaskSpecificProvider } from "../llm/model-selector.js";
 import { logger } from "../../lib/logger.js";
 import { incrementMetric } from "../../lib/metrics.js";
@@ -73,7 +73,7 @@ export class ModerationEngine implements Moderator {
         return {
           action: "crisis", categories: [{ category: l0.category ?? "self-harm/crisis", score: 1 }],
           escalated: false, layer: "L0", policyVersion: POLICY_VERSION,
-          crisisResources: ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"],
+          crisisResources: CRISIS_RESOURCES,
           reason: l0.reason,
         };
       }
@@ -108,7 +108,7 @@ export class ModerationEngine implements Moderator {
           return {
             action: "crisis", categories: [],
             escalated: false, layer: "safeguard", policyVersion: POLICY_VERSION,
-            crisisResources: ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"],
+            crisisResources: CRISIS_RESOURCES,
           };
         }
         return {
@@ -131,7 +131,7 @@ export class ModerationEngine implements Moderator {
         return {
           action: "crisis", categories: l2Result.categories,
           escalated: false, layer: "L2", policyVersion: POLICY_VERSION,
-          crisisResources: ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"],
+          crisisResources: CRISIS_RESOURCES,
         };
       }
 

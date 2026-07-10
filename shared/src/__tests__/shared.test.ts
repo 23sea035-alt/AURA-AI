@@ -16,7 +16,6 @@ import {
   L1_PROMPT_GUARD,
   MODERATION_INPUT_THRESHOLDS,
   MODERATION_OUTPUT_THRESHOLDS,
-  MODERATION_TIMEOUTS,
   SAFE_FALLBACK_REPLY,
   FLAGGED_USER_WINDOW_DAYS,
   ChatInputSchema,
@@ -217,11 +216,6 @@ describe("Moderation config", () => {
     expect(MODERATION_OUTPUT_THRESHOLDS["violence"]).toBe(0.35);
   });
 
-  it("MODERATION_TIMEOUTS has correct values", () => {
-    expect(MODERATION_TIMEOUTS.L1_PROMPT_GUARD_MS).toBe(1000);
-    expect(MODERATION_TIMEOUTS.L2_OMNI_MS).toBe(2000);
-    expect(MODERATION_TIMEOUTS.L3_SAFEGUARD_MS).toBe(4000);
-  });
 });
 
 describe("FLAGGED_USER config", () => {

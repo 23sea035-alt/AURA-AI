@@ -15,9 +15,10 @@ import { useTheme } from '@/hooks/useTheme';
 import { useVoicePrefs } from '@/hooks/useVoicePrefs';
 import { VOICE_FREE_SECONDS, VOICE_PREMIUM_SECONDS } from '@/lib/backend';
 import { fmtVoiceTime } from '@/utils/time';
-import type { VoicePace } from '@aura/shared';
+import { VOICE_PACE, type VoicePace } from '@aura/shared';
 
-const PACES: VoicePace[] = ['relaxed', 'natural', 'quick'];
+// Derived from the shared contract enum — the server maps these to rate multipliers.
+const PACES: VoicePace[] = [...VOICE_PACE];
 
 export default function VoicePreferencesScreen() {
   const { colors, mode } = useTheme();

@@ -16,7 +16,7 @@ import { createSentenceBuffer } from "./sentence-buffer.js";
 import { checkFreeTierLimit } from "./free-tier.js";
 import { shouldShowBreakReminder } from "./break-reminder.js";
 import { shouldShowAiDisclosure } from "./ai-disclosure.js";
-import { buildCrisisResponse } from "../moderation/crisis.js";
+import { buildCrisisResponse, CRISIS_RESOURCES } from "../moderation/crisis.js";
 import { createModerator } from "../moderation/moderation-engine.js";
 import { runL0 } from "../moderation/deterministic.js";
 import {
@@ -69,7 +69,6 @@ export interface ChatSessionResult {
   memoriesUsed: boolean;
 }
 
-const CRISIS_RESOURCES = ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"];
 // Flagged-user window: a user with a safety event inside this window gets the engine's
 // widened escalation band (repeat-offender handling). Mirrors the moderation spec §4.
 const FLAGGED_USER_WINDOW_MS = FLAGGED_USER_WINDOW_DAYS * 24 * 60 * 60 * 1000;

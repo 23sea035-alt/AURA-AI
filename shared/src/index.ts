@@ -175,12 +175,6 @@ export const MODERATION_OUTPUT_THRESHOLDS: Record<string, number> = {
   "illicit/violent": 0.25,
 };
 
-export const MODERATION_TIMEOUTS = {
-  L1_PROMPT_GUARD_MS: 1000,
-  L2_OMNI_MS: 2000,
-  L3_SAFEGUARD_MS: 4000,
-} as const;
-
 // Flagged-user window: a user with a safety event inside this window gets the moderation engine's
 // widened escalation band (repeat-offender handling). NOTE: no suspension threshold exists —
 // suspensions are a manual human decision off the safety_events review queue (D-1, 2026-07-10).
@@ -271,7 +265,6 @@ export const VOICE_CALL_MAX_DURATION_SECONDS_PREMIUM = 3_600; // per call: 60 mi
 
 // ── Chat session / queue constants ───────────────────────────────────────
 export const TURN_QUEUE_CONCURRENCY = 8;
-export const TURN_QUEUE_MAX_FREE_WAIT_MS = 8_000;
 export const INWORLD_CONCURRENT_LIMIT = 10;
 
 // ── Voice session constants ──────────────────────────────────────────────
@@ -290,9 +283,8 @@ export const VOICE_FILLER_CLIP_COUNT = 6;
 export const VOICE_SILENCE_PROMPT_TIMEOUT_S = 45;
 export const VOICE_SILENCE_END_TIMEOUT_S = 90;
 
-// ── LLM / STT model IDs ─────────────────────────────────────────────────
-export const LLM_PRIMARY_MODEL = "llama-3.3-70b-versatile";
-export const LLM_FALLBACK_MODEL = "llama-3.1-8b-instant";
+// ── STT model ID ────────────────────────────────────────────────────────
+// (LLM model selection is env-driven in server/src/services/llm/model-selector.ts — no shared ids.)
 export const STT_MODEL = "whisper-large-v3-turbo";
 
 // ── Persona voice system (packs + mechanical trait grid) ────────────────

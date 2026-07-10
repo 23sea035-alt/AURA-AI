@@ -1,8 +1,7 @@
-const CRISIS_RESOURCES = [
-  "988 Suicide & Crisis Lifeline: Call or text 988 (US)",
-  "Crisis Text Line: Text HOME to 741741",
-  "International Association for Suicide Prevention: https://www.iasp.info/resources/Crisis_Centres/",
-];
+// Single source of truth for the crisis reply + the wire-facing resource list. The wire list is
+// deliberately just the 988 line (what the client renders as `crisisResources`); the fuller set —
+// Crisis Text Line 741741, local emergency services — is already spoken in the reply text below.
+export const CRISIS_RESOURCES = ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"];
 
 export function buildCrisisResponse(): string {
   return (
@@ -16,7 +15,3 @@ export function buildCrisisResponse(): string {
     "Would you like to talk about something that might help ground you right now?"
   );
 }
-
-export const SAFE_FALLBACK_REPLY = "I need to be careful with my response here. Let me think about how to respond thoughtfully to what you've shared.";
-
-export { CRISIS_RESOURCES };
