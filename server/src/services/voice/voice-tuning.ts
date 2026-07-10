@@ -29,7 +29,7 @@ export const PERSONA_STYLE_TAG: Partial<Record<PersonaKey, string>> = {
 };
 
 export const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = {
-  aurora: "BALANCED",
+  aurora: "CREATIVE", // BALANCED read as "customer support" in testing — CREATIVE is warmer/less flat
   orion: "STABLE",
   lyra: "CREATIVE",
   sage: "STABLE",
