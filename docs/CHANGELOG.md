@@ -11,6 +11,49 @@ task queue this line referred to is archived at [archive/TODO-backend-era.md](ar
 
 ---
 
+## 2026-07-10 (later still) — cross-package DRY: policy constants single-sourced in @aura/shared (branch `redesign`)
+
+Owner-requested sweep for client/server duplication that belongs in `shared/`. Moved/referenced:
+- **`MIN_AGE` (18)** — was owned twice (client `utils/age.ts`, server `routes/auth.ts` in year-ms form);
+  both now derive from the shared policy constant.
+- **`ACCOUNT_GRACE_DAYS` (30)** — was owned twice (client reactivation-deadline math in `login.tsx`,
+  server `retention.ts` purge cutoff, both LEGAL-REVIEW-sensitive); single-sourced, LEGAL-REVIEW
+  marker moved to the shared definition.
+- **`CLIENT_TRAITS_KEY` ('_client')** — the traits presentation-stash key was spelled independently
+  in three places (shared schema literal, server `companions.ts` coercion, client `live.ts` constant);
+  now exported from shared and referenced everywhere (server uses a mapped type off the constant).
+- **`MAX_UTTERANCE_BYTES`** — client `useVoiceCall` hardcoded 2 MB with a "mirror of @aura/shared"
+  comment; now imports the real bound.
+- **Audition lines** — `audition-voices.ts` hand-mirrored all 12 persona openers ("keep in sync"
+  comment); now derived from `PERSONA_PACKS[*].openers` (first {firstName}-free line — verified
+  verbatim-identical to the old hardcoded set before switching).
+
+Deliberately NOT moved: mock.ts's crisis regex / disclosure cadence (documented demo compression of
+the moderation pipeline, not a mirror); the 988/741741 numbers in client copy vs server reply text
+(same real-world facts in different prose registers; the wire list is already single-sourced
+server-side); the binary voice-frame 4-byte index offset (wire protocol structure, documented at
+both ends).
+
+## 2026-07-10 (later) — speaking pace moved out of synthesis; voice loudness tooling (branch `redesign`)
+
+- **Pace is no longer a synthesis input** (owner decision): the per-persona speaking rates in
+  `voice-tuning.ts` were hand-tuned for delivery/expressiveness, and multiplying them by the user's
+  pace (±15%) made Inworld re-render the performance. Synthesis now ALWAYS runs at the tuned base
+  (`synthesisSpeakingRate()`; `effectiveSpeakingRate()` deleted). The user's pace is applied
+  client-side as a pitch-preserving playback rate (see the frontend log for the client half).
+  - `voice_start` no longer carries `pace` (contract simplification — the server has zero pace
+    knowledge; `PACE_MULTIPLIER` in `@aura/shared` is now client-consumed only).
+  - `voice_caption` gained a `crisis` boolean: caption precedes its audio frame, so the client can
+    pin a crisis sentence's playback to natural — a user's "quick" pace never rushes a 988 reply
+    (replaces the old server-side crisis pace-1.0 override, same guarantee, new mechanism).
+- **Voice loudness tooling:** new `pnpm voices:levels` (`src/scripts/clip-levels.mjs`) — EBU R128
+  survey (integrated LUFS + true peak per audition clip) that derives the client's per-persona
+  playback-gain map. `server/audition-clips/` is now tracked in-repo (un-gitignored) for
+  cross-machine measurement; rerun list executed (`soren eli thea wren`) after verifying
+  Folake/Yoona resolve as stock catalog ids.
+- Tests: 679 passing (voice-tuning suite rewritten for the base-rate invariant; voice-adapter
+  asserts the caption `crisis` flag both ways).
+
 ## 2026-07-10 — audit P0/P1 remediation: safety, compliance, resilience (branch `redesign`)
 
 Fixes from the v1 production-readiness audit ([audits/2026-07-09-v1-production-readiness.md](audits/2026-07-09-v1-production-readiness.md)):

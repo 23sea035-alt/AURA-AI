@@ -613,14 +613,53 @@ Client changes made while cutting the demo videos (all mock-verified on the 16e)
 
 - **All 12 gallery portraits wired** (`components/companion/portraits.ts`): the nine (amara, cyrus,
   eli, juno, sage, selene, soren, thea, wren) now map to their committed masters (assets landed in
-  `d0c23fe`, Lyra reskinned redhead) instead of the duotone monogram fallback. **Sim-verify still
-  pending** (relaunch, not fast-refresh).
+  `d0c23fe`, Lyra reskinned redhead) instead of the duotone monogram fallback. **Sim-verified
+  later the same day** (see the entry below).
 - **Voice preferences simplified** (`voice-preferences.tsx`, `useVoicePrefs`): the voice PICKER is
   gone — timbre is fixed per persona (server-side Inworld casting; `VOICE_OPTIONS`/`voiceId` pref
   removed). The screen is now captions + **speaking pace** (`relaxed / natural / quick` — "brisk"
-  renamed). Pace ships on the `voice_start` frame and multiplies the persona's base TTS rate
-  server-side (0.85 / 1.0 / 1.15, from `@aura/shared`); crisis replies always speak at base tempo.
+  renamed). *(Pace delivery was redesigned later the same day — it no longer rides `voice_start`;
+  see the entry below.)*
 - **REST timeout** (`lib/api.ts`): every live request aborts on a deadline (30s default; the chat
   turn overrides to 90s to match the WS watchdog) and surfaces `ApiError(408, 'TIMEOUT')` so failed
   sends land in tap-to-retry instead of a forever-spinner. Vitest gained the `@` alias; fake-timer
   tests cover default/override/completion.
+
+## 2026-07-10 (later) — portraits sim-verified, data-export share sheet, native audio (gain + pace)
+
+- **All 12 portraits sim-verified on device** (relaunch-fresh, never fast-refresh): the create
+  screen's persona carousel paged 1/12 → 12/12 with every portrait rendering its flat-gouache
+  master (no monogram fallbacks); roster rows and the Home hero verified at their sizes. The
+  reworked voice-preferences screen verified too (meter + captions + pace only, no picker).
+- **Data export ships the bundle (E-2 client half):** `requestDataExport()` now RETURNS the GDPR
+  bundle (both seams; `DataExportBundle` in `lib/models.ts`) instead of discarding it, and new
+  `lib/export.ts` writes `aura-export-YYYY-MM-DD.json` to cache and presents the iOS share sheet
+  (RN `Share` — no new native dep). The file is deleted after the sheet closes either way
+  (verified empty on-device cache). The false "we'll email a download link" copy is gone
+  (`account.ts`: cta "Export your data", in-flight "Preparing your export…", error toast only —
+  the sheet itself is the success confirmation). Unit tests pin the delete-on-failure guarantee.
+- **Native audio module** `modules/audio-boost` (first local Expo module; AVAudioEngine chain
+  player → AVAudioUnitTimePitch → AVAudioUnitEQ → mixer) — two levers expo-audio lacks/needs:
+  - **Per-persona playback gain** (`constants/voiceGain.ts`): thea +9 · soren +4 · sage +4 ·
+    aurora +3.5 · selene +1 dB — derived from the EBU R128 clip survey (`pnpm voices:levels`,
+    server side), capped under worst-take true-peak headroom. Verified on device via BlackHole
+    recording: +10.0 dB measured RMS delta at the +9 config, no clipping.
+  - **Speaking pace is now a pitch-preserved PLAYBACK rate** (owner decision): synthesis always
+    runs at the persona's tuned base tempo; `useVoiceCall` applies `PACE_MULTIPLIER` per sentence
+    (mid-call pref changes are heard on the next sentence). Stock path:
+    `player.setPlaybackRate(rate, 'high')`; boosted path: rate through the TimePitch node.
+    Crisis sentences arrive flagged on `voice_caption` and pin to natural. Verified on device:
+    0.85 vs 1.15 duration ratio 1.36 (expected 1.353), F0 unchanged → pitch preserved.
+    Server half in `CHANGELOG.md` 2026-07-10 (later).
+- `expo-modules-core` added as a direct client dep (pnpm strictness — the local module imports
+  `requireNativeModule`). Two `ios:sim` rebuilds this session (module add, then rate param).
+- **Not yet exercised:** a real live voice call end-to-end over the new frames (needs the live
+  stack + TTS spend); the boosted/paced paths were verified with on-device native playback probes.
+
+## 2026-07-10 (addendum) — client side of the cross-package DRY pass
+
+Client half of the shared single-sourcing (full list in `CHANGELOG.md` same date): `useVoiceCall`
+imports `MAX_UTTERANCE_BYTES` instead of hardcoding the 2 MB mirror; `login.tsx` computes the
+reactivation deadline from shared `ACCOUNT_GRACE_DAYS`; `utils/age.ts` derives from shared
+`MIN_AGE` (calendar math stays local); `live.ts` imports `CLIENT_TRAITS_KEY` instead of defining
+its own copy of the '_client' stash key.

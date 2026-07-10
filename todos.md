@@ -16,17 +16,16 @@
       enough). Moderation currently runs the Groq-safeguard degraded path on every turn
       (works, logged + metered as `moderation.l2/l3_degraded`). Also blocks the eval gate below.
 
-## Client phase (next up — the remaining code work)
+## Client phase (code work done 2026-07-10 — see `docs/redesign/fable5-rebuild-notes.md` + `docs/CHANGELOG.md`; open bits below)
 
-- [ ] **Sim-verify the 12 portraits** — all wired in `portraits.ts` (2026-07-10); needs a relaunch
-      pass on the sim (`/verify-ui`), never verified on device.
-- [ ] **Voice clip re-audition** — rerun the changed personas per the casting guide's §Rerun list
-      (`pnpm voices:audition -- soren eli thea wren` + verify Folake/Yoona ids resolve). Uses the
-      TTS budget; owner-reviewed.
-- [ ] **Data-export share sheet + copy** (E-2 client half) — fetch the (already rate-limited)
-      bundle, write JSON, present the iOS share sheet; replace the "we'll email a link" copy.
-- [ ] **Selene playback gain** — the voice reads quiet; Inworld has no synth-time gain, so this is
-      a native client boost (AVAudioEngine), per-persona for the quiet voices.
+- [ ] **Owner ear-review** — listen to the 4 re-audition clips (`server/audition-clips/`:
+      soren/eli/thea/wren, generated 2026-07-10) and the boosted-gain previews
+      (`server/boost-preview/`: thea +9 · soren +4 · sage +4 · aurora +3.5 · selene +1 dB,
+      measurement-derived). Gain values are one-line edits in `client/constants/voiceGain.ts`.
+- [ ] **Live voice smoke over the new frames** — one real call (pace playback + crisis pin +
+      boosted persona) once the live stack is up; the mechanisms are on-device-verified via
+      native playback probes, but the full WS loop hasn't been exercised since the pace/gain
+      changes. Small TTS spend.
 - [ ] Look-customization reskins (appearance variants) — separate future session.
 
 ## Process gates

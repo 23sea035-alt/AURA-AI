@@ -28,37 +28,43 @@ Columns: voice id · delivery mode · base rate · accent locale. **Locked** = v
 | **Selene** | Wendy | `CREATIVE` | 1.00 | native | ⟳ reconfig | rate 0.9→1.0. **Low volume — see §Output volume.** |
 | **Soren** | Lucian | `CREATIVE` | 0.96 | native | ⟳ reconfig | STABLE→CREATIVE + rate 0.98→0.96 (expressive edge). |
 | **Eli** | Miguel | `CREATIVE` | 1.00 | `en-US` | ⟳ reconfig | forced en-US — base voice defaults to Spanish. |
-| **Thea** | Folake | `CREATIVE` | 0.95 | native | ⟳ recast | recast off Svetlana (Russian accent leaked). Verify Folake resolves (may be a community id). |
-| **Wren** | Yoona | `CREATIVE` | 1.00 | `en-US` | ⟳ recast | recast off Galina → Yoona, en-US forced, rate 0.98→1.0. Verify Yoona resolves. |
+| **Thea** | Folake | `CREATIVE` | 0.95 | native | ⟳ recast | recast off Svetlana (Russian accent leaked). Folake verified as a stock id 2026-07-10 (catalog query — no community slug needed). |
+| **Wren** | Yoona | `CREATIVE` | 1.00 | `en-US` | ⟳ recast | recast off Galina → Yoona, en-US forced, rate 0.98→1.0. Yoona verified as a stock id 2026-07-10. |
 
 Env: all 12 `INWORLD_VOICE_ID_*` are in [`server/.env.example`](../../server/.env.example) — mirror into
 `server/.env` + set `INWORLD_API_KEY`, then restart. Mode/rate/locale live in
 [`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts).
 
 ### Rerun list (after this realign)
-Regenerate only the changed rows: `pnpm voices:audition -- amara sage selene soren eli thea wren`.
-- **Must rerun (new voice ids — will 404 if the name isn't the real id, like Cyrus did):** `thea` (Folake), `wren` (Yoona).
-- **Should rerun (mode/language changed):** `soren` (→CREATIVE), `eli` (→en-US).
-- **Optional (rate-only, already user-verified in playground):** `amara`, `sage`, `selene`.
+**Done 2026-07-10** — the must + should rows were regenerated (`pnpm voices:audition -- soren eli thea wren`)
+after verifying Folake/Yoona resolve as stock ids; clips are committed in `server/audition-clips/`.
+The rate-only optionals (`amara`, `sage`, `selene`) were user-verified in the playground and not respent.
 The 5 locked rows (aurora, orion, lyra, juno, cyrus) are unchanged — no rerun.
 
-### Output volume
-Selene reads quiet. **Inworld can't fix this at synth time** — the `audioConfig` supports only
+### Output volume (as built 2026-07-10)
+Several casts read quiet — and **Inworld can't fix this at synth time**: the `audioConfig` supports only
 `audioEncoding`, `sampleRateHertz`, and `speakingRate`; there is **no `volumeGainDb`/gain/pitch field**
-([docs](https://docs.inworld.ai/tts/tts)). So loudness must be handled downstream:
-- **Server-side normalize** (post-synth): apply gain to the returned buffer to hit a target loudness across
-  all personas. Amplifying a quiet MP3 means decode → gain → re-encode (needs a DSP/ffmpeg step) — real work.
-- **Client-side gain** (recommended for v1): boost playback with a native gain node (AVAudioEngine, since
-  `AVAudioPlayer.volume` maxes at 1.0 and can't amplify). Per-persona boost for the quiet ones (Selene).
-This is native client work (deferred to the macOS/Xcode side), not a server-config toggle.
+([docs](https://docs.inworld.ai/tts/tts)). Shipped solution: **client-side native boost** —
+`client/modules/audio-boost` (AVAudioEngine: player → time-pitch → EQ `globalGain` → mixer; needed because
+`AVAudioPlayer`/expo-audio volume maxes at 1.0 and can't amplify).
+- **Gains are measured, not guessed:** `cd server && pnpm voices:levels`
+  ([`clip-levels.mjs`](../../server/src/scripts/clip-levels.mjs)) surveys the audition clips with
+  EBU R128 (integrated LUFS + true peak) and suggests gain = min(gap to the cast median, headroom to
+  −1 dBTP). The map lives in `client/constants/voiceGain.ts`: thea +9, soren +4, sage +4, aurora +3.5,
+  selene +1 dB (soren/sage are true-peak-capped below their full loudness gap).
+- **Take variance (measured):** re-synthesizing the same line varies loudness ±2 dB and true peak up to
+  4 dB — caps are computed against worst takes. Re-run the survey and revisit the map on any recast.
+- Verified on device (BlackHole loopback): +9 dB config measured +10.0 dB RMS delta, no clipping.
 
 ## The levers (why "3 settings" isn't the whole story)
 Inworld's stock catalog skews game/commercial, and the delivery **mode** (STABLE / BALANCED / CREATIVE)
 alone can't reshape a voice with strong baked-in character. Full lever set:
 - **Delivery mode** — STABLE (consistent/calm) · BALANCED (natural, can read "corporate") · CREATIVE (expressive/warm).
 - **Style tag** — a bracket tag prepended to every line (e.g. `[warm and gentle]`), finer than mode. Per-persona in `voice-tuning.ts`.
-- **Speaking rate** — per-persona base × the user's pace multiplier (relaxed/natural/quick).
-- **Accent steering** — pass a **BCP-47 locale in the `language` field** (`en-GB`, `en-AU`, `en-IN`, …) to steer a voice's accent without re-cloning. **NOT wired in our pipeline yet** ([`inworld-tts.ts`](../../server/src/services/voice/inworld-tts.ts) sends no `language`) — see "Accent steering" below.
+- **Speaking rate** — the per-persona tuned base, always (2026-07-10): the user's pace preference
+  (relaxed/natural/quick) is a client-side pitch-preserved PLAYBACK rate, so it never changes the
+  synthesis and can't disturb the tuned delivery. Crisis sentences play at natural regardless of pace.
+- **Accent steering** — pass a **BCP-47 locale in the `language` field** (`en-GB`, `en-AU`, `en-IN`, …) to steer a voice's accent without re-cloning. **Wired** via the `PERSONA_LOCALE` map — see "Accent steering" below.
 - **Custom voice design** — Inworld Studio (portal-only). The escape hatch for an anchor if no stock voice fits.
 
 Selection tip: filter **for** `companion / character / conversational / expressive / warm` and **against**
@@ -95,7 +101,8 @@ Hindi accent-steer to persist); everything else is CREATIVE except the two groun
 (Orion, Sage).
 
 **Base rates:** aurora .98 · orion .95 · lyra 1.05 · sage .98 · amara 1.02 · eli 1.0 · selene 1.0 ·
-soren .96 · juno 1.1 · thea .95 · cyrus .9 · wren 1.0 (× the user's pace multiplier, clamped 0.5–1.5).
+soren .96 · juno 1.1 · thea .95 · cyrus .9 · wren 1.0 (clamped 0.5–1.5; synthesis always runs at these —
+the user's pace is a client-side pitch-preserved playback rate, never a synthesis input).
 
 **Accent locales** (`PERSONA_LOCALE`): Cyrus `hi-IN` · Eli `en-US` · Wren `en-US`; all others use the
 voice's native accent (no `language` sent). See §Accent steering for the en-US-for-all question.

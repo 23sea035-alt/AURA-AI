@@ -293,11 +293,11 @@ audio. On the server, check `typeof message === 'string'` vs `message instanceof
 > | Dir | Frame | Meaning |
 > |---|---|---|
 > | C→S | *(binary)* raw audio bytes | one complete utterance (Apple-VAD chunk); rejected if > `MAX_UTTERANCE_BYTES` (2 MB) |
-> | C→S | `{ type: "voice_start", companionId, sessionStartedAt?, pace? }` | open a call (persona + tier lookup, pre-gen fillers); re-start closes the prior session. `pace` (relaxed/natural/quick, added 2026-07-10) multiplies the persona's base TTS rate for the call |
+> | C→S | `{ type: "voice_start", companionId, sessionStartedAt? }` | open a call (persona + tier lookup, pre-gen fillers); re-start closes the prior session. The user's speaking pace never crosses the wire (2026-07-10): synthesis always runs at the persona's tuned base rate; pace is a client-side pitch-preserved playback rate |
 > | C→S | `{ type: "voice_interrupt", transcript? }` | barge-in: aborts the in-flight reply; server classifies the interjection |
 > | C→S | `{ type: "voice_stop" }` | end the call |
 > | S→C | `{ type: "voice_ready", companionId, remainingSeconds }` | call open, ready for audio |
-> | S→C | `{ type: "voice_caption", companionId, index, text }` | sentence text just ahead of its audio frame (client captions) — added 2026-07-08 |
+> | S→C | `{ type: "voice_caption", companionId, index, text, crisis }` | sentence text just ahead of its audio frame (client captions) — added 2026-07-08. `crisis` (2026-07-10) pins that sentence's client playback rate to natural, so a user's "quick" pace never rushes a 988 reply |
 > | S→C | *(binary)* `[4-byte BE index][mp3 bytes]` | one synthesized sentence of the reply |
 > | S→C | `{ type: "voice_complete", turnId, companionId, memoriesUsed, breakReminder, crisisResources }` | reply finished — **guaranteed to trail every audio frame of the turn** (the adapter chains this connection's sends; synthesis itself stays concurrent under the Inworld budget). Wire-verified 2026-07-08 |
 > | S→C | `{ type: "voice_interrupted", class, companionId }` | class = resume / interjection / detour (client drives the follow-up) |
