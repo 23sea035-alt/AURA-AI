@@ -9,3 +9,10 @@ eval/reports/
 # Voice TTS A/B sample audio — regenerable via test-tts-*.mjs, do not commit
 tts-output/*.wav
 tts-output/*.mp3
+
+# Persona audition clips — regenerable via `pnpm voices:audition`, do not commit
+# (were briefly tracked 2026-07-10 for cross-machine review; gain map signed off since)
+audition-clips/
+
+# Boosted-gain ear-check previews — regenerable via ffmpeg from the audition clips
+boost-preview/
