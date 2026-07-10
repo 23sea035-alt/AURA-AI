@@ -34,13 +34,21 @@ export const PERSONA_DELIVERY_MODE: Partial<Record<PersonaKey, DeliveryMode>> = 
   lyra: "CREATIVE",
   sage: "STABLE",
   amara: "CREATIVE",
-  eli: "BALANCED",
-  selene: "BALANCED",
+  eli: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE, kept warmer read
+  selene: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE
   soren: "STABLE",
   juno: "CREATIVE",
-  thea: "BALANCED",
-  cyrus: "STABLE",
-  wren: "BALANCED",
+  thea: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE
+  cyrus: "BALANCED", // Thomas (stock) — BALANCED is the only mode where the Hindi accent-steer persists
+  wren: "CREATIVE", // was BALANCED — passed the naturalness probe on CREATIVE
+};
+
+// Per-persona ACCENT steer (BCP-47 locale passed to Inworld's `language` field). Omit a persona to use
+// its voice's native accent. Cyrus: no Persian en-locale exists + the stock Thomas voice reads Irish, so
+// we steer to Hindi (closest Indo-Iranian phonology available) to approximate the Persian-Iranian avatar.
+// See docs/specs/voice-casting-guide.md §Accent steering.
+export const PERSONA_LOCALE: Partial<Record<PersonaKey, string>> = {
+  cyrus: "hi-IN",
 };
 
 // Base tempo per persona (Inworld speakingRate; the pace multiplier scales this, clamped 0.5–1.5).
@@ -80,4 +88,8 @@ export function deliveryModeFor(personaKey: PersonaKey): DeliveryMode {
 }
 export function baseRateFor(personaKey: PersonaKey): number {
   return PERSONA_SPEAKING_RATE[personaKey] ?? DEFAULT_SPEAKING_RATE;
+}
+/** BCP-47 accent-steer locale for a persona, or undefined to use the voice's native accent. */
+export function localeFor(personaKey: PersonaKey): string | undefined {
+  return PERSONA_LOCALE[personaKey];
 }

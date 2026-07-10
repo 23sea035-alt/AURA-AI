@@ -9,7 +9,7 @@ import { synthesizeSpeech, synthesizeBatch } from "./inworld-tts.js";
 import { classifyInterruption } from "./interruption.js";
 import type { InterruptionClass } from "./interruption.js";
 import type { PersonaKey } from "@aura/shared";
-import { styleTagFor, deliveryModeFor, baseRateFor, effectiveSpeakingRate } from "./voice-tuning.js";
+import { styleTagFor, deliveryModeFor, baseRateFor, effectiveSpeakingRate, localeFor } from "./voice-tuning.js";
 
 export type VoiceState =
   | "IDLE"
@@ -79,13 +79,14 @@ export class VoiceSession {
     }
 
     const deliveryMode = deliveryModeFor(this.params.personaKey);
+    const language = localeFor(this.params.personaKey);
     const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), this.params.speakingRateMultiplier ?? 1.0);
     const fillerTexts = [...VOICE_FILLER_TEXTS].slice(0, VOICE_FILLER_CLIP_COUNT);
 
     try {
       const [clips, fallback] = await Promise.all([
-        synthesizeBatch(fillerTexts, { voiceId, deliveryMode, speakingRate }),
-        synthesizeSpeech({ text: VOICE_FALLBACK_TEXT, voiceId, deliveryMode, styleTag: "[calm and measured]", speakingRate }),
+        synthesizeBatch(fillerTexts, { voiceId, deliveryMode, speakingRate, language }),
+        synthesizeSpeech({ text: VOICE_FALLBACK_TEXT, voiceId, deliveryMode, styleTag: "[calm and measured]", speakingRate, language }),
       ]);
       this.fillerClips = clips;
       this.fallbackClip = fallback;
@@ -106,7 +107,8 @@ export class VoiceSession {
     // Crisis speaks at the persona's base tempo — a user's "brisk" pace must never rush a 988 reply.
     const paceMultiplier = opts?.crisis ? 1.0 : (this.params.speakingRateMultiplier ?? 1.0);
     const speakingRate = effectiveSpeakingRate(baseRateFor(this.params.personaKey), paceMultiplier);
-    return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag, speakingRate });
+    const language = localeFor(this.params.personaKey);
+    return synthesizeSpeech({ text, voiceId, deliveryMode, styleTag, speakingRate, language });
   }
 
   nextFillerClip(): Buffer | undefined {

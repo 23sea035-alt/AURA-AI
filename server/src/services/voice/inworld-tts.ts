@@ -16,6 +16,9 @@ export interface SynthesizeOptions {
   // e.g. "[warm and gentle]", "[direct and grounded]", "[calm and measured]"
   styleTag?: string;
   speakingRate?: number; // 0.5–1.5, default 1.0
+  // language: BCP-47 locale to STEER a voice's accent without re-cloning (e.g. "en-GB", "hi-IN").
+  // Omit to use the voice's native accent. Per-persona map lives in voice-tuning (PERSONA_LOCALE).
+  language?: string;
 }
 
 // Inworld API keys from the portal are already the base64 value for Basic auth — paste as-is.
@@ -32,6 +35,7 @@ export async function synthesizeSpeech(opts: SynthesizeOptions): Promise<Buffer>
     deliveryMode = "BALANCED",
     styleTag,
     speakingRate,
+    language,
   } = opts;
 
   if (!voiceId) throw new Error("voiceId is required — set INWORLD_VOICE_ID_AURORA/ORION/LYRA and pass the correct one");
@@ -41,6 +45,7 @@ export async function synthesizeSpeech(opts: SynthesizeOptions): Promise<Buffer>
     voiceId,
     modelId: MODEL_ID,
     deliveryMode,
+    ...(language && { language }),
     audioConfig: {
       audioEncoding: "MP3",
       sampleRateHertz: 24000,
@@ -68,7 +73,7 @@ export async function synthesizeSpeech(opts: SynthesizeOptions): Promise<Buffer>
   }
 
   const audio = Buffer.from(json.audioContent, "base64");
-  logger.info({ voiceId, deliveryMode, styleTag, bytes: audio.length }, "Inworld TTS synthesized");
+  logger.info({ voiceId, deliveryMode, styleTag, language, bytes: audio.length }, "Inworld TTS synthesized");
   return audio;
 }
 

@@ -4,7 +4,9 @@ import {
   baseRateFor,
   styleTagFor,
   deliveryModeFor,
+  localeFor,
   PERSONA_SPEAKING_RATE,
+  PERSONA_LOCALE,
   SPEAKING_RATE_MIN,
   SPEAKING_RATE_MAX,
 } from "../services/voice/voice-tuning.js";
@@ -55,6 +57,23 @@ describe("voice-tuning", () => {
       for (const rate of Object.values(PERSONA_SPEAKING_RATE)) {
         expect(rate).toBeGreaterThanOrEqual(SPEAKING_RATE_MIN);
         expect(rate).toBeLessThanOrEqual(SPEAKING_RATE_MAX);
+      }
+    });
+  });
+
+  describe("localeFor — per-persona accent steer", () => {
+    it("steers Cyrus to Hindi (Thomas voice reads Irish; no Persian en-locale exists)", () => {
+      expect(localeFor("cyrus")).toBe("hi-IN");
+    });
+
+    it("returns undefined for personas that use their voice's native accent", () => {
+      expect(localeFor("aurora")).toBeUndefined();
+      expect(localeFor("orion")).toBeUndefined();
+    });
+
+    it("only defines locales as valid BCP-47 language tags", () => {
+      for (const locale of Object.values(PERSONA_LOCALE)) {
+        expect(locale).toMatch(/^[a-z]{2}(-[A-Z]{2})?$/);
       }
     });
   });

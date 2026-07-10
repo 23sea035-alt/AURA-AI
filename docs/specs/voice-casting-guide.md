@@ -12,15 +12,27 @@
 3. **Generate audition clips** of each persona's line (below) and review them in-app.
 4. Tune delivery in `voice-tuning.ts` as needed (mode / rate / style tag) and re-review.
 
-## Locked / in-progress
+## Locked (all 12 cast — 2026-07-10)
+Auditioned on `CREATIVE` per the naturalness probe; env values are the stock voice **names**.
+
 | Persona | Voice | Delivery mode | Notes |
 |---|---|---|---|
-| **Aurora** | **Deborah** ✓ | `CREATIVE` | BALANCED read as "customer support" in testing; CREATIVE is warmer. (Olivia rejected — middle-aged + accented.) |
+| **Aurora** | **Deborah** ✓ | `CREATIVE` | BALANCED read as "customer support"; CREATIVE is warmer. (Olivia rejected — middle-aged + accented.) |
 | **Orion** | **Edward** ✓ | `STABLE` | Tags emphatic / companion / character → fits "direct and grounded." |
-| **Lyra** | **recast** ⟳ | `CREATIVE` | Ashley rejected (too customer-service even on CREATIVE). Needs a bright, expressive, non-corporate voice. |
-| Sage…Wren | open | see table | Audition against the criteria below. |
+| **Lyra** | **Sarah** ✓ | `CREATIVE` | Recast off Ashley (too customer-service). Verified on probe line 3. |
+| **Sage** | **Tunde** ✓ | `STABLE` | Yoruba/Nigerian — matches avatar heritage. |
+| **Amara** | **Saanvi** ✓ | `CREATIVE` | Indian — matches North-Indian avatar. |
+| **Eli** | **Miguel** ✓ | `CREATIVE` | Latino — matches Mexican avatar. Kept CREATIVE (probe passed; warmer than BALANCED). |
+| **Selene** | **Wendy** ✓ | `CREATIVE` | Best mature-F "old voice" candidate; has an accent, accepted. Kept CREATIVE. |
+| **Soren** | **Lucian** ✓ | `STABLE` | Dry/cool, fits deadpan. |
+| **Juno** | **Asuka** ✓ | `CREATIVE` | Bright young F; bump base rate if it drags (base 1.1). |
+| **Thea** | **Svetlana** ✓ | `CREATIVE` | Neutral English read (name irrelevant — only accent is audible). Kept CREATIVE. |
+| **Cyrus** | **Thomas** ✓ | `BALANCED` | Stock Thomas reads Irish. Steered to **Hindi (`hi-IN`)** — Persian has no en-locale; Hindi is closest Indo-Iranian phonology. **BALANCED only** — STABLE/CREATIVE dropped the accent. See §Accent steering. |
+| **Wren** | **Galina** ✓ | `CREATIVE` | Leans slightly F (acceptable for non-binary target). Kept CREATIVE. |
 
-Env for the two locked: `INWORLD_VOICE_ID_AURORA=Deborah`, `INWORLD_VOICE_ID_ORION=Edward` (restart the server).
+Env: all 12 `INWORLD_VOICE_ID_*` are in [`server/.env.example`](../../server/.env.example) with the names
+above — mirror into `server/.env` + set `INWORLD_API_KEY`, then restart the server. Cyrus's Hindi steer is
+wired via `PERSONA_LOCALE` in [`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts).
 
 ## The levers (why "3 settings" isn't the whole story)
 Inworld's stock catalog skews game/commercial, and the delivery **mode** (STABLE / BALANCED / CREATIVE)
@@ -58,10 +70,11 @@ Documented core (not exhaustive — the playground has more, e.g. `companion`, `
 | **Cyrus** | Persian / Iranian (older) | `en-GB`/`en-US`‡ | warm, wise, resonant older M | male, elderly, warm, smooth |
 | **Wren** | Japanese | `en-US`‡ | curious, reflective, soft | non-binary, calm, conversational, smooth |
 
-**Delivery modes in code:** Aurora `CREATIVE` · Orion `STABLE` · Lyra `CREATIVE` · Sage `STABLE` ·
-Amara `CREATIVE` · Eli `BALANCED` · Selene `BALANCED` · Soren `STABLE` · Juno `CREATIVE` · Thea
-`BALANCED` · Cyrus `STABLE` · Wren `BALANCED`. → The four **BALANCED** (Eli, Selene, Thea, Wren) are
-most at risk of the "customer support" flatness — test CREATIVE (or STABLE for the calmer ones).
+**Delivery modes in code** (updated 2026-07-10): Aurora `CREATIVE` · Orion `STABLE` · Lyra `CREATIVE` ·
+Sage `STABLE` · Amara `CREATIVE` · Eli `CREATIVE` · Selene `CREATIVE` · Soren `STABLE` · Juno `CREATIVE` ·
+Thea `CREATIVE` · Cyrus `BALANCED` · Wren `CREATIVE`. → The four formerly-BALANCED (Eli, Selene, Thea,
+Wren) all passed the naturalness probe on CREATIVE and were moved there (warmer, less "customer support"
+flat). Cyrus is the lone `BALANCED` — required for its Hindi accent-steer to persist.
 
 **Base rates:** aurora .98 · orion .95 · lyra 1.05 · sage .88 · amara 1.05 · eli 1.0 · selene .9 ·
 soren .98 · juno 1.1 · thea .95 · cyrus .9 · wren .98 (× the user's pace multiplier, clamped 0.5–1.5).
@@ -74,8 +87,11 @@ soren .98 · juno 1.1 · thea .95 · cyrus .9 · wren .98 (× the user's pace mu
   accents must come from the **voice's native accent** (pick a voice cloned that way) or be accepted as
   neutral. Heritage is primarily the **avatar's**; a neutral/General-American voice for these is normal
   for a US-first app. Don't force a bad-fit accented voice to match heritage.
-- **Pipeline gap:** `synthesizeSpeech` doesn't send `language` today. To use steering in-app, add a
-  per-persona `PERSONA_LOCALE` map + pass `language` in the request (a small, additive change).
+- **Pipeline: WIRED (2026-07-10).** `synthesizeSpeech` now accepts a `language` field, fed from the
+  per-persona `PERSONA_LOCALE` map in [`voice-tuning.ts`](../../server/src/services/voice/voice-tuning.ts)
+  via `localeFor()`. Only Cyrus (`hi-IN`) is steered today; add a persona to that map to steer others.
+  **Caveat:** the crisis path forces `STABLE`, so a Cyrus crisis reply may lose the Hindi accent — safety
+  (calm read) is prioritized over accent authenticity there.
 
 ## Naturalness probe (use FIRST, to filter out rehearsed voices)
 The generic playground demo line is neutral + declarative, which lets announcer/rehearsed voices sound
