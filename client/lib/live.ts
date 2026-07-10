@@ -279,6 +279,9 @@ export async function sendTurn(req: TurnRequest): Promise<TurnResult> {
     }>(`/companions/${req.companionId}/chat`, {
       method: 'POST',
       body: { content: req.content, turnId: req.turnId, sessionStartedAt: req.sessionStartedAt },
+      // A full non-streaming turn (moderation + generation) can legitimately run long — match the
+      // WS path's 90s watchdog instead of the 30s default.
+      timeoutMs: 90_000,
     });
     return {
       reply: data.aiMessage?.content ?? '',

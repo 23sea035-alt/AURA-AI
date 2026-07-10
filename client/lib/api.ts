@@ -33,7 +33,13 @@ interface RequestOpts {
   body?: unknown;
   /** Route replies bare JSON (no { success, data } envelope). */
   raw?: boolean;
+  /** Abort after this many ms (default 30s). Long-running calls (the chat turn) override upward. */
+  timeoutMs?: number;
 }
+
+// Default request deadline. Without one, a stalled response (dead proxy, hung server) leaves the
+// awaiting screen wedged forever — the WS path has a 90s watchdog; REST needs its own.
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 // Wiring-debug tap: EXPO_PUBLIC_LOG_API=true in client/.env logs every live
 // request/response line to Metro (dev only; restart Metro after flipping).
@@ -43,14 +49,27 @@ export async function api<T>(path: string, opts: RequestOpts = {}): Promise<T> {
   const token = await tokenProvider();
   const method = opts.method ?? 'GET';
   const started = Date.now();
-  const res = await fetch(`${apiBaseUrl()}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${apiBaseUrl()}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // Our own deadline fired → normalize to an ApiError so the existing failed-request UI paths
+    // (tap-to-retry etc.) take over. Genuine network errors keep their original shape.
+    if (controller.signal.aborted) throw new ApiError('Request timed out', 408, 'TIMEOUT');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
   if (LOG_API) {
     // eslint-disable-next-line no-console
     console.log(`[api] ${method} ${path} → ${res.status} (${Date.now() - started}ms)`);

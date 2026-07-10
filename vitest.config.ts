@@ -1,6 +1,11 @@
+import path from "node:path";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  resolve: {
+    // Mirror the client's "@/..." import alias so client lib modules are testable here.
+    alias: { "@": path.resolve(__dirname, "client") },
+  },
   test: {
     globals: true,
     environment: "node",
