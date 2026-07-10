@@ -1,10 +1,10 @@
-// Age helpers for the DOB age gate. Framework-agnostic (no RN imports) so they can move to
-// @aura/shared if the backend later needs to derive an age bracket from a stored DOB.
+// Age helpers for the DOB age gate. The policy number (18+) lives in @aura/shared — the server's
+// registration check derives from the same constant; only the calendar math is local.
 
-export const MIN_AGE = 18;
+import { MIN_AGE } from '@aura/shared';
 
 /** Whole-years age as of `now` (defaults to today; pass a fixed date in tests). */
-export function ageFromDate(dob: Date, now: Date = new Date()): number {
+function ageFromDate(dob: Date, now: Date = new Date()): number {
   let age = now.getFullYear() - dob.getFullYear();
   const m = now.getMonth() - dob.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < dob.getDate())) age -= 1;

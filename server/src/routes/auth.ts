@@ -3,10 +3,10 @@ import { eq, and } from "drizzle-orm";
 import { db, usersTable, companionsTable } from "../db/src/index.js";
 import { requireAuth, AuthRequest } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import { UpdateProfileSchema } from "@aura/shared";
+import { MIN_AGE, UpdateProfileSchema } from "@aura/shared";
 import { logger } from "../lib/logger.js";
 
-const EIGHTEEN_YEARS_MS = 18 * 365.25 * 24 * 60 * 60 * 1000;
+const EIGHTEEN_YEARS_MS = MIN_AGE * 365.25 * 24 * 60 * 60 * 1000;
 
 function isAdult(dateOfBirth: string): boolean {
   return Date.now() - new Date(dateOfBirth).getTime() >= EIGHTEEN_YEARS_MS;

@@ -7,6 +7,7 @@ import { validate } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
 import { sendSuccess, sendError } from "../lib/response.js";
 import {
+  CLIENT_TRAITS_KEY,
   CreateCompanionSchema, UpdateCompanionSchema, getPersonaPack, pickOpener,
   activeCompanionCap, totalCompanionCap,
   type PersonaVoicePack, type PersonaTraits,
@@ -16,19 +17,19 @@ const router = Router();
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type IncomingTraits = PersonaTraits & { _client?: Record<string, unknown> };
+type IncomingTraits = PersonaTraits & { [K in typeof CLIENT_TRAITS_KEY]?: Record<string, unknown> };
 
 // Free-tier partial gate (docs/specs/companion-roster.md §9) — never trust the dimmed client. A free
 // caller's trait grid always snaps back to the preset default, and `lookId` (the paid avatar-look
-// surface) is stripped from the `_client` presentation stash. The rest of the stash (persona line,
-// duotone colors) is presentation, not the paid surface, so it round-trips untouched. Premium callers
-// keep whatever validated traits they sent, or the preset default when they omitted traits entirely.
+// surface) is stripped from the CLIENT_TRAITS_KEY presentation stash. The rest of the stash (persona
+// line, duotone colors) is presentation, not the paid surface, so it round-trips untouched. Premium
+// callers keep whatever validated traits they sent, or the preset default when they omitted traits.
 function coerceTraitsForTier(pack: PersonaVoicePack, traits: IncomingTraits | undefined, isPremium: boolean): unknown {
   if (isPremium) return traits ?? { ...pack.defaultTraits };
-  const stash = traits?._client;
+  const stash = traits?.[CLIENT_TRAITS_KEY];
   if (!stash) return { ...pack.defaultTraits };
   const { lookId: _lookId, ...rest } = stash;
-  return { ...pack.defaultTraits, _client: rest };
+  return { ...pack.defaultTraits, [CLIENT_TRAITS_KEY]: rest };
 }
 
 // GET /api/companions

@@ -1,4 +1,5 @@
 import { eq, lte, and, isNotNull, sql } from "drizzle-orm";
+import { ACCOUNT_GRACE_DAYS } from "@aura/shared";
 import { createClerkClient } from "@clerk/backend";
 import { db, usersTable, messagesTable, companionsTable, memoriesTable, subscriptionsTable, memoryJobsTable, safetyEventsTable, bannedIdentitiesTable } from "../db/src/index.js";
 import { logger } from "../lib/logger.js";
@@ -22,7 +23,9 @@ async function deleteClerkUser(clerkUserId: string | null): Promise<boolean> {
 
 // ALL hardcoded retention numbers are defaults — LEGAL-REVIEW before launch
 const RETENTION_DAYS_BANNED_IDENTITIES = 730; // LEGAL-REVIEW
-const GRACE_DAYS_SOFT_DELETE = 30; // LEGAL-REVIEW
+// The grace window itself lives in @aura/shared (the client's reactivation offer shows the same
+// deadline). LEGAL-REVIEW happens there.
+const GRACE_DAYS_SOFT_DELETE = ACCOUNT_GRACE_DAYS;
 // E-3 tiered content-scrub windows (data-retention-policy.md §3): raw flagged content is nulled
 // after its tier window; T3 stores no content at write time so it has nothing to scrub.
 const SCRUB_DAYS_CONTENT_T1 = 90; // LEGAL-REVIEW — crisis / zero-tolerance evidence

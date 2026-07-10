@@ -180,6 +180,14 @@ export const MODERATION_OUTPUT_THRESHOLDS: Record<string, number> = {
 // suspensions are a manual human decision off the safety_events review queue (D-1, 2026-07-10).
 export const FLAGGED_USER_WINDOW_DAYS = 30;
 
+// Age gate: Aura is 18+ (both the server's registration check and the client's DOB validation
+// derive their math from this one policy number).
+export const MIN_AGE = 18;
+
+// Soft-deleted accounts stay recoverable this long before the retention job hard-purges them;
+// the client's reactivation offer computes its deadline from the same number. LEGAL-REVIEW.
+export const ACCOUNT_GRACE_DAYS = 30;
+
 export const SAFE_FALLBACK_REPLY = "I need to be careful with my response here. Let me think about how to respond thoughtfully to what you've shared.";
 
 // ── Request DTOs ───────────────────────────────────────────────────────
@@ -189,12 +197,14 @@ export const ChatInputSchema = z.object({
   sessionStartedAt: z.string().optional(),
 });
 
-// Companion traits as stored: the tuned grid point plus an opaque `_client`
-// presentation stash (duotone, look, persona line) the server round-trips
-// untouched — except the free-tier coercion, which forces the grid back to the
-// preset defaults and strips the paid `lookId` (docs/specs/companion-roster.md §9).
+// Companion traits as stored: the tuned grid point plus an opaque presentation stash
+// (duotone, look, persona line) the server round-trips untouched — except the free-tier
+// coercion, which forces the grid back to the preset defaults and strips the paid `lookId`
+// (docs/specs/companion-roster.md §9). The stash key is shared so client and server never
+// spell it independently.
+export const CLIENT_TRAITS_KEY = '_client';
 export const CompanionTraitsSchema = PersonaTraitsSchema.extend({
-  _client: z.record(z.string(), z.unknown()).optional(),
+  [CLIENT_TRAITS_KEY]: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const CreateCompanionSchema = z.object({

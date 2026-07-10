@@ -18,8 +18,7 @@ import { FONTS, SPACE, TYPE } from '@/constants/design';
 import { useApp } from '@/context/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { fetchAccountStatus } from '@/lib/backend';
-
-const GRACE_DAYS = 30;
+import { ACCOUNT_GRACE_DAYS } from '@aura/shared';
 
 export default function LoginScreen() {
   const { colors, mode } = useTheme();
@@ -42,7 +41,7 @@ export default function LoginScreen() {
   const proceed = async (creds: { email: string; password: string }) => {
     const status = await fetchAccountStatus();
     if (status.status === 'deactivated' && status.deletedAt) {
-      const purge = new Date(new Date(status.deletedAt).getTime() + GRACE_DAYS * 86400000);
+      const purge = new Date(new Date(status.deletedAt).getTime() + ACCOUNT_GRACE_DAYS * 86400000);
       setPending({
         purgeDate: purge.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }),
         ...creds,
