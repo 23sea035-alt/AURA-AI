@@ -19,7 +19,6 @@ import {
   MODERATION_TIMEOUTS,
   SAFE_FALLBACK_REPLY,
   FLAGGED_USER_WINDOW_DAYS,
-  FLAGGED_USER_SUSPEND_THRESHOLD,
   ChatInputSchema,
   CreateCompanionSchema,
   UpdateCompanionSchema,
@@ -230,9 +229,6 @@ describe("FLAGGED_USER config", () => {
     expect(FLAGGED_USER_WINDOW_DAYS).toBe(30);
   });
 
-  it("FLAGGED_USER_SUSPEND_THRESHOLD is 3", () => {
-    expect(FLAGGED_USER_SUSPEND_THRESHOLD).toBe(3);
-  });
 });
 
 describe("SAFE_FALLBACK_REPLY", () => {

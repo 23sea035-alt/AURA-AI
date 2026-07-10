@@ -608,3 +608,19 @@ Client changes made while cutting the demo videos (all mock-verified on the 16e)
   footer overlays the bottom). Mock returns representative prices ($12.99/mo, $99.99/yr); live still
   reads store-truth.
 - Camera-paced Maestro recording flows added under `scripts/ui-probe/flows/` (`demo-take-*`).
+
+## 2026-07-10 — portraits wired, voice prefs simplified, REST timeout
+
+- **All 12 gallery portraits wired** (`components/companion/portraits.ts`): the nine (amara, cyrus,
+  eli, juno, sage, selene, soren, thea, wren) now map to their committed masters (assets landed in
+  `d0c23fe`, Lyra reskinned redhead) instead of the duotone monogram fallback. **Sim-verify still
+  pending** (relaunch, not fast-refresh).
+- **Voice preferences simplified** (`voice-preferences.tsx`, `useVoicePrefs`): the voice PICKER is
+  gone — timbre is fixed per persona (server-side Inworld casting; `VOICE_OPTIONS`/`voiceId` pref
+  removed). The screen is now captions + **speaking pace** (`relaxed / natural / quick` — "brisk"
+  renamed). Pace ships on the `voice_start` frame and multiplies the persona's base TTS rate
+  server-side (0.85 / 1.0 / 1.15, from `@aura/shared`); crisis replies always speak at base tempo.
+- **REST timeout** (`lib/api.ts`): every live request aborts on a deadline (30s default; the chat
+  turn overrides to 90s to match the WS watchdog) and surfaces `ApiError(408, 'TIMEOUT')` so failed
+  sends land in tap-to-retry instead of a forever-spinner. Vitest gained the `@` alias; fake-timer
+  tests cover default/override/completion.

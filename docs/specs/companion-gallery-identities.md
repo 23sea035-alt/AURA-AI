@@ -28,11 +28,13 @@ contracts (retired `BASE_VOICES`; fixed Orion's stale coach voice). All 12 packs
   `PERSONA_KEY` in `@aura/shared` now spans 12 and is the single source of truth — client picker,
   API schema, and the DB check all derive from it; a public `PERSONA_PRESETS` projection
   (id/name/tagline/defaultTraits) drives the client without shipping the prompt IP.
-- **Remaining (deferred, not code):** the 9 non-anchor **avatars** (art) and per-preset **`voiceId`**
-  Inworld casting (currently env-keyed to the 3 anchors; the 9 fall back to a default voice).
+- **COMPLETE (2026-07-10):** the 9 non-anchor **avatars** shipped (all 12 masters committed
+  `d0c23fe`, Lyra reskinned redhead; wired in `client/components/companion/portraits.ts` —
+  sim-verify pending) and **all 12 voices cast** (env-keyed `INWORLD_VOICE_ID_<PERSONA>`; per-persona
+  delivery mode / base rate / accent steer in `voice-tuning.ts`; see
+  [voice-casting-guide.md](voice-casting-guide.md)).
 
-The live path already runs all 12 on the new packs; only the gallery UI is art-gated (still shows the 3
-anchors until the 9 portraits ship, then surfaces the rest via `PERSONA_GALLERY`).
+The live path runs all 12 on the new packs with portraits and cast voices; nothing is art-gated.
 
 ## The 12
 

@@ -181,8 +181,10 @@ export const MODERATION_TIMEOUTS = {
   L3_SAFEGUARD_MS: 4000,
 } as const;
 
+// Flagged-user window: a user with a safety event inside this window gets the moderation engine's
+// widened escalation band (repeat-offender handling). NOTE: no suspension threshold exists —
+// suspensions are a manual human decision off the safety_events review queue (D-1, 2026-07-10).
 export const FLAGGED_USER_WINDOW_DAYS = 30;
-export const FLAGGED_USER_SUSPEND_THRESHOLD = 3;
 
 export const SAFE_FALLBACK_REPLY = "I need to be careful with my response here. Let me think about how to respond thoughtfully to what you've shared.";
 

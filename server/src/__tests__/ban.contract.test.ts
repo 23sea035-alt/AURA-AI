@@ -15,11 +15,6 @@ vi.mock("../db/src/index.js", () => ({
   safetyEventsTable: { userId: "user_id", createdAt: "created_at" },
 }));
 
-vi.mock("@aura/shared", () => ({
-  FLAGGED_USER_WINDOW_DAYS: 30,
-  FLAGGED_USER_SUSPEND_THRESHOLD: 3,
-}));
-
 vi.mock("../lib/crypto.js", () => ({
   hashIdentifier: vi.fn((s: string) => `hash_${s}`),
 }));

@@ -32,6 +32,13 @@
 > writing (`app_store`/`normal` etc.; unknown period → `null`). `users.date_of_birth` is now a
 > `date` column (was `text`). PKs are **UUIDv4** (`defaultRandom()`) — see Conventions. Added
 > `idx_safety_events_review (status, severity, created_at)` for the review queue.
+>
+> **Update 2026-07-10 (migration `0006`).** Tiered safety-event content retention (E-3):
+> `safety_events` gains `content_tier` (`text NOT NULL DEFAULT 'T2'`, CHECK `T1|T2|T3`) and
+> `legal_hold` (`boolean NOT NULL DEFAULT false`). The tier is assigned at write time
+> (`safety-logging.ts`: T1 crisis/sexual-minors = full content · T2 = ≤300-char snippet · T3
+> injection = no content); the retention job scrubs `flagged_content` per tier window (90d/180d,
+> LEGAL-REVIEW) and **keeps the row permanently** — the flat 365-day row delete is gone.
 
 ---
 
@@ -258,7 +265,9 @@ safety_events
   model           text nullable         -- MODERATOR_MODEL
   severity        text notNull default 'info'   -- SAFETY_SEVERITY (CHECK)
   detail          text nullable
-  flagged_content text nullable         -- SENSITIVE; retain-in-full vs scrub-to-metadata = legal decision
+  flagged_content text nullable         -- SENSITIVE; shaped at write time by content_tier, scrubbed by the retention job
+  content_tier    text notNull default 'T2'     -- CHECK T1|T2|T3 (migration 0006) — retention tier, set at write time
+  legal_hold      boolean notNull default false -- pauses the content-scrub clock (claim/investigation/LE preservation)
   status          text notNull default 'open'   -- SAFETY_STATUS (CHECK) — review queue
   action          text nullable         -- SAFETY_ACTION
   reviewed_at     timestamptz nullable

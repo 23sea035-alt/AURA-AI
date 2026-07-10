@@ -1,9 +1,10 @@
 # Aura v1 — Go-Live Checklist
 
-**Status:** the backend **code is v1-complete and green** (633 tests pass as of 2026-07-07,
-typecheck clean, lint 0 errors; migrate-on-boot wired; `render.yaml` complete). Everything below is
-**ops / config / legal** — none of it is code. Work top-to-bottom; each gate is a hard prerequisite
-for the next.
+**Status:** the backend **code is v1-complete and green** (675 tests pass as of 2026-07-10,
+typecheck clean, lint 0 errors; migrate-on-boot wired; `render.yaml` complete — includes all 12
+`INWORLD_VOICE_ID_*` slots). The 2026-07-09 production-readiness audit's P0/P1 code findings are
+**all remediated** (see `docs/CHANGELOG.md` 2026-07-10). Everything below is **ops / config /
+legal** — none of it is code. Work top-to-bottom; each gate is a hard prerequisite for the next.
 
 Canonical branch: **`redesign`** (the former `backend`/`fable5-rebuild` lines are merged into it). Deploy target: **Render** (`render.yaml`, `plan: starter` = single
 instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)).
@@ -28,9 +29,11 @@ instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)
     | grep -E "prompt-guard|safeguard|whisper-large-v3-turbo"
   ```
   If any are missing/deprecated, pick a replacement in `server/src/services/llm/model-selector.ts`.
-- [ ] **Inworld — create 3 voices** (Aurora / Orion / Lyra) in the TTS portal; copy each voice ID.
-  Casting guide + style tags are in [the archived backend TODO §1–2](archive/TODO-backend-era.md). *Until these are set, voice sessions
-  run but produce **no audio** (TTS skips gracefully).*
+- [ ] **Inworld — set the 12 cast voice IDs in the prod env.** All 12 personas were cast + tuned
+  2026-07-10 (voice ids in [`server/.env.example`](../server/.env.example); per-persona delivery in
+  `voice-tuning.ts`; guide: [specs/voice-casting-guide.md](specs/voice-casting-guide.md)). Copy the
+  ids into Render. *An unset id = that persona's voice sessions run but produce **no audio** (TTS
+  skips gracefully).*
 - [ ] **Neon — provision the production database on the Launch plan** (separate from dev). *Free tier
   is unsafe for prod:* hitting any Free cap (100 CU-hrs / 0.5 GB / 5 GB egress) **suspends compute until
   next month** — the DB goes offline mid-month. Launch is pay-as-you-go, no minimum (~$5–20/mo small
@@ -62,7 +65,7 @@ Every var below is declared `sync: false` in `render.yaml` and **must be set in 
 | `REVENUECAT_WEBHOOK_SECRET` | RevenueCat prod |
 | `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_KEY_FILE`, `APNS_ENVIRONMENT` | Apple push key |
 | `BANNED_IDENTITY_PEPPER` | generate a strong random secret (used to hash banned identities) |
-| `INWORLD_API_KEY`, `INWORLD_VOICE_ID_AURORA`, `INWORLD_VOICE_ID_ORION`, `INWORLD_VOICE_ID_LYRA` | Inworld |
+| `INWORLD_API_KEY` + `INWORLD_VOICE_ID_<PERSONA>` × 12 (aurora…wren; values in `server/.env.example`) | Inworld |
 | `SENTRY_DSN` | Sentry (optional) |
 
 - [ ] All required vars set in Render. (Server validates critical secrets at startup — a missing one
@@ -99,7 +102,8 @@ Every var below is declared `sync: false` in `render.yaml` and **must be set in 
 - [ ] **Text turn (WS streaming):** open the chat WebSocket → tokens stream sentence-by-sentence.
 - [ ] **Voice:** `POST /api/voice/start` → speak → hear in-character audio → `POST /api/voice/stop`;
   confirm usage metered into `voice_usage` and daily/per-call caps enforced. Repeat per persona to
-  sanity-check the three voice IDs (feeds the §2 expression-tuning QA pass).
+  sanity-check the twelve voice IDs (feeds the expression-tuning QA pass in
+  [specs/voice-casting-guide.md](specs/voice-casting-guide.md)).
 - [ ] **Memory:** after a few turns, confirm a `memory_jobs` row is consolidated by the worker and a
   memory surfaces on a later relevant turn.
 - [ ] **Payments:** a sandbox purchase flips the user to premium (RevenueCat webhook path).

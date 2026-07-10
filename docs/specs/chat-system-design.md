@@ -144,6 +144,8 @@ Server → client:
                     breakReminder, aiDisclosure, crisisResources, companionId }
 // Moderation block, LLM error, or rate limit:
 { type: "abort",    code: AbortReason, detail?: string, companionId: string }
+// Zero-tolerance (sexual/minors) input block: the abort frame is delivered, then the server
+// CLOSES the socket (1008 policy_violation) — session drop per moderation spec §4 (2026-07-10).
 { type: "error",    code: string }                         // malformed / unknown frame
 { type: "auth_ok" } | { type: "auth_expired" }             // response to refresh_auth
 ```
@@ -291,7 +293,7 @@ audio. On the server, check `typeof message === 'string'` vs `message instanceof
 > | Dir | Frame | Meaning |
 > |---|---|---|
 > | C→S | *(binary)* raw audio bytes | one complete utterance (Apple-VAD chunk); rejected if > `MAX_UTTERANCE_BYTES` (2 MB) |
-> | C→S | `{ type: "voice_start", companionId, sessionStartedAt? }` | open a call (persona + tier lookup, pre-gen fillers); re-start closes the prior session |
+> | C→S | `{ type: "voice_start", companionId, sessionStartedAt?, pace? }` | open a call (persona + tier lookup, pre-gen fillers); re-start closes the prior session. `pace` (relaxed/natural/quick, added 2026-07-10) multiplies the persona's base TTS rate for the call |
 > | C→S | `{ type: "voice_interrupt", transcript? }` | barge-in: aborts the in-flight reply; server classifies the interjection |
 > | C→S | `{ type: "voice_stop" }` | end the call |
 > | S→C | `{ type: "voice_ready", companionId, remainingSeconds }` | call open, ready for audio |

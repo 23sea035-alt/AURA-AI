@@ -23,6 +23,7 @@ import {
   SAFE_FALLBACK_REPLY,
   MEMORY_RETRIEVAL_TOP_N,
   HISTORY_WINDOW,
+  FLAGGED_USER_WINDOW_DAYS,
 } from "@aura/shared";
 import type { PersonaTraits, PersonaKey } from "@aura/shared";
 
@@ -71,7 +72,7 @@ export interface ChatSessionResult {
 const CRISIS_RESOURCES = ["988 Suicide & Crisis Lifeline: Call or text 988 (US)"];
 // Flagged-user window: a user with a safety event inside this window gets the engine's
 // widened escalation band (repeat-offender handling). Mirrors the moderation spec §4.
-const FLAGGED_USER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const FLAGGED_USER_WINDOW_MS = FLAGGED_USER_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
 /**
  * Shared execution engine for a single chat turn (text + voice adapters sit on top).
