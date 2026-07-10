@@ -77,6 +77,24 @@ export const webhookLimiter = rateLimit({
   },
 });
 
+// Data-export limiter (keyed by user): the export endpoint aggregates EVERYTHING we hold on a
+// user in one response — expensive to build and the most sensitive payload we serve, so keep it
+// to a handful per hour (legitimate use is ~once, ever).
+const EXPORT_WINDOW_MS = 60 * 60 * 1000;
+const EXPORT_MAX = 5;
+export const exportLimiter = rateLimit({
+  windowMs: EXPORT_WINDOW_MS,
+  max: EXPORT_MAX,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator,
+  store: new PgRateLimitStore("export"),
+  handler: (_req, res) => {
+    incrementMetric("rate_limit.429.export");
+    res.status(429).json({ error: "Too many export requests — please try again later.", code: "RATE_LIMITED" });
+  },
+});
+
 // Baseline per-IP limiter for all /api traffic — restores the global limiter that was
 // dropped during the refactor.
 export const apiLimiter = rateLimit({

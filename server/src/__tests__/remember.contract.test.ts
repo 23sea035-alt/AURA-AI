@@ -44,6 +44,7 @@ vi.mock("../db/src/index.js", async (importOriginal) => {
 
 vi.mock("../services/auth/clerk.middleware.js", () => ({
   requireAuth: (req: any, _res: any, next: any) => { req.userId = "u1"; req.clerkUserId = "clerk_u1"; next(); },
+  requireAuthAllowDeleted: (req: any, _res: any, next: any) => { req.userId = "u1"; req.clerkUserId = "clerk_u1"; next(); },
   optionalAuth: (_req: any, _res: any, next: any) => { next(); },
 }));
 

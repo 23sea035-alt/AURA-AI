@@ -42,11 +42,13 @@ function getVerifyOptions() {
   return { secretKey: getEnv().CLERK_SECRET_KEY };
 }
 
-export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+/** Verify the Clerk token + load the local user, sending the error reply itself on any failure.
+ * Returns null when a response has already been sent. Status gating is the caller's job. */
+async function verifyAndLoadUser(req: AuthRequest, res: Response): Promise<{ id: string; status: string } | null> {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized", code: "NO_TOKEN" });
-    return;
+    return null;
   }
 
   try {
@@ -55,7 +57,7 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
 
     if (!jwtPayload.sub) {
       res.status(401).json({ error: "Invalid session", code: "INVALID_SESSION" });
-      return;
+      return null;
     }
 
     req.clerkUserId = jwtPayload.sub;
@@ -63,21 +65,46 @@ export async function requireAuth(req: AuthRequest, res: Response, next: NextFun
     const localUser = await lookupLocalUser(jwtPayload.sub);
     if (!localUser) {
       res.status(404).json({ error: "User not found. Complete registration first.", code: "USER_NOT_FOUND" });
-      return;
+      return null;
     }
 
-    if (localUser.status !== "active") {
-      res.status(403).json({ error: "Account is not active", code: "ACCOUNT_SUSPENDED" });
-      return;
-    }
-
-    req.userId = localUser.id;
-    next();
+    return { id: localUser.id, status: localUser.status };
   } catch (err) {
     const { code, status, message } = mapClerkError(err);
     logger.warn({ err: message, code }, "Auth token verification failed");
     res.status(status).json({ error: message, code });
+    return null;
   }
+}
+
+export async function requireAuth(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const user = await verifyAndLoadUser(req, res);
+  if (!user) return;
+
+  if (user.status !== "active") {
+    res.status(403).json({ error: "Account is not active", code: "ACCOUNT_SUSPENDED" });
+    return;
+  }
+
+  req.userId = user.id;
+  next();
+}
+
+/** Auth for the account-reactivation flow ONLY: same Clerk verification as requireAuth, but also
+ * admits soft-DELETED accounts — requireAuth's active-only gate would 403 the very users the
+ * reactivate route exists for (the 30-day undo window). Banned/suspended stay blocked: reactivation
+ * must never be a side door around an enforcement action. */
+export async function requireAuthAllowDeleted(req: AuthRequest, res: Response, next: NextFunction): Promise<void> {
+  const user = await verifyAndLoadUser(req, res);
+  if (!user) return;
+
+  if (user.status !== "active" && user.status !== "deleted") {
+    res.status(403).json({ error: "Account is not active", code: "ACCOUNT_SUSPENDED" });
+    return;
+  }
+
+  req.userId = user.id;
+  next();
 }
 
 export async function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction): Promise<void> {

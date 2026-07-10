@@ -47,6 +47,11 @@ vi.mock("../services/auth/clerk.middleware.js", () => ({
     if (!uid) { res.status(401).json({ error: "Unauthorized", code: "NO_TOKEN" }); return; }
     req.userId = uid; req.clerkUserId = "clerk_" + uid; next();
   },
+  requireAuthAllowDeleted: (req: any, res: any, next: any) => {
+    const uid = req.headers["x-test-user-id"] as string | undefined;
+    if (!uid) { res.status(401).json({ error: "Unauthorized", code: "NO_TOKEN" }); return; }
+    req.userId = uid; req.clerkUserId = "clerk_" + uid; next();
+  },
   optionalAuth: (req: any, _res: any, next: any) => {
     const uid = req.headers["x-test-user-id"] as string | undefined;
     if (uid) { req.userId = uid; req.clerkUserId = "clerk_" + uid; }

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 import { db, usersTable, messagesTable, companionsTable, memoriesTable, deviceTokensTable, safetyEventsTable, bannedIdentitiesTable, subscriptionsTable } from "../db/src/index.js";
-import { requireAuth, requireAdmin, AuthRequest } from "../middleware/auth.js";
-import { authBruteForceLimiter } from "../middleware/rate-limit.js";
+import { requireAuth, requireAuthAllowDeleted, requireAdmin, AuthRequest } from "../middleware/auth.js";
+import { authBruteForceLimiter, exportLimiter } from "../middleware/rate-limit.js";
 import { validate } from "../middleware/validate.js";
 import { logger } from "../lib/logger.js";
 import { hashIdentifier } from "../lib/crypto.js";
@@ -53,8 +53,10 @@ router.delete("/account", requireAuth, async (req: AuthRequest, res) => {
   }
 });
 
-// PATCH /api/account/reactivate — Restore soft-deleted account within grace period
-router.patch("/account/reactivate", requireAuth, async (req: AuthRequest, res) => {
+// PATCH /api/account/reactivate — Restore soft-deleted account within grace period.
+// requireAuthAllowDeleted (NOT requireAuth): the plain gate 403s any non-active status, which made
+// this route unreachable for the exact users it serves (E-1). Banned/suspended remain blocked.
+router.patch("/account/reactivate", requireAuthAllowDeleted, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
 
@@ -79,8 +81,9 @@ router.patch("/account/reactivate", requireAuth, async (req: AuthRequest, res) =
   }
 });
 
-// GET /api/account/export — Data export (GDPR)
-router.get("/account/export", requireAuth, async (req: AuthRequest, res) => {
+// GET /api/account/export — Data export (GDPR). Rate-limited: the single most sensitive payload
+// we serve (everything we hold on the user), and expensive to assemble. Never log the payload.
+router.get("/account/export", requireAuth, exportLimiter, async (req: AuthRequest, res) => {
   try {
     const userId = req.userId!;
 
