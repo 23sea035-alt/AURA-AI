@@ -30,6 +30,25 @@ describe("makeTextAdapter", () => {
     expect(mockSendJsonFrame).toHaveBeenCalledWith(ws, { type: "abort", code: "rate_limited", detail: undefined, companionId });
   });
 
+  it("onAbort with terminateSession delivers the abort THEN closes the socket (1008)", async () => {
+    const close = vi.fn();
+    const wsWithClose = { close } as any;
+    const { makeTextAdapter } = await import("../services/chat/text-adapter.js");
+    const adapter = makeTextAdapter(wsWithClose, companionId);
+    adapter.onAbort("input_blocked", "Blocked", { terminateSession: true });
+    expect(mockSendJsonFrame).toHaveBeenCalledWith(wsWithClose, expect.objectContaining({ type: "abort", code: "input_blocked" }));
+    expect(close).toHaveBeenCalledWith(1008, "policy_violation");
+  });
+
+  it("onAbort without terminateSession leaves the socket open", async () => {
+    const close = vi.fn();
+    const wsWithClose = { close } as any;
+    const { makeTextAdapter } = await import("../services/chat/text-adapter.js");
+    const adapter = makeTextAdapter(wsWithClose, companionId);
+    adapter.onAbort("input_blocked", "Blocked");
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it("onComplete sends complete frame with all fields", async () => {
     const { makeTextAdapter } = await import("../services/chat/text-adapter.js");
     const adapter = makeTextAdapter(ws, companionId);

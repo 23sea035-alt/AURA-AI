@@ -7,8 +7,11 @@ export function makeTextAdapter(ws: WebSocket, companionId: string): ChatSession
     onToken(token: string) {
       sendJsonFrame(ws, { type: "token", token, companionId });
     },
-    onAbort(reason: AbortReason, detail?: string) {
+    onAbort(reason: AbortReason, detail?: string, opts?: { terminateSession?: boolean }) {
       sendJsonFrame(ws, { type: "abort", code: reason, detail, companionId });
+      // Zero-tolerance session drop (spec §4): deliver the abort, then close the socket with the
+      // RFC 6455 policy-violation code. The handler's on-close cleanup tears the rest down.
+      if (opts?.terminateSession) ws.close(1008, "policy_violation");
     },
     onComplete(result: ChatSessionResult) {
       sendJsonFrame(ws, {

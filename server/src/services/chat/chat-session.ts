@@ -42,7 +42,10 @@ export interface ChatSessionCallbacks {
    */
   onToken?: (token: string, opts?: { crisis?: boolean }) => void;
   onComplete: (result: ChatSessionResult) => void;
-  onAbort: (reason: AbortReason, detail?: string) => void;
+  /** `opts.terminateSession` = zero-tolerance hit (sexual/minors): after delivering the abort, the
+   * adapter should DROP the whole session (close the WS / end the call), not just fail the turn —
+   * moderation spec §4. The REST path is stateless and ignores it. */
+  onAbort: (reason: AbortReason, detail?: string, opts?: { terminateSession?: boolean }) => void;
 }
 
 export interface ChatSessionParams {
@@ -208,14 +211,19 @@ export class ChatSession {
       if (inputVerdict.action === "block") {
         const isInjection = inputVerdict.layer.includes("L1")
           || inputVerdict.categories.some((c) => c.category === "injection");
+        // Zero-tolerance (sexual/minors, spec §4): severity CRITICAL so it surfaces at the top of
+        // the admin review queue, and the session is dropped (not just the turn). The user-facing
+        // message stays the generic block — never reveal which boundary tripped.
+        const isZeroTolerance = inputVerdict.categories.some((c) => c.category === "sexual/minors");
         await logSafetyEvent(userId, isInjection ? "injection_detected" : "input_blocked", {
-          severity: "warning", detail: inputVerdict.reason, content: trimmed,
+          severity: isZeroTolerance ? "critical" : "warning", detail: inputVerdict.reason, content: trimmed,
           companionId, category: inputVerdict.categories[0]?.category,
         });
         // Policy: the violation is logged to `safety_events` (above) for HUMAN review and the user
         // is warned via the block below. We do NOT auto-suspend — suspensions are a manual decision
         // a developer makes after evaluating the logged events (no automated account action).
-        callbacks.onAbort("input_blocked", inputVerdict.reason ?? "Blocked");
+        callbacks.onAbort("input_blocked", inputVerdict.reason ?? "Blocked",
+          isZeroTolerance ? { terminateSession: true } : undefined);
         return;
       }
 
@@ -334,8 +342,11 @@ export class ChatSession {
 
       // ── Resolve final reply + persist ──────────────────────────────
       if (outputBlocked) {
+        // A sexual/minors OUTPUT block is the model's fault, not the user's — no session drop, but
+        // it IS a critical incident (a jailbreak may be steering the model there): review-queue it.
         await logSafetyEvent(userId, "output_blocked", {
-          severity: "warning", content: blockedDraft || approved,
+          severity: blockedCategory === "sexual/minors" ? "critical" : "warning",
+          content: blockedDraft || approved,
           companionId, category: blockedCategory, source: "output",
         });
       }

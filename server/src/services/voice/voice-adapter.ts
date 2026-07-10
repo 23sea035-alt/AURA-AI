@@ -56,9 +56,12 @@ export function makeVoiceAdapter(
       });
     },
 
-    onAbort(reason: AbortReason, detail?: string) {
+    onAbort(reason: AbortReason, detail?: string, opts?: { terminateSession?: boolean }) {
       session.transitionTo("IDLE");
       sendJsonFrame(ws, { type: "abort", code: reason, detail, companionId });
+      // Zero-tolerance session drop (spec §4): end the call, not just the turn. Closing the socket
+      // runs the handler's cleanup (voiceSession.close(), turn abort, connection unbind).
+      if (opts?.terminateSession) ws.close(1008, "policy_violation");
     },
 
     onComplete(result: ChatSessionResult) {

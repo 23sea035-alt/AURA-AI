@@ -307,17 +307,35 @@ describe("ChatSession", () => {
     const { ChatSession } = await import("../services/chat/chat-session.js");
     await new ChatSession(defaultParams()).run(callbacks());
     expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "injection_detected", expect.any(Object));
-    // Policy: the violation is logged (above) + the user warned (onAbort below); no auto-suspension.
-    expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Injection blocked by prompt-guard");
+    // Policy: the violation is logged (above) + the user warned (onAbort below); no auto-suspension,
+    // and no session drop for non-zero-tolerance categories (third arg undefined).
+    expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Injection blocked by prompt-guard", undefined);
     expect(mockOnComplete).not.toHaveBeenCalled();
   });
 
-  it("input block (content layer) logs input_blocked", async () => {
+  it("D-3: a sexual/minors block is logged CRITICAL and drops the session (zero-tolerance)", async () => {
     mockScreenInput.mockResolvedValue({ action: "block", categories: [{ category: "sexual/minors", score: 0.9 }], escalated: false, layer: "L2", policyVersion: "v", reason: "Zero-tolerance" });
     const { ChatSession } = await import("../services/chat/chat-session.js");
     await new ChatSession(defaultParams()).run(callbacks());
-    expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "input_blocked", expect.any(Object));
-    expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Zero-tolerance");
+    expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "input_blocked", expect.objectContaining({ severity: "critical" }));
+    expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Zero-tolerance", { terminateSession: true });
+  });
+
+  it("an ordinary content block stays warning severity with no session drop", async () => {
+    mockScreenInput.mockResolvedValue({ action: "block", categories: [{ category: "hate", score: 0.8 }], escalated: false, layer: "L2", policyVersion: "v", reason: "Blocked" });
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession(defaultParams()).run(callbacks());
+    expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "input_blocked", expect.objectContaining({ severity: "warning" }));
+    expect(mockOnAbort).toHaveBeenCalledWith("input_blocked", "Blocked", undefined);
+  });
+
+  it("D-3: a sexual/minors OUTPUT block is logged critical (model-fault: no session drop)", async () => {
+    mockScreenOutput.mockResolvedValue({ action: "block", categories: [{ category: "sexual/minors", score: 0.9 }], escalated: false, layer: "L3", policyVersion: "v" });
+    setStreamingProvider(["A sentence that fails L3. "]);
+    const { ChatSession } = await import("../services/chat/chat-session.js");
+    await new ChatSession(defaultParams()).run(callbacks());
+    expect(mockLogSafetyEvent).toHaveBeenCalledWith("u1", "output_blocked", expect.objectContaining({ severity: "critical" }));
+    expect(mockOnComplete).toHaveBeenCalled(); // turn completes with the safe fallback; no drop
   });
 
   it("input crisis returns crisis resources and does not generate", async () => {
