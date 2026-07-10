@@ -7,7 +7,7 @@
 import { DEMO } from '@/constants/demo';
 import type { Companion } from '@/lib/models';
 
-export interface PersonaSeed {
+interface PersonaSeed {
   name: string;
   persona: string;
   traits: string[];
@@ -15,7 +15,7 @@ export interface PersonaSeed {
   colorTo: string;
 }
 
-export const PERSONA_SEEDS: Record<'aurora' | 'orion' | 'lyra', PersonaSeed> = {
+const PERSONA_SEEDS: Record<'aurora' | 'orion' | 'lyra', PersonaSeed> = {
   aurora: {
     name: 'Aurora',
     persona:

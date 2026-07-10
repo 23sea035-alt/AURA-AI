@@ -11,7 +11,7 @@ import { CLERK_PUBLISHABLE_KEY } from '@/lib/env';
 
 export { tokenCache };
 
-export const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
+const clerkEnabled = !!CLERK_PUBLISHABLE_KEY;
 
 function instance() {
   return getClerkInstance({ publishableKey: CLERK_PUBLISHABLE_KEY, tokenCache });

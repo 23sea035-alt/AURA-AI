@@ -10,7 +10,7 @@ import Svg, { Defs, LinearGradient, Stop, Filter, FeDropShadow, Path } from 'rea
 
 import { DURATION, EASING } from '@/constants/motion';
 
-export type BubblePreset = {
+type BubblePreset = {
   bodyPath: string;
   vbW: number;
   vbH: number;

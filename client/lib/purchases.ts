@@ -12,7 +12,7 @@ import Purchases, { type PurchasesPackage } from 'react-native-purchases';
 
 import { RC_PRODUCT_MONTHLY, RC_PRODUCT_YEARLY, REVENUECAT_IOS_KEY } from '@/lib/env';
 
-export const purchasesEnabled = !!REVENUECAT_IOS_KEY;
+const purchasesEnabled = !!REVENUECAT_IOS_KEY;
 
 let configuredFor: string | null = null;
 
