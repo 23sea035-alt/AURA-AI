@@ -6,9 +6,10 @@ import { View, Text, StyleSheet } from 'react-native';
 
 import BottomSheet from '@/components/BottomSheet';
 import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
+import { looksAvailableFor } from '@/components/companion/portraits';
 import { PressableScale } from '@/components/motion';
 import { FONTS, RADIUS, SPACE, TYPE } from '@/constants/design';
-import { LOOKS } from '@/constants/looks';
+import { lookById } from '@/constants/looks';
 import { useTheme } from '@/hooks/useTheme';
 
 export function LookSheet({
@@ -27,17 +28,18 @@ export function LookSheet({
   onPick: (lookId: string) => void;
 }) {
   const { colors } = useTheme();
+  const looks = looksAvailableFor(personaId).map(lookById);
 
   return (
     <BottomSheet visible={visible} onClose={onClose} scrollable={false} fitContent>
       <View style={styles.wrap}>
         <Text style={[styles.title, { color: colors.textPrimary }]}>Choose a look</Text>
         <Text style={[styles.body, { color: colors.textSecondary }]}>
-          Curated looks for {personaName}. Same companion, different mood. Pick the one that feels right.
+          A few outfits for {personaName}. Same companion, a fresh look. Pick the one that feels right.
         </Text>
 
         <View style={styles.grid}>
-          {LOOKS.map((look) => {
+          {looks.map((look) => {
             const on = value === look.id;
             return (
               <PressableScale

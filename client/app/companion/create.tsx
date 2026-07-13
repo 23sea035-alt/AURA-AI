@@ -20,6 +20,7 @@ import { Avatar } from '@/components/Avatar';
 import { Button } from '@/components/Button';
 import { CompanionLimitSheet, type CompanionLimitKind } from '@/components/companion/CompanionLimitSheet';
 import { FilteredAvatar } from '@/components/companion/FilteredAvatar';
+import { looksAvailableFor } from '@/components/companion/portraits';
 import { KeyboardFooter } from '@/components/KeyboardFooter';
 import { LookSheet } from '@/components/companion/LookSheet';
 import { PersonaCarousel } from '@/components/companion/PersonaCarousel';
@@ -62,6 +63,9 @@ export default function CreateCompanionScreen() {
   const [name, setName] = useState(editing?.name ?? initialPreset.name);
   const [look, setLook] = useState(editing?.lookId ?? DEFAULT_LOOK_ID);
   const [lookOpen, setLookOpen] = useState(false);
+  // Looks are art-gated per persona — the change-look badge and sheet only appear when the chosen
+  // base actually has outfit variants cut (Aurora is the pilot).
+  const hasLooks = looksAvailableFor(preset.id).length > 1;
   // At-limit sheets (spec §4): a full roster on Save opens the matching sheet instead of saving.
   const [limitKind, setLimitKind] = useState<CompanionLimitKind | null>(null);
 
@@ -125,31 +129,34 @@ export default function CreateCompanionScreen() {
           {/* Partial gate (spec §4): base picker + name + Save stay live for everyone; only the
               trait grid and look carry the premium gate below. Never a dimmed whole-form. */}
           <View style={styles.form}>
-            {/* avatar + name — Change look is a corner badge on the avatar (swap-not-upload curated
-                mood filters, never a new photo); the name sits right under the face so the identity
-                (look + name) reads as one unit before the personality controls below. */}
+            {/* avatar + name — Change look is a corner badge on the avatar (outfit recolors of the
+                same portrait, never a new photo); the name sits right under the face so the identity
+                (look + name) reads as one unit before the personality controls below. The badge only
+                shows for personas that actually have look art cut (art-gated roll-out). */}
             <View style={styles.avatarSection}>
               <View style={[styles.avatarWrap, shadows.e2]}>
                 <FilteredAvatar personaId={preset.id} lookId={look} size={96} />
-                <PressableScale
-                  haptic="light"
-                  onPress={() => (locked ? router.push('/premium') : setLookOpen(true))}
-                  accessibilityRole="button"
-                  accessibilityLabel={locked ? `${CREATE.premiumBadge}: ${CREATE.changeLook}` : CREATE.changeLook}
-                  style={[
-                    styles.changeLookBadge,
-                    locked
-                      ? { backgroundColor: colors.accentTint, borderColor: colors.bg }
-                      : { backgroundColor: colors.sheet, borderColor: colors.bg },
-                    shadows.e1,
-                  ]}
-                >
-                  <Ionicons
-                    name={locked ? 'sparkles' : 'color-palette-outline'}
-                    size={16}
-                    color={locked ? colors.accent : colors.textPrimary}
-                  />
-                </PressableScale>
+                {hasLooks ? (
+                  <PressableScale
+                    haptic="light"
+                    onPress={() => (locked ? router.push('/premium') : setLookOpen(true))}
+                    accessibilityRole="button"
+                    accessibilityLabel={locked ? `${CREATE.premiumBadge}: ${CREATE.changeLook}` : CREATE.changeLook}
+                    style={[
+                      styles.changeLookBadge,
+                      locked
+                        ? { backgroundColor: colors.accentTint, borderColor: colors.bg }
+                        : { backgroundColor: colors.sheet, borderColor: colors.bg },
+                      shadows.e1,
+                    ]}
+                  >
+                    <Ionicons
+                      name={locked ? 'sparkles' : 'color-palette-outline'}
+                      size={16}
+                      color={locked ? colors.accent : colors.textPrimary}
+                    />
+                  </PressableScale>
+                ) : null}
               </View>
               <View style={styles.nameField}>
                 <Field
