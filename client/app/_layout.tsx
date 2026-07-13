@@ -77,7 +77,10 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="companion/create"
-        options={{ animation: 'slide_from_bottom' }}
+        // gestureEnabled off: the persona carousel owns horizontal swipes (and bleeds to the screen
+        // edges), so a full-screen back-swipe would pop this form mid-scroll. Exit is the TopBar
+        // back chevron — a form screen shouldn't be swipe-dismissable anyway (accidental data loss).
+        options={{ animation: 'slide_from_bottom', gestureEnabled: false }}
       />
       {/* Paywall is a real modal sheet — covers the tab bar, native swipe-to-dismiss. */}
       <Stack.Screen name="premium" options={{ presentation: 'modal' }} />

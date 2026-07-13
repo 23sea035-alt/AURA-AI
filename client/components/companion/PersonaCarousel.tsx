@@ -1,11 +1,15 @@
-// The 1-of-12 persona picker (roster spec §4): a BOUNDED, user-driven carousel of larger cards
-// (avatar + name + tagline) — not a grid. No looping (it's a selection task; the user must be able
-// to tell they've seen all 12). Neighbors peek (~1.3 cards per viewport) and a "3 / 12" counter +
-// dots keep the other gallery personas discoverable. TAP to select — never center-to-select; the
-// centered card and the chosen card are independent. Shared by onboarding (the highest-stakes
-// pick) and the create screen.
-import React, { useCallback, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+// The 1-of-12 persona picker (roster spec §4): a user-driven carousel of larger cards (avatar +
+// name + tagline) — not a grid. LOOPS infinitely (12/12 wraps to 1/12 either direction); a "3 / 12"
+// counter + dots still track the real position so all 12 stay discoverable. Neighbors peek (~1.3
+// cards per viewport). TAP to select — never center-to-select; the centered card and the chosen card
+// are independent. Shared by onboarding (the highest-stakes pick) and the create screen.
+//
+// Looping is done by triplicating the 12 personas into a 36-item list and silently recentering to
+// the middle copy after each scroll settles — so there's always a full copy to scroll into on both
+// sides. The recenter shifts by an exact multiple of the snap interval onto identical content, so
+// it's imperceptible.
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 
 import { Ionicons } from '@expo/vector-icons';
 
@@ -20,6 +24,9 @@ import { useTheme } from '@/hooks/useTheme';
 // How much of each neighbor stays visible beside the snapped card — the "there's more" cue.
 const PEEK = 28;
 const CARD_GAP = SPACE.sm;
+
+const N = PERSONA_GALLERY.length; // 12 real personas
+const COPIES = 3; // triplicated for the infinite loop; the user rides the middle copy
 
 interface Props {
   /** The chosen preset id ('' = nothing chosen yet — onboarding opens undecided). */
@@ -37,11 +44,30 @@ export function PersonaCarousel({ selectedId, onSelect }: Props) {
   const cardWidth = width - sidePad * 2;
   const interval = cardWidth + CARD_GAP;
 
-  // The VIEWED position (drives the counter/dots) — deliberately not the selection.
-  const [viewed, setViewed] = useState(() => {
+  // Triplicated data so there's always a copy to scroll into on either side.
+  const loopData = useMemo(() => Array.from({ length: COPIES }, () => PERSONA_GALLERY).flat() as PersonaPreset[], []);
+  // Start in the MIDDLE copy at the selected persona (or the first). Initial only — selection after
+  // this is driven by taps, which the carousel itself originates, so no external re-sync is needed.
+  const startIndex = useMemo(() => {
     const i = PERSONA_GALLERY.findIndex((p) => p.id === selectedId);
-    return i >= 0 ? i : 0;
-  });
+    return N + (i >= 0 ? i : 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // The VIEWED real position (0..11) drives the counter/dots — deliberately not the selection.
+  const [viewed, setViewed] = useState(startIndex % N);
+
+  // Keep the user on the middle copy so both directions always have room to scroll.
+  const recenter = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const raw = Math.round(e.nativeEvent.contentOffset.x / interval);
+      let target = raw;
+      if (raw < N) target = raw + N;
+      else if (raw >= 2 * N) target = raw - N;
+      if (target !== raw) listRef.current?.scrollToOffset({ offset: target * interval, animated: false });
+    },
+    [interval],
+  );
 
   const pick = useCallback(
     (preset: PersonaPreset, index: number) => {
@@ -57,19 +83,20 @@ export function PersonaCarousel({ selectedId, onSelect }: Props) {
       <FlatList
         ref={listRef}
         horizontal
-        data={PERSONA_GALLERY as PersonaPreset[]}
-        keyExtractor={(p) => p.id}
+        data={loopData}
+        keyExtractor={(p, i) => `${p.id}-${i}`}
         showsHorizontalScrollIndicator={false}
         snapToInterval={interval}
         decelerationRate="fast"
         contentContainerStyle={{ paddingHorizontal: sidePad, gap: CARD_GAP }}
-        initialScrollIndex={viewed}
+        initialScrollIndex={startIndex}
         getItemLayout={(_, index) => ({ length: interval, offset: interval * index, index })}
         onScroll={(e) => {
-          const i = Math.round(e.nativeEvent.contentOffset.x / interval);
-          setViewed(Math.max(0, Math.min(PERSONA_GALLERY.length - 1, i)));
+          const raw = Math.round(e.nativeEvent.contentOffset.x / interval);
+          setViewed(((raw % N) + N) % N);
         }}
-        scrollEventThrottle={48}
+        onMomentumScrollEnd={recenter}
+        scrollEventThrottle={16}
         renderItem={({ item, index }) => {
           const sel = item.id === selectedId;
           return (
