@@ -8,7 +8,9 @@ services:
     # turn-queue assumes one instance; see specs/v1-architecture.md §8), and free is single-instance too.
     plan: free
     rootDir: server
-    buildCommand: pnpm --filter @aura/shared run build && pnpm install --include=dev && pnpm --filter @aura/server run build
+    # install FIRST (fresh clone has no node_modules) — shared's tsc needs zod/vitest present — then
+    # build shared before server (server imports @aura/shared's dist).
+    buildCommand: pnpm install --include=dev && pnpm --filter @aura/shared run build && pnpm --filter @aura/server run build
     startCommand: pnpm --filter @aura/server run start
     healthCheckPath: /api/healthz
     envVars:
