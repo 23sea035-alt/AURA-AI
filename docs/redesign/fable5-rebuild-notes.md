@@ -663,3 +663,36 @@ imports `MAX_UTTERANCE_BYTES` instead of hardcoding the 2 MB mirror; `login.tsx`
 reactivation deadline from shared `ACCOUNT_GRACE_DAYS`; `utils/age.ts` derives from shared
 `MIN_AGE` (calendar math stays local); `live.ts` imports `CLIENT_TRAITS_KEY` instead of defining
 its own copy of the '_client' stash key.
+
+## 2026-07-13 — outfit look customization + carousel loop/gesture
+
+**Look customization (the "separate later session" from the client-phase handoff — now shipped).**
+Companions wear one of three curated outfit recolors (Sage `#6F8168` · Rose `#9E5A63` ·
+Dusk `#5E6E82`) over the default portrait. A look tints ONLY the apparel — never face/hair/background
+— which fixes the "floating head" where a cream default garment dissolved into the cream app bg.
+
+- **Render is a bare `<Image>`** (no runtime SVG/filter): `FilteredAvatar` was rewritten to pick a
+  pre-baked variant PNG for `(persona, look)` or fall back to the base portrait. The old whole-image
+  `feColorMatrix` mood-filter (Cozy/Evening/Bright/Quiet) is gone — it tinted the whole avatar and
+  read as unreliable. `constants/looks.ts` is now a semantic catalog (id/label/swatch); the ops/matrix
+  machinery is deleted.
+- **Art is Gemini-generated.** We piloted a Python color-mask bake (`scripts/dev/bake-look-variants.py`,
+  kept but marked SUPERSEDED) — it couldn't separate garments that share a colour with skin/hair
+  (thea's placket was the exact same RGB as her skin). Switched to Gemini 2.5 Flash Image, which
+  recolours the garment semantically. The 36 variants (12×3) were post-processed with a pipeline that
+  matters: **master-alpha cutout** (Gemini returned inconsistent opaque backgrounds — black, cream,
+  gray, baked-in checkerboard — so we borrow the alpha silhouette from the original master, which the
+  Gemini poses align to cleanly) + **watermark removal** (Gemini stamps a sparkle on its outputs;
+  a "locally brighter AND less-saturated" detector caught all 27 without false-positiving on grey hair).
+  Prompts + pipeline: `docs/specs/look-variant-prompts.md`.
+- **Art-gated per persona:** `looksAvailableFor(personaId)` returns only looks a persona has art for,
+  so the change-look badge + `LookSheet` only appear when there's something to pick. Looks stay
+  premium-gated (roster spec §4). Old look ids degrade to the base portrait — no migration.
+- Removed the Gemini sparkle watermark from the **eli + juno base masters** (juno's sat on a fold
+  crease → structure-aware clone along the crease axis, not a blur).
+
+**Persona carousel.** Now loops infinitely (12/12 ⇄ 1/12 either direction) via a triplicated list that
+silently recenters to the middle copy after each scroll; the counter/dots still track the real 0–11
+position. Also fixed a gesture bug: the global `fullScreenGestureEnabled` back-swipe was dismissing
+the create/edit form mid-scroll (the carousel bleeds to the screen edges), so `companion/create` now
+sets `gestureEnabled: false` — exit is the TopBar chevron.

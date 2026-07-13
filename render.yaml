@@ -3,7 +3,10 @@ services:
     name: aura-api
     env: node
     region: oregon
-    plan: starter
+    # free while pre-production (accepts spin-down + cold start, ~50s first request after idle).
+    # Bump to `starter` for production launch — single instance is intentional either way (in-memory
+    # turn-queue assumes one instance; see specs/v1-architecture.md §8), and free is single-instance too.
+    plan: free
     rootDir: server
     buildCommand: pnpm --filter @aura/shared run build && pnpm install --include=dev && pnpm --filter @aura/server run build
     startCommand: pnpm --filter @aura/server run start

@@ -26,7 +26,10 @@
       boosted persona) once the live stack is up; the mechanisms are on-device-verified via
       native playback probes, but the full WS loop hasn't been exercised since the pace/gain
       changes. Small TTS spend.
-- [ ] Look-customization reskins (appearance variants) — separate future session.
+
+_Done this phase (see `docs/redesign/fable5-rebuild-notes.md`): sim-verified portraits, voice-prefs
+rework, E-2 data export, per-persona playback gain + pace redesign, cross-package DRY, and outfit
+**look customization** (Gemini-generated sage/rose/dusk per persona) + persona-carousel loop/gesture._
 
 ## Process gates
 

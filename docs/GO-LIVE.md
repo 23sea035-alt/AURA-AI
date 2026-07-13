@@ -6,8 +6,18 @@ typecheck clean, lint 0 errors; migrate-on-boot wired; `render.yaml` complete �
 **all remediated** (see `docs/CHANGELOG.md` 2026-07-10). Everything below is **ops / config /
 legal** — none of it is code. Work top-to-bottom; each gate is a hard prerequisite for the next.
 
-Canonical branch: **`redesign`** (the former `backend`/`fable5-rebuild` lines are merged into it). Deploy target: **Render** (`render.yaml`, `plan: starter` = single
-instance — intentional, see [v1-architecture.md §8](specs/v1-architecture.md)).
+Canonical branch: **`redesign`** (the former `backend`/`fable5-rebuild` lines are merged into it). Deploy target: **Render** (`render.yaml`). Currently **`plan: free`** for pre-production
+(accepts spin-down + cold start); **bump to `plan: starter` for production launch** (single instance
+is intentional either way — in-memory turn-queue, see [v1-architecture.md §8](specs/v1-architecture.md)).
+
+> **Pre-production deploy (free tier):** you can stand the server up now without any of the paid
+> upgrades below — but it still needs the required secrets or it won't boot. The server hard-validates
+> these at startup (`server/src/config/env.ts`): `DATABASE_URL`, `CLERK_SECRET_KEY`,
+> `CLERK_PUBLISHABLE_KEY`, `CLERK_WEBHOOK_SECRET`, `OPENAI_API_KEY`, `GROQ_API_KEY`,
+> `REVENUECAT_WEBHOOK_SECRET`, `BANNED_IDENTITY_PEPPER`. All have free tiers; for a dev deploy with no
+> real payments, `REVENUECAT_WEBHOOK_SECRET` and `BANNED_IDENTITY_PEPPER` can be any strong random
+> string. `APNS_*` and `INWORLD_*` are optional (push + voice degrade gracefully). Tiers/payments,
+> Groq Developer, Neon Launch, and legal (Gates 0/5) are all deferrable to production.
 
 ---
 
