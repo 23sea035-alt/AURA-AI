@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @aura/shared run build && pnpm -r --if-present run build",
+    "build": "pnpm --filter @aura/shared run build && pnpm --filter @aura/server run build",
     "typecheck": "pnpm -r --if-present run typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
