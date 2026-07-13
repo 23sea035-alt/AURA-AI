@@ -1,7 +1,7 @@
 services:
   - type: web
     name: aura-api
-    env: node
+    runtime: node
     region: oregon
     # free while pre-production (accepts spin-down + cold start, ~50s first request after idle).
     # Bump to `starter` for production launch — single instance is intentional either way (in-memory
