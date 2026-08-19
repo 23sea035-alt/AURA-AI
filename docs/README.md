@@ -17,7 +17,9 @@ unaffiliated vendors**: Groq (prompt-guard L1 + the safeguard/adjudicator escala
 (`omni-moderation` for L2 input / L3 output scoring) — both API keys are required, not
 interchangeable. See [`specs/moderation-pipeline.md`](specs/moderation-pipeline.md).
 
-**Working branch: `redesign`** (client + server + docs land here; `main` is behind).
+**Working branch: `redesign`** (client + server + docs land here). As of 2026-08-19 `origin/main`
+has been fast-forwarded to the `redesign` tip — the two remote branches are identical. Branch map:
+[`HANDOFF.md` §2](HANDOFF.md#2-which-branch-is-current--read-this-first).
 **App name: Aura** (resolved 2026-06-24; the availability audit is archived at
 [`archive/planning/app-name-research.md`](archive/planning/app-name-research.md)).
 
@@ -86,6 +88,7 @@ and is **frozen history — not authoritative**.
 
 | What | Doc |
 |---|---|
+| **START HERE — project handoff (state, branches, voice ids, what's left)** | [`HANDOFF.md`](HANDOFF.md) |
 | **Companion roster / gating / first-conversation (build-against truth)** | [`specs/companion-roster.md`](specs/companion-roster.md) |
 | Persona voice system (packs + trait grid) | [`specs/personality-voice-system.md`](specs/personality-voice-system.md) · [`specs/personas.md`](specs/personas.md) |
 | The 12 gallery identities (look + character) | [`specs/companion-gallery-identities.md`](specs/companion-gallery-identities.md) |
