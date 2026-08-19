@@ -50,21 +50,24 @@ Full product model: [`specs/companion-roster.md`](specs/companion-roster.md).
 
 Working tree at time of writing: **clean**. Total history: 300 commits.
 
-### 2.1 The one real branch gap
+### 2.1 The one real branch gap — RESOLVED 2026-08-19
 
-`backend` @ `c6b7a0d` ("feat(avatars): add batch-4 companion avatar art + authoring tool") is
-**local-only and unpushed**. Most of it is already superseded, but two files exist *nowhere else*:
+`backend` @ `c6b7a0d` ("feat(avatars): add batch-4 companion avatar art + authoring tool") was
+**local-only and unpushed**, and two of its files existed *nowhere else*. Both have now been
+recovered onto `redesign`, byte-identical to the originals:
 
-- `tools/avatars/magenta_key.py` — the chroma-key avatar authoring tool (89 lines).
-- `docs/redesign/companion-avatar-batch-4-handoff.md` — the batch-4 art brief (119 lines).
-  (Batch 2 and 3 equivalents *are* preserved, in [`archive/redesign/`](archive/redesign/).)
+- `tools/avatars/magenta_key.py` — the chroma-key avatar authoring tool. Now documented under
+  *Tooling* in [`redesign/companion-avatar-pipeline.md`](redesign/companion-avatar-pipeline.md).
+- The batch-4 art brief → [`archive/redesign/companion-avatar-batch-4-handoff.md`](archive/redesign/companion-avatar-batch-4-handoff.md),
+  alongside batches 1–3 and indexed in [`archive/README.md`](archive/README.md). It is archived
+  rather than living because the art it specifies is shipped and complete.
 
-Everything else in that commit is obsolete: `redesign` carries all 12 portraits **plus** 36 outfit
-looks (48 files vs. backend's 12), and its `eli.png` / `juno.png` are *newer* (last touched
-`8e6d12c`, 2026-07-13, vs. backend's 2026-07-10). The other 10 portraits are byte-identical.
+Everything else in that commit was already obsolete: `redesign` carries all 12 portraits **plus**
+36 outfit looks (48 files vs. backend's 12), and its `eli.png` / `juno.png` are *newer* (last
+touched `8e6d12c`, 2026-07-13, vs. backend's 2026-07-10). The other 10 portraits are byte-identical.
 
-**Action:** cherry-pick just those two files onto `redesign`, or push `backend` so the tool isn't
-lost to a laptop failure. This is the only outstanding data-loss risk in the repo.
+**`backend`, `test-results`, `feat/voice`, and the `worktree-agent-*` ref now hold nothing unique.**
+They are safe to delete once you are comfortable; `redesign` is a strict superset.
 
 ---
 

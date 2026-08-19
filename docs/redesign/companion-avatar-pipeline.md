@@ -1,23 +1,41 @@
 # Companion avatar pipeline — recipe + status
 
-> **Living doc** for the companion portrait art pipeline. Consolidates the three batch handoffs
-> (2026-07-02 → 2026-07-07); the full per-character prompts and per-batch instructions live in
-> [../archive/redesign/](../archive/redesign/) (`companion-avatar-batch-{1,2-handoff,3-handoff}.md`).
+> **Living doc** for the companion portrait art pipeline. Consolidates the four batch handoffs
+> (2026-07-02 → 2026-07-10); the full per-character prompts and per-batch instructions live in
+> [../archive/redesign/](../archive/redesign/)
+> (`companion-avatar-batch-{1,2-handoff,3-handoff,4-handoff}.md`).
 > Character identities + look directions: [../specs/companion-gallery-identities.md](../specs/companion-gallery-identities.md).
 
-## Status (2026-07-07)
+## Status (2026-08-19) — art is COMPLETE
 
-- **Shipped in-app:** the 3 anchors — `client/assets/avatars/{aurora,orion,lyra}.png` (1254²,
-  transparent flat-gouache masters). The asset manifest is
-  `client/components/companion/portraits.ts`; personas without a portrait render their branded
-  duotone + initial fallback (art-gated by design).
-- **On `test-results` branch, pending merge + manifest wiring:** the 9 gallery portraits
-  (`client/assets/avatars/batch2/[name].png`). Batch 2 landed identities/heritage/skin tones;
-  batch 3 was the style-consistency iteration (4 regens: Juno/Sage/Cyrus/Wren; 3 refines:
-  Eli/Soren/Selene; 2 locks: Thea/Amara). Next step when picked up: QA the batch-3 set against the
-  rubric, merge to `redesign`, add the 9 to `portraits.ts`.
-- Batch-1 pilot output (`client/assets/avatars/batch1/`) was exploration only — superseded by the
-  named batch-2 files.
+- **All 12 portraits shipped in-app**, 1254² transparent flat-gouache masters at
+  `client/assets/avatars/[persona].png` (3 anchors + 9 gallery). Every one is wired into the asset
+  manifest `client/components/companion/portraits.ts`. The duotone + initial fallback still exists
+  for a persona with no portrait, but no shipping persona hits it any more.
+- **Plus 36 outfit "looks"** — `client/assets/avatars/looks/[persona]-{sage,rose,dusk}.png`, all 12
+  personas × 3 recolors. These are pre-baked garment recolors of the SAME portrait (segment the
+  apparel, tint by luminance so folds survive), baked offline by
+  `client/scripts/dev/bake-look-variants.py` so rendering stays a bare `<Image>` with no runtime
+  filters. Premium-gated; picker is `components/companion/LookSheet.tsx`.
+- **Batch 4 (2026-07-10) was the final regen pass** and produced the shipped set: anchor-tight
+  framing, flat magenta `#FF00FF` backgrounds keyed out afterward, and neutral style references
+  (`thea` + `amara`) instead of the look-alike anchors that had cloned Lyra into Juno and Aurora
+  into Wren. Fresh regens: Eli, Juno, Wren, Cyrus. Reframed: Amara, Selene, Soren, Thea. Kept: Sage.
+- Earlier outputs (batch-1 pilot, the `batch2/` working files) were exploration and are superseded
+  by the named top-level files above.
+
+## Tooling
+
+- **`tools/avatars/magenta_key.py`** — keys the flat magenta background out of a generated portrait
+  and emits a clean 1254² transparent PNG. Removes only *border-connected* magenta (so a magenta
+  detail inside the subject survives), erodes 1px to kill the anti-aliasing halo around hair, then
+  trims and bottom-aligns to match the anchors' crop. Never upscales — compose tight in the prompt,
+  not here. Requires `pillow`, `numpy`, `scipy`.
+
+  ```bash
+  python tools/avatars/magenta_key.py <in.png> <out.png> [--size 1254] [--no-align]
+  ```
+- **`client/scripts/dev/bake-look-variants.py`** — bakes the three outfit recolors per portrait.
 
 ## Hard rules (every portrait)
 

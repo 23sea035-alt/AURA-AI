@@ -41,6 +41,10 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Python (avatar/dev tooling under tools/ and client/scripts/dev/)
+__pycache__/
+*.pyc
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

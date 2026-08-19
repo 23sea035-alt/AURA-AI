@@ -45,5 +45,7 @@ is now the source of truth):**
 [../redesign/companion-avatar-pipeline.md](../redesign/companion-avatar-pipeline.md)):**
 - `redesign/companion-avatar-batch-1.md` (pilot), `companion-avatar-batch-2-handoff.md`
   (the 9 canonical character prompts), `companion-avatar-batch-3-handoff.md` (style-lock
-  iteration pass). The per-character prompts remain canonical here; the living doc carries the
-  durable rules + current status.
+  iteration pass), `companion-avatar-batch-4-handoff.md` (the final regen pass that produced
+  the shipped set — anchor-tight framing, magenta-key backgrounds, neutral style references).
+  The per-character prompts remain canonical here; the living doc carries the durable rules +
+  current status.
